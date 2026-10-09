@@ -1,0 +1,1825 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>KNF Field Data</title>
+<meta name="theme-color" content="#2f4a3a">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="KNF Data">
+<style>
+:root{--bg:#f4f1ea;--card:#fffdf8;--ink:#1f2420;--mut:#5f665f;--line:#d9d3c6;--acc:#2f4a3a;--acc2:#a3542b;--ok:#2e7d4f;--warn:#b26a00;--bad:#b3261e;--chip:#ebe6da;--inp:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#141714;--card:#1d211d;--ink:#e8e6df;--mut:#a3a89f;--line:#343a33;--acc:#8fbf9f;--acc2:#e09a6e;--ok:#6fcf97;--warn:#f2b34b;--bad:#ff8a80;--chip:#2a2f29;--inp:#111411}}
+:root[data-theme=dark]{--bg:#141714;--card:#1d211d;--ink:#e8e6df;--mut:#a3a89f;--line:#343a33;--acc:#8fbf9f;--acc2:#e09a6e;--ok:#6fcf97;--warn:#f2b34b;--bad:#ff8a80;--chip:#2a2f29;--inp:#111411}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:calc(72px + env(safe-area-inset-bottom))}
+header{position:sticky;top:0;z-index:5;background:var(--acc);color:#fff;padding:calc(8px + env(safe-area-inset-top)) 16px 8px;display:flex;align-items:center;gap:10px}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) header{color:#0f1410}}
+header h1{font-size:17px;margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pill{font-size:12px;padding:3px 9px;border-radius:99px;background:rgba(255,255,255,.18);white-space:nowrap;cursor:pointer;border:0;color:inherit}
+.pill.warn{background:var(--warn);color:#fff}.pill.ok{background:rgba(255,255,255,.18)}
+main{max-width:1100px;margin:0 auto;padding:12px 16px}
+nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav.tabs a{flex:1;text-align:center;padding:10px 0 12px;color:var(--mut);text-decoration:none;font-size:13px;font-weight:600}
+nav.tabs a.on{color:var(--acc);box-shadow:inset 0 3px 0 var(--acc)}
+nav.tabs svg{display:block;margin:0 auto 2px;width:22px;height:22px}
+@media (min-width:900px){body{padding-bottom:0}nav.tabs{position:sticky;top:44px;border-top:0;border-bottom:1px solid var(--line);justify-content:center}nav.tabs a{flex:0 0 140px;display:flex;gap:6px;align-items:center;justify-content:center}nav.tabs svg{margin:0;width:18px;height:18px}}
+.crumbs{font-size:14px;color:var(--mut);margin:4px 0 10px;display:flex;flex-wrap:wrap;gap:4px}
+.crumbs a{color:var(--acc);text-decoration:none}
+h2{font-size:20px;margin:6px 0 10px}h3{font-size:15px;margin:18px 0 8px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center;gap:8px}
+h3 .sp{flex:1}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+.list{display:flex;flex-direction:column;gap:6px}
+.row{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;text-decoration:none;color:inherit;min-height:48px;cursor:pointer}
+.row:hover{border-color:var(--acc)}
+.row .t{flex:1;min-width:0}.row .t b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.row .t small{color:var(--mut)}
+.badge{font-size:12px;padding:2px 8px;border-radius:99px;background:var(--chip);color:var(--mut);white-space:nowrap}
+.badge.pos{background:var(--acc2);color:#fff}.badge.gps{background:var(--ok);color:#fff}.badge.nogps{background:var(--warn);color:#fff}
+.btn{appearance:none;border:1px solid var(--acc);background:var(--acc);color:#fff;border-radius:10px;padding:10px 14px;font:inherit;font-weight:600;cursor:pointer;min-height:44px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;justify-content:center}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .btn{color:#0f1410}}
+.btn.sec{background:transparent;color:var(--acc)}.btn.sm{padding:6px 10px;min-height:34px;font-size:14px}.btn.bad{background:transparent;color:var(--bad);border-color:var(--bad)}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px 12px}
+.f{display:flex;flex-direction:column;gap:3px;min-width:0}.f.w2{grid-column:span 2}.f.w3{grid-column:1/-1}
+@media (max-width:360px){.f.w2{grid-column:1/-1}}
+.f label{font-size:13px;color:var(--mut);font-weight:600}.f label .req{color:var(--bad)}
+.f .help{font-size:12px;color:var(--mut)}
+input,select,textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--inp);border:1px solid var(--line);border-radius:8px;padding:9px 10px;width:100%;min-height:44px}
+textarea{min-height:70px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--acc);outline-offset:0;border-color:var(--acc)}
+.f.err input,.f.err select{border-color:var(--bad)}.f .msg{font-size:12px;color:var(--bad)}.f .msg.w{color:var(--warn)}
+.ro{padding:10px;border-radius:8px;background:var(--chip);min-height:44px;font-variant-numeric:tabular-nums}
+.tog{flex-direction:row;align-items:center;gap:8px;min-height:44px;padding-top:16px}.tog input{width:24px;height:24px;min-height:0;accent-color:var(--acc)}
+.tog label{font-size:15px;color:var(--ink);font-weight:500}
+.grp{grid-column:1/-1;font-weight:700;font-size:13px;color:var(--acc2);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--line);padding-top:8px}
+.gps{grid-column:1/-1;border:1px dashed var(--line);border-radius:10px;padding:10px}
+.gps .live{font-size:14px;color:var(--mut);margin:6px 0}
+.formbar{position:sticky;bottom:calc(64px + env(safe-area-inset-bottom));display:flex;gap:8px;flex-wrap:wrap;padding:10px 0;background:linear-gradient(transparent,var(--bg) 30%)}
+@media (min-width:900px){.formbar{bottom:0}}
+.empty{color:var(--mut);font-size:14px;padding:8px 2px}
+.kv{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:4px 14px;font-size:14px}.kv span{color:var(--mut)}
+.search{margin-bottom:10px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;z-index:20;font-size:14px;max-width:90vw}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:30;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal .card{max-width:440px;width:100%}
+.check{font-size:13px;border-left:3px solid var(--warn);padding:6px 10px;background:var(--card);border-radius:6px;margin:6px 0}
+.check.okc{border-color:var(--ok)}
+table.cat{border-collapse:collapse;width:100%;font-size:14px;background:var(--card)}table.cat th,table.cat td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+.hidden{display:none!important}
+header .hbtn{color:inherit;display:flex;padding:4px}
+header{gap:8px}
+.home{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:8px 0 14px}
+@media (max-width:520px){.home{grid-template-columns:1fr}}
+.tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:190px;border-radius:18px;text-decoration:none;color:#fff;font-size:28px;font-weight:800;letter-spacing:.02em;padding:18px;text-align:center}
+.tile svg{width:76px;height:76px}.tile small{font-size:14px;font-weight:500;opacity:.9;letter-spacing:0}
+.tile.field{background:#2f4a3a}.tile.lab{background:#8a4a2a}
+@media (max-width:520px){.tile{min-height:150px;flex-direction:row;justify-content:flex-start;font-size:26px}.tile svg{width:60px;height:60px}.tile span{display:flex;flex-direction:column;align-items:flex-start;gap:2px}}
+.minis{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.mini{display:flex;align-items:center;gap:8px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);text-decoration:none;font-weight:600}
+.legal{margin:28px 0 8px;padding-top:12px;border-top:1px solid var(--line);text-align:center;font-size:13px;color:var(--mut)}
+.qrrow{display:flex;gap:8px}.qrrow input{flex:1;font-family:ui-monospace,Consolas,monospace;letter-spacing:.05em}
+.scanbox{position:relative;background:#000;border-radius:12px;overflow:hidden;aspect-ratio:4/3;max-height:60vh}
+.scanbox video{width:100%;height:100%;object-fit:cover;display:block}
+.scanbox .aim{position:absolute;inset:18%;border:3px solid rgba(255,255,255,.85);border-radius:14px;box-shadow:0 0 0 999px rgba(0,0,0,.25)}
+.bigscan{font-size:20px;min-height:72px;width:100%}
+.code{font-family:ui-monospace,Consolas,monospace;font-weight:700;letter-spacing:.06em}
+.hist{font-size:14px}.hist div{padding:6px 0;border-bottom:1px solid var(--line)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+/* printable label sheets */
+.sheet{background:#fff;color:#000;width:8.5in;height:11in;position:relative;margin:0 auto 16px;box-shadow:0 1px 6px rgba(0,0,0,.2);overflow:hidden}
+.lbl{position:absolute;display:flex;align-items:center;gap:.06in;padding:.05in .08in;overflow:hidden;font-family:Arial,sans-serif}
+.lbl svg{flex:none}.lbl .lt{display:flex;flex-direction:column;gap:2px;min-width:0}
+.lbl .lc{font:700 13pt/1 ui-monospace,Consolas,monospace;letter-spacing:.04em}.lbl .ls{font-size:6.5pt;line-height:1.35;color:#222}
+.sheetwrap{overflow-x:auto}
+@media print{header,nav,.noprint,.toast{display:none!important}body{background:#fff;padding:0}main{padding:0;max-width:none}.sheet{box-shadow:none;margin:0;page-break-after:always}.sheetwrap{overflow:visible}@page{size:letter;margin:0}}
+.testbar{display:block;background:repeating-linear-gradient(45deg,#5b2a86 0 14px,#6d35a0 14px 28px);color:#fff;padding:8px 16px;font-weight:800;text-align:center;font-size:14px;text-decoration:none;letter-spacing:.02em}
+.draftbar{display:block;background:#b3261e;color:#fff;padding:10px 16px;font-weight:700;text-decoration:none;text-align:center;font-size:15px;position:sticky;top:44px;z-index:4}
+.draftbar small{display:block;font-weight:500;opacity:.95}
+@media (min-width:900px){.draftbar{top:92px}}
+.row.unfin{border:2px solid #b3261e;background:repeating-linear-gradient(-45deg,rgba(179,38,30,.07) 0 10px,transparent 10px 20px)}
+.unfinlabel{background:#b3261e;color:#fff;font-size:12px;font-weight:800;padding:3px 8px;border-radius:6px;letter-spacing:.04em;white-space:nowrap}
+.unfinbox{border:2px solid #b3261e;border-radius:12px;padding:12px;margin:10px 0;background:var(--card)}
+.unfinbox b.t{color:#b3261e;font-size:17px;display:block;margin-bottom:4px}
+.btn.warnbtn{background:transparent;color:#b3261e;border-color:#b3261e}
+.plan{width:100%;max-height:340px;display:block;background:var(--inp);border-radius:8px;touch-action:manipulation}
+.plan .g1{stroke:var(--line);stroke-width:.02}.plan .g2{stroke:var(--line);stroke-width:.008;stroke-dasharray:.04 .04}
+.plan .su{fill:rgba(47,74,58,.18);stroke:var(--acc);stroke-width:.03;cursor:pointer}.plan .su.sel{fill:rgba(163,84,43,.35);stroke:var(--acc2)}
+.plan .su.done{fill:rgba(47,74,58,.38)}.plan .su.edit{fill:rgba(163,84,43,.45);stroke:var(--acc2);stroke-width:.04;stroke-dasharray:.08 .05}
+.plan .sut{font:700 .32px system-ui,sans-serif;fill:var(--ink);text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.plan .datum circle{fill:#b3261e}.plan .datum path{stroke:#b3261e;stroke-width:.03}
+.plan .shot{fill:var(--ok)}.plan .shot.bad{fill:var(--bad)}.plan .narrow{fill:var(--ink)}.plan .nt{font:700 .18px system-ui;fill:var(--ink);text-anchor:middle}
+.piece.act{border:2px solid var(--acc2)}
+.photos{grid-column:1/-1;border-top:1px solid var(--line);margin-top:12px;padding-top:10px}
+.card>.photos{border:0;margin:0;padding:0}
+.thumbs{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.thumb{width:96px;border:1px solid var(--line);border-radius:8px;background:var(--chip);padding:0;overflow:hidden;cursor:pointer;color:var(--ink);font:inherit}
+.thumb img{width:96px;height:72px;object-fit:cover;display:block}.thumb small{display:block;font-size:11px;padding:2px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.thumb .help{display:flex;height:72px;align-items:center;justify-content:center;font-size:11px}
+</style>
+</head>
+<body>
+<header><h1 id="ttl">KNF Field Data</h1><button class="pill" id="syncpill" onclick="location.hash='#/data'">—</button>
+<a class="hbtn" href="#/settings" aria-label="Settings" title="Settings"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></a></header>
+<nav class="tabs noprint" id="tabs">
+  <a href="#/" data-t="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Home</a>
+  <a href="#/sites" data-t="field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>Field</a>
+  <a href="#/lab" data-t="lab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/></svg>Lab</a>
+  <a href="#/scan" data-t="scan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M8 8h3v3H8zM13 13h3v3h-3zM13 8h3M8 13v3"/></svg>Scan</a>
+  <a href="#/data" data-t="data"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3"/><path d="M18 3v4h-4M6 21v-4h4"/></svg>Sync</a>
+</nav>
+<a id="testbar" class="testbar hidden" href="#/settings">🧪 TEST MODE: practice data only, kept separate from project data</a>
+<a id="draftbar" class="draftbar hidden" href="#/drafts"></a>
+<main id="app"></main>
+<script src="schema.js"></script>
+<script src="vendor/qrcode.js"></script>
+<script src="vendor/jsQR.js"></script>
+<script src="core.js"></script>
+<script>
+'use strict';
+/* ================= test mode ================= */
+let TESTMODE = false;
+try { TESTMODE = localStorage.getItem('knf-mode') === 'test'; } catch (e) { }
+CORE.setMode(TESTMODE ? 'test' : 'live');
+async function switchMode(test) {
+  if (!test && draftCount() && !(await ask('Leaving test mode. Your practice records stay in test mode; nothing is copied to the project.', 'Leave test mode'))) return;
+  if (test && !(await ask('Switch to TEST MODE?\n\nPractice data is kept completely separate from project data: its own storage on this device and its own table on the server. You will need to sign in again inside test mode.', 'Switch to test mode'))) return;
+  try { localStorage.setItem('knf-mode', test ? 'test' : 'live'); } catch (e) { toast('This browser blocks storage; test mode cannot be saved'); return; }
+  S.formDirty = false; location.hash = '#/'; location.reload();
+}
+function tinyJPEG(label, color) {
+  const c = document.createElement('canvas'); c.width = 640; c.height = 480; const x = c.getContext('2d');
+  x.fillStyle = color; x.fillRect(0, 0, 640, 480); x.fillStyle = '#fff'; x.font = 'bold 40px sans-serif'; x.fillText('PRACTICE PHOTO', 40, 200); x.font = '28px sans-serif'; x.fillText(label, 40, 260);
+  return new Promise(r => c.toBlob(r, 'image/jpeg', 0.8));
+}
+async function demoPhoto(rec, kind) {
+  const p = mk('photos', rec.id, {}); p.site = rec.tbl === 'sites' ? rec.id : rec.site;
+  const blob = await tinyJPEG(photoCaption(rec, kind), '#6b4f2a');
+  p.data = { kind, caption: photoCaption(rec, kind), path: `PRACTICE/${rec.id}/${p.id}.jpg`, taken_at: now(), width: 640, height: 480, bytes: blob.size, _status: 'complete' };
+  await CORE.putBlob(p.id, { blob, uploaded: 0 }); await save(p);
+}
+async function loadDemo() {
+  if (!TESTMODE) return;
+  if (!(await ask('Load practice data? This adds a practice site (KRD-T99) with a finished STP, an STP in progress, a test unit with subunits, bags and a box.', 'Load'))) return;
+  for (const s of SEED_SITES) { const r = mk('sites', null, { ...s, _status: 'complete', _missing: [] }); r.id = r.site = await siteUUID(s.sitename); if (!get(r.id)) await save(r); }
+  const site = mk('sites', null, { record_kind: 'New site (temporary no.)', district: 'Kisatchie RD', sitename: 'KRD-T99', temp_name: 'KRD-T99', site_code: '8199', requested_by: 'Practice', purpose: 'Testing the app', project: 'PRACTICE', _status: 'complete', _missing: [] });
+  await save(site);
+  const base = { lat: 31.4521, lon: -93.0834, utmzone: 15, gps_acc_m: 0.02, gps_n: 10, gps_source: 'Practice', datum: 'WGS84', gps_time: now() };
+  const u0 = toUTM(base.lat, base.lon);
+  const stp = async (seq, de, dn, finish) => {
+    const u = { utme: +(u0.e + de).toFixed(2), utmn: +(u0.n + dn).toFixed(2) };
+    const e = mk('excavations', site.id, { excavation_type: 'STP', excavation_name: 'STP ' + seq, seq, transect: '1', date: today(), crew: me(), ...base, ...u, lengthcm: 30, widthcm: 30, positive: finish ? 1 : 0 });
+    e.data = compute('excavations', e.data, { site, self: e }); e.data._status = 'open'; await save(e); return e;
+  };
+  const lvl = async (e, eu, n, top, art, terminal, status = 'complete') => {
+    const l = mk('levels', e.id, { excavation_unit: eu, levelno: n, top_cm: top, bgscm: top + 10, excavation_method: 'Shovel', screen: '1/4 in', munsell: '10YR 4/3', soil_texture: 'Sandy loam', strata: 'I', artifacts: art ? 1 : 0, terminal_level: terminal ? 1 : 0 });
+    l.data = compute('levels', l.data, { site, parentRec: e }); l.data._status = status; await save(l);
+    if (status === 'complete') await demoPhoto(l, 'Level floor');
+    if (art) await createBag(l, newCode('B'));
+    return l;
+  };
+  // STP 1: finished and closed
+  const s1 = await stp(1, 0, 0, true);
+  await lvl(s1, 'A', 1, 0, false, false); const l2 = await lvl(s1, 'A', 2, 10, true, false); await lvl(s1, 'A', 3, 20, false, true);
+  s1.data = { ...s1.data, depthcm: 30, positive: 1 }; s1.data._missing = completeness(s1, s1.data); s1.data._status = statusFor(s1, s1.data, s1.data._missing); await save(s1);
+  // STP 2: in progress, level 1 unfinished (no photo yet)
+  const s2 = await stp(2, 0, 15, false);
+  await lvl(s2, 'A', 1, 0, false, false, 'draft');
+  // TU1 with subunits A (1x1) and B (0.5x1 east of A), datum at SW corner of A, azimuth 10 deg
+  const tu = mk('excavations', site.id, { excavation_type: 'TP', excavation_name: 'TU1', seq: 1, date: today(), crew: me(), ...base, utme: +(u0.e + 8).toFixed(2), utmn: +(u0.n + 5).toFixed(2), datum_desc: 'Rebar at SW corner of A (practice)' });
+  tu.data = compute('excavations', tu.data, { site, self: tu }); tu.data._status = 'open'; await save(tu);
+  for (const [L, parts] of [['A', [{ x: 0, y: 0, w: 1, h: 1 }]], ['B', [{ x: 1, y: 0, w: 0.5, h: 1 }]]]) {
+    const su = mk('subunits', tu.id, { letter: L, parts, opened: today(), reason: L === 'A' ? 'Initial unit next to datum' : 'Expansion east', area_m2: partsArea(parts), size_label: sizeLabel(parts), _status: 'complete', _missing: [] });
+    await save(su);
+  }
+  await lvl(tu, 'A', 1, 0, true, false);
+  // a box holding the STP 1 bag
+  const bx = mk('boxes', null, { qr: newCode('X'), box_no: 'P1', location: 'Practice shelf', _status: 'complete', _missing: [] }); await save(bx);
+  await custodyEvent(bx.data.qr, 'box', 'Transferred', { location: 'Practice shelf', notes: 'Box registered' });
+  const bag = kids(l2.id, 'bags')[0]; if (bag) await custodyEvent(bag.data.qr, 'bag', 'Placed in box', { box_qr: bx.data.qr, location: 'Box ' + bx.data.qr });
+  toast('Practice data loaded'); location.hash = '#/site/' + site.id;
+}
+const TESTPLAN = [
+  ['Setup', ['Add your name in Settings', 'Sign in (test mode needs its own sign-in)', 'Install the app on this device (Add to Home Screen / Install app)', 'Load practice data']],
+  ['Sites', ['Open a Phase II site from the list', 'Create a new site with a temporary number (+ New site (temp. no.)) and check the KRD-T## / CRD-T## number', 'Rename a temporary site to a trinomial and check the temporary number is kept']],
+  ['STP', ['Start an STP and capture GPS (with the Emlid on Android if available)', 'Check the accuracy warning appears when accuracy is poor', 'Start Level 1 by scanning a bag label', 'Try to Finish a level without a photo (must be blocked)', 'Save a level as unfinished and check the red banner and acknowledgement box', 'Try to start the next level while one is unfinished (must be blocked)', 'Finish the level from its page with “Finish now” after adding a photo', 'Close out an STP (final depth must match the deepest level)']],
+  ['Test unit', ['Create a TU and capture the datum', 'Add subunit A and choose the datum corner', 'Add a 0.5 × 1 m subunit against A', 'Build an L-shaped subunit from two pieces', 'Try to overlap two subunits (must be blocked)', 'Start a level in a specific subunit and check the volume', 'Shoot a corner, choose which plan corner it is, and set the azimuth', 'Check close-out lists what is missing']],
+  ['Bags & boxes', ['Print a sheet of bag labels and a sheet of box labels', 'Scan a bag with the app and with the phone’s own camera app', 'Hand over a bag and check the custody log', 'Register a box and scan bags into it', 'Remove a bag from a box', 'Scan an unassigned bag label and assign it to a level']],
+  ['Lab', ['Scan a bag on the Lab screen and check it opens the right level', 'Enter a lithic tool with a named chert source on visual ID (warning)', 'Enter a hafted biface without a photo (must be blocked)', 'Enter ceramics, then a tabulation that disagrees with the catalogue (must be blocked)', 'Fix the tabulation and finish it', 'Open the site catalogue table']],
+  ['Offline & sync', ['Turn on airplane mode, enter a level with photo, turn it off, and check it uploads by itself', 'Edit the same record on two devices and check the newest edit wins', 'Check a second device sees the first device’s records and photos', 'Check drafts do NOT appear on the second device', 'Two devices offline use the same STP number: check the duplicate warning on the Sync page']],
+  ['Export', ['Download the CSV zip and open it in Excel / QGIS', 'Make a JSON backup and restore it on another device']],
+];
+function viewTestPlan() {
+  setTitle('Test checklist');
+  let done = {}; try { done = JSON.parse(localStorage.getItem('knf-testplan') || '{}'); } catch (e) { }
+  const total = TESTPLAN.reduce((a, [, xs]) => a + xs.length, 0), n = Object.values(done).filter(Boolean).length;
+  $('#app').innerHTML = `<h2>Test checklist <span class="badge">${n} / ${total}</span></h2>
+    <div class="help">Tick each item as you try it. Ticks are saved on this device only. Note anything odd and send it to Erlend.</div>
+    ${TESTPLAN.map(([g, xs], gi) => `<h3>${esc(g)}</h3><div class="card">${xs.map((x, i) => { const k = gi + '.' + i; return `<label style="display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--line)"><input type="checkbox" data-k="${k}" ${done[k] ? 'checked' : ''} style="width:22px;height:22px;min-height:0;margin-top:1px;flex:none"><span>${esc(x)}</span></label>`; }).join('')}</div>`).join('')}
+    <div class="btns"><button class="btn sec" id="tpreset">Clear all ticks</button></div>`;
+  $('#app').querySelectorAll('[data-k]').forEach(c => c.onchange = () => { done[c.dataset.k] = c.checked; try { localStorage.setItem('knf-testplan', JSON.stringify(done)); } catch (e) { } viewTestPlan(); });
+  $('#tpreset').onclick = () => { try { localStorage.removeItem('knf-testplan'); } catch (e) { } viewTestPlan(); };
+}
+
+/* ================= state ================= */
+const S = { recs: new Map(), settings: {}, session: null, lastSync: null, syncErr: null, syncing: false };
+const $ = (s, el = document) => el.querySelector(s);
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); }));
+const now = () => new Date().toISOString();
+const today = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
+const pad = (n, w) => String(n ?? '').padStart(w, '0');
+const me = () => S.settings.name || S.session?.email || 'unknown';
+const DEF = { name: '', level_cm: 10, gps_secs: 10, gps_max_acc: 2, gps_source: 'Emlid Reach RX2 (mock location)', datum: 'WGS84 / ITRF (device)', theme: 'auto', sb_url: 'https://xmvzhxlqagstuvqvcyhc.supabase.co', sb_key: 'sb_publishable_SUcJNMK83_q6eTAVWLr-Rw_cVItt_6b' };
+
+function live(tbl) { return [...S.recs.values()].filter(r => r.tbl === tbl && !r.deleted); }
+function kids(parent, tbl) { return live(tbl).filter(r => r.parent === parent); }
+function get(id) { const r = S.recs.get(id); return r && !r.deleted ? r : null; }
+function siteRec(r) { return r ? get(r.site) : null; }
+const num = v => (v === '' || v == null || isNaN(+v)) ? null : +v;
+const GPSK = ['lat', 'lon', 'gps_n', 'gps_time', 'gps_source', 'datum', 'elev_m'];
+const pick = (o, ks) => Object.fromEntries(ks.filter(k => o[k] !== undefined).map(k => [k, o[k]]));
+
+/* ================= computed fields ================= */
+function euIndex(eu) {
+  eu = String(eu || 'A').trim().toUpperCase();
+  if (/^[A-Z]$/.test(eu)) return eu.charCodeAt(0) - 64;
+  if (/^[A-Z]{2}$/.test(eu)) return (eu.charCodeAt(0) - 64) * 26 + eu.charCodeAt(1) - 64;
+  if (/^\d{1,2}$/.test(eu)) return +eu;
+  return 99;
+}
+function compute(tbl, d, ctx) {
+  d = { ...d };
+  if (tbl === 'excavations') {
+    const site = ctx.site;
+    d.excavationid = (site?.data.site_code && d.excavation_type && d.seq) ? site.data.site_code + (TYPE_CODE[d.excavation_type] || '09') + pad(d.seq, 2) : '';
+  }
+  if (tbl === 'levels') {
+    const exc = ctx.parentRec;
+    const eid = exc ? compute('excavations', exc.data, { site: siteRec(exc) }).excavationid : '';
+    d.levelid = (eid && d.levelno != null && d.levelno !== '') ? eid + pad(Math.min(euIndex(d.excavation_unit), 99), 2) + pad(d.levelno, 3) : '';
+    const t = num(d.top_cm), b = num(d.bgscm);
+    d.excdepth = (t != null && b != null) ? +(b - t).toFixed(1) : '';
+    let area = null;
+    if (exc && isUnit(exc.data)) { const su = subsOf(exc.id).find(s => String(s.data.letter).toUpperCase() === String(d.excavation_unit || '').toUpperCase()); if (su) area = partsArea(partsOf(su)); }
+    else if (exc && num(exc.data.lengthcm) && num(exc.data.widthcm)) area = exc.data.lengthcm * exc.data.widthcm / 10000;
+    d.volume_l = area != null && d.excdepth !== '' ? +(area * d.excdepth * 10).toFixed(1) : '';
+  }
+  if (tbl === 'excavations' && ctx.self && isUnit(d)) d.number_of_eu = subsOf(ctx.self.id).length;
+  if (tbl === 'mappoints') {
+    const m = String(d.corner || '').match(/\((-?[\d.]+), (-?[\d.]+)\)/);
+    d.local_x = d.kind === 'Unit corner' && m ? +m[1] : null; d.local_y = d.kind === 'Unit corner' && m ? +m[2] : null;
+  }
+  if (tbl === 'tabulation') {
+    const c = k => num(d[k]) || 0;
+    const deb = ['primaryflakect', 'secondaryflakect', 'tertiaryflakect', 'shatter'].reduce((a, k) => a + c(k), 0);
+    const cnt = ['primaryflakect', 'secondaryflakect', 'tertiaryflakect', 'shatter', 'utlzdflkct', 'corecnt', 'tstcobblect', 'diagnosticlithicsct', 'fcrcount', 'grndstnct',
+      'plainsherdct', 'plnsherdrimct', 'decsherdct', 'decsherdrimct', 'diagnosticcermct', 'historicct'].reduce((a, k) => a + c(k), 0);
+    const wt = ['primaryfakewghtg', 'secondaryflakwght', 'tertiaryflakwght', 'shatterwght', 'utlzdflkwgt', 'corwght', 'tstcobblewght', 'diagnosticlithicswght', 'fcrwght',
+      'grndstnwght', 'plainsherdwght', 'plnsherdrimwght', 'decsherdwght', 'decsherdrimwght', 'diagnosticceramwght', 'historicwght'].reduce((a, k) => a + c(k), 0);
+    d.debitage_count = deb; d.artifact_count = cnt; d.artifactwght = +wt.toFixed(2);
+  }
+  return d;
+}
+
+/* ================= persistence ================= */
+async function save(rec) {
+  rec.updated_at = now(); rec.updated_by = me(); rec.dirty = 1;
+  if (!rec.created_at) { rec.created_at = rec.updated_at; rec.created_by = me(); }
+  S.recs.set(rec.id, rec);
+  await CORE.putRec(rec);
+  updatePill(); queueSync();
+}
+async function softDelete(rec) {
+  const all = [rec]; const walk = id => [...S.recs.values()].filter(r => r.parent === id && !r.deleted).forEach(c => { all.push(c); walk(c.id); });
+  walk(rec.id);
+  for (const r of all) { r.deleted = 1; await save(r); }
+  return all.length;
+}
+async function siteUUID(name) { // same site number -> same id on every device, so sites never duplicate
+  const h = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('knf-site:' + name.trim().toUpperCase())));
+  const x = [...h.slice(0, 16)].map(b => b.toString(16).padStart(2, '0')).join('');
+  return `${x.slice(0, 8)}-${x.slice(8, 12)}-5${x.slice(13, 16)}-a${x.slice(17, 20)}-${x.slice(20, 32)}`;
+}
+function mk(tbl, parent, data = {}) {
+  const p = parent ? get(parent) : null;
+  const id = uuid();
+  return { id, tbl, parent: parent || null, site: tbl === 'sites' ? id : (p ? (p.tbl === 'sites' ? p.id : p.site) : null), data, deleted: 0 };
+}
+
+/* ================= sync ================= */
+let syncTimer = null;
+function queueSync(delay = 4000) { clearTimeout(syncTimer); syncTimer = setTimeout(runSync, delay); registerBgSync(); }
+async function registerBgSync() {
+  try { const reg = await navigator.serviceWorker?.ready; if (reg && 'sync' in reg) await reg.sync.register('upload'); } catch (e) { }
+}
+async function runSync(manual) {
+  if (S.syncing) return;
+  S.session = await CORE.getMeta('session');
+  if (!S.session || S.session.expired || !navigator.onLine) { updatePill(); return; }
+  S.syncing = true; updatePill();
+  try {
+    const r = await CORE.sync();
+    S.syncErr = null;
+    if (r && !r.skipped) { await reload(); if (manual) toast(`Synced: ${r.pushed} up, ${r.pulled} down`); if (r.pulled) render(); }
+  } catch (e) { S.syncErr = e.message; if (manual) toast(e.message); }
+  S.syncing = false; S.lastSync = await CORE.getMeta('last_sync'); S.session = await CORE.getMeta('session'); updatePill();
+  if (location.hash.startsWith('#/data')) render();
+}
+async function reload() { S.recs = new Map((await CORE.allRecs()).map(r => [r.id, r])); }
+function pending() { let n = 0; S.recs.forEach(r => { if (r.dirty && (r.deleted || !isDraftChain(r))) n++; }); return n; }
+function draftCount() { let n = 0; S.recs.forEach(r => { if (!r.deleted && r.data?._status === 'draft') n++; }); return n; }
+function updatePill() {
+  const p = $('#syncpill'), n = pending();
+  let t, cls = 'pill';
+  if (S.syncing) t = 'Syncing…';
+  else if (!S.settings.sb_url) t = n ? `${n} local only` : 'Local only';
+  else if (!S.session || S.session.expired) { t = 'Sign in to sync'; cls += ' warn'; }
+  else if (S.syncErr) { t = `${n} waiting · error`; cls += ' warn'; }
+  else if (!navigator.onLine) { t = n ? `Offline · ${n} waiting` : 'Offline'; cls += n ? ' warn' : ''; }
+  else t = n ? `${n} to upload` : 'All synced ✓';
+  const dc = draftCount(); if (dc && !S.syncing) t += ` · ${dc} draft${dc > 1 ? 's' : ''}`;
+  p.textContent = t; p.className = cls;
+  updateDraftBar();
+}
+addEventListener('online', () => { updatePill(); runSync(); });
+addEventListener('offline', updatePill);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) runSync(); });
+setInterval(() => { if (pending() || Date.now() % 5 === 0) runSync(); }, 60000);
+
+/* ================= UI helpers ================= */
+function toast(m) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = m; document.body.append(t); setTimeout(() => t.remove(), 3200); }
+function ask(msg, ok = 'OK', cancel = 'Cancel') {
+  return new Promise(res => {
+    const m = document.createElement('div'); m.className = 'modal';
+    m.innerHTML = `<div class="card"><div style="white-space:pre-line">${esc(msg)}</div><div class="btns" style="justify-content:flex-end"><button class="btn sec" data-v="0">${esc(cancel)}</button><button class="btn" data-v="1">${esc(ok)}</button></div></div>`;
+    m.addEventListener('click', e => { const v = e.target.dataset.v; if (v != null) { m.remove(); res(v === '1'); } });
+    document.body.append(m);
+  });
+}
+function crumbs(rec) {
+  const chain = []; let r = rec;
+  while (r) { chain.unshift(r); r = r.parent ? get(r.parent) : null; }
+  return `<div class="crumbs"><a href="#/sites">Sites</a>${chain.map(c => ` › <a href="#/${c.tbl === 'sites' ? 'site' : 'rec'}/${c.id}">${esc(TABLES[c.tbl].title(c.data))}</a>`).join('')}</div>`;
+}
+function setTitle(t) { $('#ttl').textContent = t; document.title = t + ' · KNF Field Data'; }
+function rowHTML(r, extra = '') {
+  const href = r.tbl === 'bags' && r.data.qr ? `#/scan/${r.data.qr}` : `#/${r.tbl === 'sites' ? 'site' : 'rec'}/${r.id}`;
+  return `<a class="row${r.data?._status === 'draft' ? ' unfin' : ''}" href="${href}"><div class="t"><b>${esc(TABLES[r.tbl].title(r.data))}</b>${extra}</div>${statusBadge(r)}${photosOf(r.id).length ? `<span class="badge">📷 ${photosOf(r.id).length}</span>` : ''}${r.dirty ? '<span class="badge" title="Not uploaded yet">●</span>' : ''}<span aria-hidden="true">›</span></a>`;
+}
+function nextNum(list, key) { return list.reduce((m, r) => Math.max(m, num(r.data[key]) || 0), 0) + 1; }
+
+/* ================= GPS ================= */
+function toUTM(lat, lon) {
+  const a = 6378137, f = 1 / 298.257223563, k0 = 0.9996, e2 = f * (2 - f), ep2 = e2 / (1 - e2);
+  const zone = Math.floor((lon + 180) / 6) + 1, lon0 = ((zone - 1) * 6 - 180 + 3) * Math.PI / 180;
+  const φ = lat * Math.PI / 180, λ = lon * Math.PI / 180;
+  const N = a / Math.sqrt(1 - e2 * Math.sin(φ) ** 2), T = Math.tan(φ) ** 2, C = ep2 * Math.cos(φ) ** 2, A = Math.cos(φ) * (λ - lon0);
+  const M = a * ((1 - e2 / 4 - 3 * e2 ** 2 / 64 - 5 * e2 ** 3 / 256) * φ - (3 * e2 / 8 + 3 * e2 ** 2 / 32 + 45 * e2 ** 3 / 1024) * Math.sin(2 * φ)
+    + (15 * e2 ** 2 / 256 + 45 * e2 ** 3 / 1024) * Math.sin(4 * φ) - (35 * e2 ** 3 / 3072) * Math.sin(6 * φ));
+  const E = k0 * N * (A + (1 - T + C) * A ** 3 / 6 + (5 - 18 * T + T ** 2 + 72 * C - 58 * ep2) * A ** 5 / 120) + 500000;
+  let Nn = k0 * (M + N * Math.tan(φ) * (A ** 2 / 2 + (5 - T + 9 * C + 4 * C ** 2) * A ** 4 / 24 + (61 - 58 * T + T ** 2 + 600 * C - 330 * ep2) * A ** 6 / 720));
+  if (lat < 0) Nn += 1e7;
+  return { zone, e: +E.toFixed(2), n: +Nn.toFixed(2) };
+}
+let gpsWatch = null;
+function gpsCapture(box, d, onDone) {
+  const out = $('.live', box), btn = $('button', box);
+  if (!navigator.geolocation) { out.textContent = 'This device/browser has no location access.'; return; }
+  if (gpsWatch != null) { navigator.geolocation.clearWatch(gpsWatch); gpsWatch = null; btn.textContent = 'Capture position'; out.textContent = 'Stopped.'; return; }
+  const secs = +S.settings.gps_secs || 10, fixes = [], t0 = Date.now();
+  btn.textContent = 'Stop';
+  out.textContent = 'Waiting for position…';
+  const finish = () => {
+    navigator.geolocation.clearWatch(gpsWatch); gpsWatch = null; btn.textContent = 'Capture position';
+    if (!fixes.length) { out.textContent = 'No position received. Check that location is on (and the Emlid is paired and streaming).'; return; }
+    const best = fixes.filter(f => f.acc <= Math.min(...fixes.map(x => x.acc)) * 1.5);
+    const lat = best.reduce((a, f) => a + f.lat, 0) / best.length, lon = best.reduce((a, f) => a + f.lon, 0) / best.length;
+    const alts = best.filter(f => f.alt != null), alt = alts.length ? alts.reduce((a, f) => a + f.alt, 0) / alts.length : null;
+    const acc = Math.min(...best.map(f => f.acc)), u = toUTM(lat, lon);
+    Object.assign(d, { lat: +lat.toFixed(8), lon: +lon.toFixed(8), gps_acc_m: +acc.toFixed(2), gps_n: best.length, gps_time: new Date(fixes[fixes.length - 1].t).toISOString(),
+      gps_source: S.settings.gps_source, datum: S.settings.datum, utmzone: u.zone, utme: u.e, utmn: u.n, elev_m: alt != null ? +alt.toFixed(2) : null });
+    renderGps(box, d);
+    out.textContent = `Averaged ${best.length} of ${fixes.length} fixes · best accuracy ±${acc.toFixed(2)} m`;
+    onDone && onDone();
+  };
+  gpsWatch = navigator.geolocation.watchPosition(p => {
+    fixes.push({ lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy, alt: p.coords.altitude, t: p.timestamp });
+    out.textContent = `${fixes.length} fixes · ±${p.coords.accuracy.toFixed(2)} m · ${Math.max(0, secs - Math.round((Date.now() - t0) / 1000))} s left`;
+    if (Date.now() - t0 >= secs * 1000) finish();
+  }, e => { out.textContent = 'Location error: ' + e.message; navigator.geolocation.clearWatch(gpsWatch); gpsWatch = null; btn.textContent = 'Capture position'; },
+    { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 });
+  // the browser only reports when the position changes, so end on a timer rather than on the next fix
+  const tick = () => { if (gpsWatch == null) return; if (fixes.length && Date.now() - t0 >= secs * 1000) finish(); else if (Date.now() - t0 > (secs + 30) * 1000) finish(); else setTimeout(tick, 500); };
+  setTimeout(tick, 500);
+}
+function renderGps(box, d) {
+  ['utme', 'utmn', 'utmzone', 'gps_acc_m'].forEach(k => { const i = box.querySelector(`[data-g=${k}]`); if (i) i.value = d[k] ?? ''; });
+  $('.gpsinfo', box).innerHTML = d.lat != null ? `${d.lat}, ${d.lon} · ±${d.gps_acc_m ?? '?'} m · ${esc(d.gps_source || '')} · ${d.gps_time ? new Date(d.gps_time).toLocaleString() : ''}` : 'No position yet';
+}
+
+/* ================= forms ================= */
+function fieldHTML(f, v, d) {
+  const id = 'f_' + f.k, req = f.req ? ' <span class="req">*</span>' : '', w = f.w ? ' w' + f.w : '';
+  const hid = f.show && !f.show(d) ? ' hidden' : '';
+  const help = f.help ? `<div class="help">${esc(f.help)}</div>` : '';
+  let h = f.g ? `<div class="grp">${esc(f.g)}</div>` : '';
+  if (f.t === 'gps') {
+    return h + `<div class="gps" data-gps>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="flex:1">Location</b><button type="button" class="btn sm">Capture position</button></div>
+      <div class="live"></div><div class="gpsinfo help"></div><div class="msg w gpswarn" style="font-size:13px;color:var(--warn)"></div>
+      <div class="grid" style="margin-top:8px">
+        <div class="f"><label>UTM E</label><input data-g="utme" inputmode="decimal"></div>
+        <div class="f"><label>UTM N</label><input data-g="utmn" inputmode="decimal"></div>
+        <div class="f"><label>Zone</label><input data-g="utmzone" inputmode="numeric"></div>
+        <div class="f"><label>Accuracy (m)</label><input data-g="gps_acc_m" inputmode="decimal"></div>
+      </div><div class="help">Typed coordinates are kept as entered (lat/lon are only stored from a capture).</div></div>`;
+  }
+  if (f.t === 'qr') return h + `<div class="f${w}${hid}" data-k="${f.k}"><label for="${id}">${esc(f.l)}${req}</label><div class="qrrow"><input id="${id}" value="${esc(v ?? '')}" placeholder="Scan or type B-XXXXXX" autocapitalize="characters" autocomplete="off"><button type="button" class="btn sm" data-scan="${id}">Scan</button></div>${help}<div class="msg"></div></div>`;
+  if (f.t === 'bool') return h + `<div class="f tog${w}${hid}" data-k="${f.k}"><input type="checkbox" id="${id}" ${v ? 'checked' : ''}><label for="${id}">${esc(f.l)}</label></div>`;
+  let inp;
+  const val = esc(v ?? '');
+  if (f.t === 'ro') inp = `<div class="ro" id="${id}">${val || '—'}</div>`;
+  else if (f.t === 'select') inp = `<select id="${id}"><option value=""></option>${LISTS[f.o].map(o => `<option ${o === v ? 'selected' : ''}>${esc(o)}</option>`).join('')}${v && !LISTS[f.o].includes(v) ? `<option selected>${val}</option>` : ''}</select>`;
+  else if (f.t === 'combo') inp = `<input id="${id}" list="l_${f.o}" value="${val}" autocomplete="off" placeholder="${esc(f.ph || 'Pick or type')}">`;
+  else if (f.t === 'area') inp = `<textarea id="${id}" placeholder="${esc(f.ph || '')}">${val}</textarea>`;
+  else if (f.t === 'date') inp = `<input id="${id}" type="date" value="${val}">`;
+  else inp = `<input id="${id}" value="${val}" ${f.t === 'int' ? 'inputmode="numeric"' : f.t === 'num' ? 'inputmode="decimal"' : ''} placeholder="${esc(f.ph || '')}" ${f.t === 'munsell' ? 'autocapitalize="characters"' : ''} autocomplete="off">`;
+  return h + `<div class="f${w}${hid}" data-k="${f.k}"><label for="${id}">${esc(f.l)}${req}</label>${inp}${help}<div class="msg"></div></div>`;
+}
+function readForm(form, def, d) {
+  const out = { ...d };
+  for (const f of def.fields) {
+    if (f.t === 'gps') {
+      const box = $('[data-gps]', form);
+      ['utme', 'utmn', 'utmzone', 'gps_acc_m'].forEach(k => { const v = box.querySelector(`[data-g=${k}]`).value.trim(); out[k] = v === '' ? null : num(v) ?? v; });
+      continue;
+    }
+    if (f.t === 'ro') continue;
+    const el = $('#f_' + f.k, form); if (!el) continue;
+    if (f.t === 'bool') out[f.k] = el.checked ? 1 : 0;
+    else if (f.t === 'int' || f.t === 'num') { const s = el.value.trim().replace(',', '.'); out[f.k] = s === '' ? null : (isNaN(+s) ? s : +s); }
+    else if (f.t === 'munsell') out[f.k] = el.value.trim().toUpperCase().replace(/\s+/g, ' ');
+    else if (f.t === 'qr') out[f.k] = parseCode(el.value) || el.value.trim().toUpperCase();
+    else out[f.k] = el.value.trim();
+  }
+  return out;
+}
+function validate(tbl, d, rec) {
+  const def = TABLES[tbl], errs = {}, warns = {};
+  for (const f of def.fields) {
+    const v = d[f.k];
+    if ((f.t === 'int' || f.t === 'num') && v != null && v !== '' && typeof v !== 'number') errs[f.k] = 'Must be a number';
+    if (f.t === 'int' && typeof v === 'number' && !Number.isInteger(v)) errs[f.k] = 'Whole number';
+    if (f.t === 'munsell' && v && !/^(\d+(\.\d+)?(YR|Y|R|GY|G|BG|B|PB|P|RP)|N|GLEY ?[12]) ?\d+(\.\d+)?\/\d+(\.\d+)?$/.test(v)) warns[f.k] = 'Check format, e.g. 10YR 4/3';
+  }
+  const sib = (key, list) => list.filter(r => r.id !== rec.id && String(r.data[key] ?? '') === String(d[key] ?? '') && d[key] != null && d[key] !== '');
+  if (tbl === 'sites') {
+    if (d.site_code && !/^\d{4}$/.test(d.site_code)) errs.site_code = '4 digits';
+    if (live('sites').some(r => r.id !== rec.id && r.data.site_code === d.site_code && d.site_code)) errs.site_code = 'Code already used by another site';
+    if (live('sites').some(r => r.id !== rec.id && r.data.sitename === d.sitename)) errs.sitename = 'Site already exists';
+    if (d.sitename && !/^16[A-Z]{2}\d+$/.test(d.sitename) && !TEMP_RE.test(d.sitename)) errs.sitename = 'Use a trinomial (16NA41) or a temporary designation (KRD-T01)';
+    if (d.record_kind === 'Previously recorded site' && d.sitename && TEMP_RE.test(d.sitename)) errs.sitename = 'A previously recorded site needs its trinomial';
+  }
+  if (tbl === 'excavations') {
+    if (d.seq != null && (d.seq < 1 || d.seq > 99)) errs.seq = '1–99';
+    const s = kids(rec.parent, 'excavations').filter(r => r.data.excavation_type === d.excavation_type);
+    if (sib('seq', s).length) errs.seq = `Already used for another ${d.excavation_type}`;
+    if (sib('excavation_name', kids(rec.parent, 'excavations')).length) warns.excavation_name = 'Name already used at this site';
+    if (num(d.depthsterile) != null && num(d.depthcm) != null && d.depthsterile > d.depthcm) warns.depthsterile = 'Deeper than final depth';
+  }
+  if (tbl === 'levels') {
+    const ex = get(rec.parent);
+    if (ex && isUnit(ex.data) && d.excavation_unit && !subsOf(ex.id).some(s => String(s.data.letter).toUpperCase() === String(d.excavation_unit).toUpperCase())) errs.excavation_unit = 'Not a subunit of this unit';
+    if (num(d.top_cm) != null && num(d.bgscm) != null && d.bgscm <= d.top_cm) errs.bgscm = 'Bottom must be deeper than top';
+    const s = kids(rec.parent, 'levels').filter(r => String(r.data.excavation_unit || '').toUpperCase() === String(d.excavation_unit || '').toUpperCase());
+    if (sib('levelno', s).length) errs.levelno = 'Level already exists in this EU';
+  }
+  if (def.catalog) {
+    const key = def.fields[0].k, catTables = Object.keys(TABLES).filter(t => TABLES[t].catalog);
+    const dup = catTables.flatMap(t => live(t).filter(r => r.site === rec.site && r.id !== rec.id && String(r.data[TABLES[t].fields[0].k]) === String(d[key]) && d[key] != null));
+    if (dup.length) errs[key] = `Catalog no. already used at this site (${TABLES[dup[0].tbl].label})`;
+  }
+  for (const f of def.fields.filter(f => f.t === 'qr')) {
+    const v = d[f.k]; if (blank(v)) continue;
+    const want = tbl === 'boxes' ? 'X' : 'B', pc = parseCode(v);
+    if (!pc || pc[0] !== want) { errs[f.k] = want === 'B' ? 'Not a bag label (B-XXXXXX)' : 'Not a box label (X-XXXXXX)'; continue; }
+    const used = live(tbl === 'boxes' ? 'boxes' : 'bags').find(r => r.data.qr === pc && r.id !== rec.id);
+    if (used) errs[f.k] = `Label already used: ${TABLES[used.tbl].title(used.data)} at ${get(used.site)?.data.sitename || ''}`;
+  }
+  if (tbl === 'bags' && sib('bag_no', live('bags').filter(r => r.site === rec.site)).length) errs.bag_no = 'Bag no. already used at this site';
+  if ((tbl === 'lithic_tools' || tbl === 'exotic_lithics')) {
+    const m = d.material_class || d.raw_material || '', basis = d.sourcing_basis || '';
+    const named = /(Eagle Hill|Edwards|Boone|Burlington|Dover|Dongola|Fort Hood|Pedernales|Tallahatta)/i.test(m);
+    if (named && !/pXRF|Other analysis|diagnostic/.test(basis)) warns[tbl === 'lithic_tools' ? 'material_class' : 'raw_material'] = 'Named source on visual ID only: use a material class unless pXRF-confirmed';
+  }
+  return sanity(tbl, d, rec, { errs, warns });
+}
+function showMsgs(form, { errs, warns }, quiet) {
+  form.querySelectorAll('.f').forEach(el => { el.classList.remove('err'); const m = $('.msg', el); if (m) { m.textContent = ''; m.className = 'msg'; } });
+  for (const [k, m] of Object.entries(warns)) { const el = form.querySelector(`.f[data-k="${k}"]`); if (el) { const x = $('.msg', el); x.textContent = m; x.className = 'msg w'; } }
+  for (const [k, m] of Object.entries(errs)) { const el = form.querySelector(`.f[data-k="${k}"]`); if (el) { el.classList.add('err'); const x = $('.msg', el); x.textContent = m; x.className = 'msg'; } }
+  const g = form.querySelector('[data-gps] .gpswarn'); if (g) g.textContent = warns._gps || '';
+  if (!quiet) { const first = form.querySelector('.f.err input,.f.err select'); if (first) first.focus(); }
+}
+
+/* ---- extra sanity checks (block obvious mistakes) ---- */
+function sanity(tbl, d, rec, v) {
+  const { errs, warns } = v;
+  if (d.date && /^\d{4}-\d{2}-\d{2}$/.test(d.date) && d.date > today()) errs.date = 'Date is in the future';
+  for (const [c, w] of [['cnt', 'wt'], ['cnt', 'weight']]) if (num(d[c]) > 0 && d[w] === 0) errs[w] = 'Weight 0 with a count: leave blank if not weighed';
+  if (num(d.cnt) === 0) errs.cnt = 'Count must be at least 1';
+  if (tbl === 'lithic_tools') {
+    if (num(d.maxthk) && num(d.maxwid) && d.maxthk > d.maxwid) errs.maxthk = 'Thicker than wide? Check';
+    if (d.portion === 'Complete' && num(d.maxwid) && num(d.mlen) && d.maxwid > d.mlen * 1.5) warns.maxwid = 'Much wider than long: check length/width';
+    if (num(d.mlen) > 250) warns.mlen = 'Over 250 mm: are these mm?';
+    if (d.point_type && d.tool_type && !/Biface/.test(d.tool_type)) warns.point_type = 'Point type on a non-biface?';
+  }
+  if (tbl === 'prehistoric_ceramics' && num(d.cnt) && num(d.wt) && d.wt / d.cnt > 300) warns.wt = 'Over 300 g per sherd: check';
+  if (tbl === 'levels') {
+    const t = num(d.bgscm) - num(d.top_cm);
+    if (t > 30) warns.bgscm = `${t} cm thick level: intended?`;
+    if (num(d.bgscm) > 300) warns.bgscm = 'Deeper than 3 m: check units (cm)';
+  }
+  if (tbl === 'excavations') {
+    if (d.excavation_type === 'STP' && num(d.depthcm) > 150) warns.depthcm = 'Deep for an STP: check';
+    const maxAcc = +S.settings.gps_max_acc || 2;
+    if (num(d.gps_acc_m) > maxAcc) warns._gps = `Accuracy ±${d.gps_acc_m} m is worse than ${maxAcc} m. Is the Emlid connected with a fix?`;
+    if (d.lat != null) {
+      const others = kids(rec.parent, 'excavations').filter(r => r.id !== rec.id && r.data.lat != null);
+      if (others.length) {
+        const la = others.reduce((a, r) => a + r.data.lat, 0) / others.length, lo = others.reduce((a, r) => a + r.data.lon, 0) / others.length;
+        const dm = Math.hypot((d.lat - la) * 111320, (d.lon - lo) * 111320 * Math.cos(la * Math.PI / 180));
+        if (dm > 400) warns._gps = `Position is ${Math.round(dm)} m from this site's other excavations. Right site?`;
+      }
+    }
+  }
+  return v;
+}
+
+/* ---- completeness: what must be filled before a record counts as complete ---- */
+const photosOf = id => kids(id, 'photos');
+const blank = v => v == null || v === '';
+function catalogueCheck(l, tabData) {
+  const tab = tabData ? { data: tabData } : kids(l.id, 'tabulation')[0]; if (!tab) return [];
+  const msgs = [];
+  const cerR = kids(l.id, 'prehistoric_ceramics'), litR = kids(l.id, 'lithic_tools');
+  const cer = cerR.reduce((a, r) => a + (num(r.data.cnt) || 0), 0);
+  const tcer = ['plainsherdct', 'plnsherdrimct', 'decsherdct', 'decsherdrimct', 'diagnosticcermct'].reduce((a, k) => a + (num(tab.data[k]) || 0), 0);
+  const pts = litR.reduce((a, r) => a + (num(r.data.cnt) || 1), 0), tpts = num(tab.data.diagnosticlithicsct) || 0;
+  if (cerR.length && cer !== tcer) msgs.push(`Ceramic catalogue has ${cer} sherds but the tabulation has ${tcer}. The catalogue is authoritative, so update the tabulation.`);
+  if (litR.length && pts !== tpts) msgs.push(`Lithic tool catalogue has ${pts} but the tabulation lists ${tpts} diagnostic lithics.`);
+  return msgs;
+}
+const TEMP_RE = /^[A-Z]{2,3}-T\d{2,}$/;
+/* required fields that are visible for this record */
+function requiredMissing(rec, d) {
+  return TABLES[rec.tbl].fields.filter(f => f.req && !f.virtual && f.t !== 'ro' && !(f.show && !f.show(d)) && blank(d[f.k])).map(f => f.l);
+}
+/* excavations: header = what must be right before the excavation can be uploaded as "open" */
+function excHeaderMissing(d) {
+  const m = requiredMissing({ tbl: 'excavations' }, d);
+  if (d.lat == null && blank(d.utme)) m.push('Location (GPS capture or UTM)');
+  if (blank(d.crew)) m.push('Excavators');
+  return m;
+}
+function completeness(rec, d) {
+  const t = rec.tbl, m = t === 'excavations' ? excHeaderMissing(d) : requiredMissing(rec, d), need = (k, label) => { if (blank(d[k]) && !m.includes(label)) m.push(label); };
+  const hasPhoto = kinds => photosOf(rec.id).some(p => !kinds || kinds.includes(p.data.kind));
+  if (t === 'sites') { need('site_code', 'ID code'); need('district', 'District'); }
+  if (t === 'excavations') {
+    need('depthcm', 'Final depth');
+    const lv = kids(rec.id, 'levels');
+    if (!lv.length && blank(d.not_excavated_reason)) m.push('At least one level (or a reason it was not excavated)');
+    if (lv.length) {
+      if (!isUnit(d) && !lv.some(l => l.data.terminal_level)) m.push('Mark the terminal (last) level');
+      const deepest = Math.max(...lv.map(l => num(l.data.bgscm) || 0));
+      if (num(d.depthcm) != null && deepest && num(d.depthcm) !== deepest) m.push(`Final depth (${d.depthcm}) ≠ deepest level bottom (${deepest})`);
+      const eus = {}; lv.forEach(l => (eus[l.data.excavation_unit || 'A'] ||= []).push(l));
+      for (const [eu, ls] of Object.entries(eus)) {
+        ls.sort((a, b) => a.data.levelno - b.data.levelno);
+        for (let i = 1; i < ls.length; i++) if (num(ls[i].data.top_cm) !== num(ls[i - 1].data.bgscm)) m.push(`EU ${eu}: level ${ls[i].data.levelno} top doesn't meet level ${ls[i - 1].data.levelno} bottom`);
+      }
+      const withArt = lv.filter(l => l.data.artifacts);
+      if (d.positive && !withArt.length) m.push('Marked positive but no level has artifacts');
+      if (!d.positive && withArt.length) m.push('Levels have artifacts but the excavation is not marked positive');
+      const noBag = withArt.filter(l => !kids(l.id, 'bags').length);
+      if (noBag.length) m.push(`Bag record missing for level ${noBag.map(l => (l.data.excavation_unit || '') + l.data.levelno).join(', ')}`);
+      if (lv.some(l => l.data._status === 'draft')) m.push('Some levels are still drafts');
+    }
+    if (isUnit(d)) {
+      const subs = subsOf(rec.id), lvs = kids(rec.id, 'levels');
+      if (!subs.length) m.push('At least one subunit on the unit plan');
+      for (const s of subs) {
+        const sl = lvs.filter(l => String(l.data.excavation_unit).toUpperCase() === String(s.data.letter).toUpperCase());
+        if (!sl.length) m.push(`Subunit ${s.data.letter} has no levels`);
+        else if (!sl.some(l => l.data.terminal_level)) m.push(`Mark the terminal level in subunit ${s.data.letter}`);
+      }
+      if (num(d.azimuth) == null) m.push('Unit azimuth (shoot a corner, then “Set azimuth”)');
+      const cc = cornerChecks(rec);
+      if (!cc.length) m.push('At least one GPS corner shot');
+      for (const c of cc) if (c.misfit != null && c.misfit > CORNER_TOL) m.push(`Corner shot ${c.m.data.label || c.m.data.corner} is ${(c.misfit * 100).toFixed(0)} cm off the plan: re-shoot it or check the subunit layout`);
+    }
+    if (d.feature && !kids(rec.id, 'features').length) m.push('Feature box ticked but no feature record');
+    if (d.dateablematerial && !kids(rec.id, 'samples').length) m.push('Dateable material ticked but no sample record');
+    if (d.excavation_type === 'TP' || d.excavation_type === 'Unit') {
+      if (!hasPhoto(['Profile'])) m.push('Profile photo');
+      if (!hasPhoto(['Plan view', 'Overview'])) m.push('Plan or overview photo');
+      need('profile_drawing_1', 'Profile drawing no.');
+    }
+  }
+  if (t === 'levels') {
+    if (d.excavation_method !== 'Not excavated') { need('munsell', 'Munsell'); need('soil_texture', 'Soil texture'); need('excavation_method', 'Method'); need('screen', 'Screen'); }
+    if (d.artifacts && !kids(rec.id, 'bags').length && blank(d.bag_qr)) m.push('Bag label (scan it) for the artifacts');
+    if (!hasPhoto()) m.push('Photo of the level (floor or profile)');
+  }
+  if (t === 'bags') need('contents', 'Contents');
+  if (t === 'mappoints') { if (d.lat == null && blank(d.utme)) m.push('GPS position'); if (d.kind === 'Unit corner') need('corner', 'Which corner'); }
+  if (t === 'features') {
+    need('feature_type', 'Type'); need('depth_bgs', 'Top depth'); need('length_cm', 'Length'); need('width_cm', 'Width'); need('cultural', 'Cultural?'); need('description', 'Description');
+    if (!hasPhoto()) m.push('At least one photo');
+  }
+  if (t === 'samples') { need('depth', 'Depth'); need('context', 'Context'); if (d.sample_type === 'OSL') need('collection', 'OSL collection method'); }
+  if (t === 'lithic_tools') {
+    need('material_class', 'Raw material'); need('sourcing_basis', 'Material ID basis'); need('portion', 'Portion'); need('wt', 'Weight'); need('cnt', 'Count');
+    if (d.tool_type === 'Biface (Hafted)') {
+      need('point_type', 'Point type (or Indeterminate)');
+      if (d.portion === 'Complete') { need('mlen', 'Max length'); need('maxwid', 'Max width'); need('maxthk', 'Max thickness'); }
+      if (!hasPhoto()) m.push('Photo (hafted bifaces)');
+    }
+  }
+  if (t === 'prehistoric_ceramics') {
+    need('temper', 'Temper'); need('sherd_type', 'Sherd'); need('wt', 'Weight'); need('decoration1', 'Decoration');
+    if (d.sherd_type === 'Rim') { need('lip_type', 'Lip'); need('vessel_class', 'Vessel'); }
+    if (/var\. (?!Unknown)/.test(d.type_name || '') && !hasPhoto()) m.push('Photo (typed decorated sherds)');
+  }
+  if (t === 'ground_stone') { need('raw_material', 'Material'); need('weight', 'Weight'); if (!hasPhoto()) m.push('Photo'); }
+  if (t === 'historic_artifacts') { need('cnt', 'Count'); need('weight', 'Weight'); }
+  if (t === 'exotic_lithics') { need('weight', 'Weight'); need('cnt', 'Count'); }
+  if (t === 'tabulation') { const l = get(rec.parent); if (l) m.push(...catalogueCheck(l, d)); if (!d.artifact_count) m.push('No counts entered'); }
+  return m;
+}
+function confirmUnfinished(what, miss) {
+  return new Promise(res => {
+    const m = document.createElement('div'); m.className = 'modal';
+    m.innerHTML = `<div class="card unfinbox" style="max-width:460px"><b class="t">⚠ This ${esc(what)} is NOT finished</b>
+      <p style="margin:6px 0">It will be kept <b>only on this device</b> and is <b>NOT sent to the project</b>. Nobody else can see it, and it is lost if this device is lost.</p>
+      ${miss.length ? `<div class="help">Still missing:</div><ul style="margin:4px 0 8px;padding-left:18px">${miss.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+      <label style="display:flex;gap:8px;align-items:flex-start;font-weight:600"><input type="checkbox" id="ack" style="width:22px;height:22px;min-height:0;margin-top:2px"> I understand it is NOT saved to the project until I come back and press Finish.</label>
+      <div class="btns" style="justify-content:flex-end"><button class="btn sec" data-v="0">Go back and finish</button><button class="btn warnbtn" data-v="1" id="ackok" disabled>Keep unfinished</button></div></div>`;
+    $('#ack', m).onchange = e => { $('#ackok', m).disabled = !e.target.checked; };
+    m.addEventListener('click', e => { const v = e.target.dataset.v; if (v == null || e.target.disabled) return; m.remove(); res(v === '1'); });
+    document.body.append(m);
+  });
+}
+/* finish a draft from its page once everything is in (e.g. after adding the photo) */
+async function finishNow(rec) {
+  const d = compute(rec.tbl, rec.data, { site: rec.tbl === 'sites' ? rec : get(rec.site), parentRec: get(rec.parent) });
+  const v = validate(rec.tbl, d, rec), miss = completeness(rec, d), st = statusFor(rec, d, miss);
+  if (Object.keys(v.errs).length || st === 'draft') { location.hash = '#/edit/' + rec.id; toast('Fill in the missing items, then press Finish'); return; }
+  rec.data = { ...d, _status: st, _missing: miss }; await save(rec); toast(st === 'open' ? 'Saved: excavation open' : 'Finished ✓'); render();
+}
+function unfinishedBox(r) {
+  if (r.data._status !== 'draft') return '';
+  const miss = completeness(r, r.data);
+  return `<div class="unfinbox"><b class="t">⚠ UNFINISHED: NOT sent to the project</b>
+    ${miss.length ? `Still missing: ${esc(miss.join('; '))}` : 'Everything is now filled in.'}
+    <div class="btns"><button class="btn" id="finnow">${miss.length ? 'Complete it now' : 'Finish now ✓'}</button></div></div>`;
+}
+function drafts() { return [...S.recs.values()].filter(r => !r.deleted && r.data?._status === 'draft').sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)); }
+function updateDraftBar() {
+  const n = draftCount(), bar = $('#draftbar'); if (!bar) return;
+  bar.classList.toggle('hidden', !n || location.hash.startsWith('#/drafts'));
+  if (n) bar.innerHTML = `⚠ ${n} UNFINISHED record${n > 1 ? 's' : ''} on this device: NOT sent to the project<small>Tap to see and finish ${n > 1 ? 'them' : 'it'}</small>`;
+}
+function viewDrafts() {
+  setTitle('Unfinished records');
+  const ds = drafts();
+  $('#app').innerHTML = `<h2>Unfinished records on this device</h2>
+    <div class="unfinbox"><b class="t">These are NOT saved to the project</b>They exist only on this device. Finish each one before leaving the site; anything left here is lost if the device is lost, reset or its browser data is cleared.</div>
+    <div class="list">${ds.map(r => rowHTML(r, `<small>${esc(get(r.site)?.data.sitename || '')} · ${esc(TABLES[r.tbl].label)} · last edited ${esc(new Date(r.updated_at).toLocaleString())} by ${esc(r.updated_by || '?')}<br>Missing: ${esc(completeness(r, r.data).join('; ') || 'nothing: open it and press Finish')}</small>`)).join('') || '<div class="check okc">Nothing unfinished. Everything on this device is finished ✓</div>'}</div>`;
+}
+function statusFor(rec, d, miss) {
+  if (!miss.length) return 'complete';
+  if (rec.tbl === 'excavations' && !excHeaderMissing(d).length) return 'open';
+  return 'draft';
+}
+function statusBadge(r) {
+  const st = r.data?._status;
+  return st === 'draft' ? '<span class="unfinlabel" title="Not finished: NOT sent to the project">UNFINISHED</span>' : st === 'open' ? '<span class="badge" title="Excavation in progress">open</span>' : '';
+}
+/* drafts and anything under a draft never upload */
+function isDraftChain(r) { let x = r; for (let i = 0; x && i < 6; i++) { if (x.data?._status === 'draft') return true; x = x.parent ? S.recs.get(x.parent) : null; } return false; }
+
+/* ---- photos ---- */
+async function resizeImage(file, max = 2400) {
+  const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' }).catch(() => null);
+  if (!bmp) return { blob: file, width: null, height: null };
+  const s = Math.min(1, max / Math.max(bmp.width, bmp.height)), w = Math.round(bmp.width * s), h = Math.round(bmp.height * s);
+  const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(bmp, 0, 0, w, h);
+  const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.85));
+  return { blob, width: w, height: h };
+}
+function photoCaption(rec, kind) {
+  const parts = []; let r = rec;
+  while (r) { if (r.tbl === 'sites') parts.unshift(r.data.sitename); else if (r.tbl !== 'photos') parts.unshift(TABLES[r.tbl].title(r.data).split(' · ')[0]); r = r.parent ? get(r.parent) : null; }
+  return parts.join(' ') + (kind ? ' – ' + kind : '');
+}
+const urlCache = new Map();
+async function photoURL(p) {
+  if (urlCache.has(p.id)) return urlCache.get(p.id);
+  const b = (await CORE.getBlob(p.id))?.blob || await CORE.fetchPhoto(p).catch(() => null);
+  if (!b) return null;
+  const u = URL.createObjectURL(b); urlCache.set(p.id, u); return u;
+}
+function photoStripHTML(rec) {
+  const kinds = PHOTO_KINDS[rec.tbl]; if (!kinds) return '';
+  return `<div class="photos" data-photos="${rec.id}"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="flex:1">Photos</b>
+    <select class="pkind" style="width:auto;min-height:36px;padding:4px 8px">${kinds.map(k => `<option>${esc(k)}</option>`).join('')}</select>
+    <label class="btn sm">📷 Take / add<input type="file" accept="image/*" capture="environment" hidden class="pcam"></label>
+    <label class="btn sm sec">From files<input type="file" accept="image/*" multiple hidden class="pfile"></label></div>
+    <div class="thumbs"></div></div>`;
+}
+async function bindPhotos(box, rec, onChange) {
+  if (!box) return;
+  const draw = async () => {
+    const ps = photosOf(rec.id).sort((a, b) => a.created_at > b.created_at ? 1 : -1), th = $('.thumbs', box);
+    th.innerHTML = ps.length ? '' : '<div class="help">No photos yet</div>';
+    for (const p of ps) {
+      const u = await photoURL(p);
+      const el = document.createElement('button'); el.type = 'button'; el.className = 'thumb';
+      el.innerHTML = (u ? `<img src="${u}" alt="">` : '<span class="help">not downloaded</span>') + `<small>${esc(p.data.kind || '')}</small>`;
+      el.onclick = () => photoModal(p, u, draw);
+      th.append(el);
+    }
+    onChange && onChange();
+  };
+  const add = async files => {
+    for (const f of files) {
+      const kind = $('.pkind', box).value, { blob, width, height } = await resizeImage(f);
+      const p = mk('photos', rec.id, {}); p.site = rec.tbl === 'sites' ? rec.id : rec.site;
+      const sn = (get(p.site)?.data.sitename || 'nosite').replace(/[^\w-]/g, '');
+      p.data = { kind, caption: photoCaption(rec, kind), path: `${sn}/${rec.id}/${p.id}.jpg`, taken_at: new Date(f.lastModified || Date.now()).toISOString(), width, height, bytes: blob.size };
+      await CORE.putBlob(p.id, { blob, uploaded: 0 });
+      await save(p);
+    }
+    toast(files.length > 1 ? `${files.length} photos added` : 'Photo added'); draw();
+  };
+  $('.pcam', box).onchange = e => { add([...e.target.files]); e.target.value = ''; };
+  $('.pfile', box).onchange = e => { add([...e.target.files]); e.target.value = ''; };
+  draw();
+}
+function photoModal(p, u, redraw) {
+  const m = document.createElement('div'); m.className = 'modal';
+  m.innerHTML = `<div class="card" style="max-width:900px">${u ? `<img src="${u}" style="max-width:100%;max-height:65vh;display:block;margin:0 auto;border-radius:8px">` : ''}
+    <div class="grid" style="margin-top:10px"><div class="f w2"><label>Caption</label><input id="pcap" value="${esc(p.data.caption || '')}"></div>
+    <div class="f"><label>View</label><input id="pk" value="${esc(p.data.kind || '')}"></div></div>
+    <div class="help">${esc(p.data.width || '?')}×${esc(p.data.height || '?')} px · ${p.data.bytes ? Math.round(p.data.bytes / 1024) + ' KB' : ''} · ${esc(p.created_by || '')}</div>
+    <div class="btns" style="justify-content:flex-end"><button class="btn bad" data-a="del">Delete</button><span style="flex:1"></span><button class="btn sec" data-a="x">Close</button><button class="btn" data-a="ok">Save</button></div></div>`;
+  m.onclick = async e => {
+    const a = e.target.dataset.a; if (!a && e.target !== m) return;
+    if (a === 'ok') { p.data = { ...p.data, caption: $('#pcap', m).value.trim(), kind: $('#pk', m).value.trim() }; await save(p); }
+    if (a === 'del') { if (!(await ask('Delete this photo?', 'Delete'))) return; await softDelete(p); }
+    m.remove(); redraw();
+  };
+  document.body.append(m);
+}
+
+/* defaults for new records */
+function defaults(tbl, parentId) {
+  const p = parentId ? get(parentId) : null, siteId = p ? (p.tbl === 'sites' ? p.id : p.site) : null;
+  const d = {};
+  if (tbl === 'excavations') {
+    const last = kids(parentId, 'excavations').sort((a, b) => (a.created_at > b.created_at ? 1 : -1)).pop();
+    d.excavation_type = (S._newType) || last?.data.excavation_type || 'STP';
+    d.seq = nextNum(kids(parentId, 'excavations').filter(r => r.data.excavation_type === d.excavation_type), 'seq');
+    d.excavation_name = (d.excavation_type === 'STP' ? 'STP ' : d.excavation_type === 'TP' ? 'TU' : d.excavation_type === 'Unit' ? 'Unit ' : '') + d.seq;
+    d.transect = last?.data.transect || ''; d.date = today(); d.crew = last?.data.crew || me();
+    if (d.excavation_type === 'STP') { d.lengthcm = 30; d.widthcm = 30; d.number_of_eu = 1; }
+    if (d.excavation_type === 'TP') { d.lengthcm = 100; d.widthcm = 100; d.number_of_eu = 1; }
+  }
+  if (tbl === 'levels') {
+    const ls = kids(parentId, 'levels').sort((a, b) => (euIndex(a.data.excavation_unit) - euIndex(b.data.excavation_unit)) || (a.data.levelno - b.data.levelno));
+    let last = ls[ls.length - 1];
+    d.excavation_unit = S._newSU || last?.data.excavation_unit || (isUnit(p?.data) ? (subsOf(parentId)[0]?.data.letter || '') : 'A');
+    const same = ls.filter(r => String(r.data.excavation_unit).toUpperCase() === String(d.excavation_unit).toUpperCase());
+    if (S._newSU) last = same[same.length - 1] || last;
+    d.levelno = nextNum(same, 'levelno');
+    const lastSame = same[same.length - 1];
+    d.top_cm = lastSame ? (num(lastSame.data.bgscm) ?? '') : 0;
+    d.bgscm = (num(d.top_cm) ?? 0) + (+S.settings.level_cm || 10);
+    if (last) { d.excavation_method = last.data.excavation_method; d.screen = last.data.screen; d.soil_texture = last.data.soil_texture; d.munsell = last.data.munsell; d.strata = last.data.strata; }
+    else { const exc = p; d.excavation_method = exc?.data.excavation_type === 'STP' ? 'Shovel' : 'Shovel/Trowel'; d.screen = '1/4 in'; }
+  }
+  if (tbl === 'bags') { d.bag_no = nextNum(live('bags').filter(r => r.site === siteId), 'bag_no'); d.date = today(); d.contents = 'Prehistoric artifacts'; }
+  if (tbl === 'features') { d.featurnumbersite = nextNum(live('features').filter(r => r.site === siteId), 'featurnumbersite'); }
+  if (tbl === 'samples') { d.sample_type = S._newSample || 'Radiocarbon (AMS)'; d.sample_number = nextNum(live('samples').filter(r => r.site === siteId), 'sample_number'); }
+  if (TABLES[tbl].mode === 'lab') {
+    d.labtech = me();
+    if (TABLES[tbl].catalog) {
+      const key = TABLES[tbl].fields[0].k;
+      d[key] = Object.keys(TABLES).filter(t => TABLES[t].catalog).flatMap(t => live(t).filter(r => r.site === siteId).map(r => num(r.data[TABLES[t].fields[0].k]) || 0)).reduce((a, b) => Math.max(a, b), 0) + 1;
+      if (tbl === 'prehistoric_ceramics' || tbl === 'historic_artifacts') d.cnt = 1;
+      if (tbl === 'lithic_tools') { d.cnt = 1; }
+    }
+    if (tbl === 'exotic_lithics') { d.cnt = 1; d.sourcing_basis = 'Visual (class only)'; }
+    if (tbl === 'lithic_tools') d.sourcing_basis = 'Visual (class only)';
+  }
+  if (p && (tbl === 'features' || tbl === 'samples')) {
+    if (p.tbl === 'levels') { d.excavation_unit = p.data.excavation_unit; d.levelno = p.data.levelno; d.depth = p.data.top_cm; d.depth_bgs = p.data.top_cm; }
+  }
+  return d;
+}
+
+/* ---- render a form for a record (new or existing) ---- */
+function formView(rec, isNew, opts = {}) {
+  const def = TABLES[rec.tbl], parent = rec.parent ? get(rec.parent) : null;
+  let d = { ...rec.data };
+  let fields = def.fields.filter(f => !(f.newOnly && !isNew));
+  if (rec.tbl === 'levels' && parent && isUnit(parent.data)) {
+    LISTS._su = subsOf(parent.id).map(s => String(s.data.letter));
+    fields = fields.map(f => f.k === 'excavation_unit' ? { ...f, l: 'Subunit', t: 'select', o: '_su', help: LISTS._su.length ? '' : 'Add a subunit on the unit page first' } : f);
+  }
+  if (rec.tbl === 'mappoints' && parent) LISTS._corners = cornerOptions(parent.id);
+  const ctx = () => ({ site: rec.tbl === 'sites' ? rec : get(rec.site), parentRec: parent, self: rec });
+  d = compute(rec.tbl, d, ctx());
+  setTitle((isNew ? 'New ' : '') + def.label);
+  const lists = [...new Set(fields.filter(f => f.t === 'combo').map(f => f.o))].map(o => `<datalist id="l_${o}">${LISTS[o].map(x => `<option value="${esc(x)}">`).join('')}</datalist>`).join('');
+  const hasNext = ['levels', 'lithic_tools', 'prehistoric_ceramics', 'exotic_lithics', 'ground_stone', 'historic_artifacts'].includes(rec.tbl);
+  const isExc = rec.tbl === 'excavations';
+  $('#app').innerHTML = `${parent ? crumbs(parent) : rec.tbl === 'sites' ? '<div class="crumbs"><a href="#/sites">Sites</a></div>' : ''}
+    <h2>${isNew ? 'New ' + esc(def.label.toLowerCase()) : esc(def.title(d))} ${statusBadge(rec)}</h2>
+    <form id="frm" class="card" autocomplete="off" novalidate><div class="grid">${fields.map(f => fieldHTML(f, d[f.k], d)).join('')}</div>${lists}
+    ${photoStripHTML(rec)}
+    <div id="chk"></div>
+    <div class="formbar">
+      <button class="btn" type="submit" id="fin">Finish ✓</button>
+      ${hasNext ? `<button class="btn sec" type="button" id="saveNext">Finish &amp; add next</button>` : ''}
+      <button class="btn warnbtn" type="button" id="draft">Save unfinished…</button>
+      <button class="btn sec" type="button" id="cancel">Cancel</button>
+      ${!isNew ? `<span style="flex:1"></span><button class="btn bad" type="button" id="del">Delete</button>` : ''}
+    </div>
+    <div class="help" id="finhelp"></div></form>
+    ${!isNew ? `<div class="help">Created ${esc(new Date(rec.created_at).toLocaleString())} by ${esc(rec.created_by || '?')} · last edit ${esc(new Date(rec.updated_at).toLocaleString())} by ${esc(rec.updated_by || '?')}</div>` : ''}`;
+  const form = $('#frm');
+  const gbox = $('[data-gps]', form);
+  if (gbox) { renderGps(gbox, d); $('button', gbox).onclick = () => gpsCapture(gbox, d, () => refresh()); }
+  const current = () => { const c = compute(rec.tbl, readForm(form, { fields }, d), ctx()); Object.assign(c, pick(d, GPSK)); return c; };
+  const refresh = () => {
+    const cur = current();
+    fields.forEach(f => {
+      if (f.t === 'ro') { const el = $('#f_' + f.k, form); if (el) el.textContent = cur[f.k] === '' || cur[f.k] == null ? '—' : cur[f.k]; }
+      if (f.show) form.querySelector(`.f[data-k="${f.k}"]`)?.classList.toggle('hidden', !f.show(cur));
+    });
+    const v = validate(rec.tbl, cur, rec), errs = Object.keys(v.errs).length, miss = completeness(rec, cur), st = statusFor(rec, cur, miss);
+    $('#chk').innerHTML = (miss.length ? `<div class="check"><b>${isExc && st === 'open' ? 'Before close-out' : 'Still needed before this can be finished'}:</b><ul style="margin:4px 0 0;padding-left:18px">${miss.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : '<div class="check okc">Everything is filled in ✓</div>')
+      + (errs ? `<div class="check" style="border-color:var(--bad)"><b>${errs} field${errs > 1 ? 's have' : ' has'} an error</b> (see highlighted fields)</div>` : '');
+    const fin = $('#fin'), canFin = !errs && (st === 'complete' || (isExc && st === 'open'));
+    fin.disabled = !canFin; if ($('#saveNext')) $('#saveNext').disabled = !canFin;
+    fin.textContent = isExc ? (st === 'complete' ? 'Close out ✓' : 'Save & upload (open)') : 'Finish ✓';
+    $('#finhelp').textContent = canFin ? (isExc && st === 'open' ? 'The excavation uploads as open; close it out when all checks pass.' : 'Finished records upload automatically.')
+      : 'Not finished yet. You can “Save unfinished” to continue later, but it is NOT sent to the project until it is finished.';
+    showMsgs(form, v, true);
+  };
+  bindPhotos($('[data-photos]', form), rec, () => refresh());
+  form.addEventListener('click', async e => {
+    const b = e.target.closest('[data-scan]'); if (!b) return;
+    const code = await openScanner(b.dataset.title || 'Scan label'); if (!code) return;
+    const inp = $('#' + b.dataset.scan, form); inp.value = code; refresh();
+  });
+  S.formDirty = false; S.formNew = isNew;
+  form.addEventListener('input', () => { S.formDirty = true; refresh(); }); form.addEventListener('change', e => {
+    S.formDirty = true;
+    if (isNew && rec.tbl === 'excavations' && e.target.id === 'f_excavation_type') {
+      S._newType = e.target.value; const nd = defaults('excavations', rec.parent); S._newType = null;
+      $('#f_seq').value = nd.seq; $('#f_excavation_name').value = nd.excavation_name;
+      if (nd.lengthcm) { $('#f_lengthcm').value = nd.lengthcm; $('#f_widthcm').value = nd.widthcm; }
+    }
+    if (isNew && rec.tbl === 'sites' && (e.target.id === 'f_record_kind' || e.target.id === 'f_district')) {
+      const kind = $('#f_record_kind').value, dist = $('#f_district').value;
+      if (kind && kind !== 'Previously recorded site' && dist) {
+        const t = nextTemp(dist); $('#f_sitename').value = t.name; $('#f_site_code').value = t.code; d.temp_name = t.name;
+      } else if (kind === 'Previously recorded site' && TEMP_RE.test($('#f_sitename').value)) { $('#f_sitename').value = ''; $('#f_site_code').value = ''; d.temp_name = ''; }
+    }
+    if (rec.tbl === 'sites' && e.target.id === 'f_sitename' && /^16[A-Z]{2}\d+$/.test(e.target.value.trim().toUpperCase()) && !$('#f_site_code').value) {
+      const m = e.target.value.trim().toUpperCase().match(/^16([A-Z]{2})(\d+)$/); $('#f_site_code').value = ({ NA: '1', CL: '2', WE: '3' }[m[1]] || '9') + m[2].padStart(3, '0').slice(-3);
+    }
+    refresh();
+  });
+  refresh();
+  const doSave = async (mode, next) => { // mode: 'finish' | 'draft'
+    let nd = current();
+    const v = validate(rec.tbl, nd, rec);
+    showMsgs(form, v);
+    if (Object.keys(v.errs).length) { toast('Fix the highlighted fields first'); return; }
+    const miss = completeness(rec, nd), st = statusFor(rec, nd, miss);
+    if (mode === 'finish' && !(st === 'complete' || (isExc && st === 'open'))) { toast('Not finished yet: see the list above'); return; }
+    nd._status = mode === 'draft' && st !== 'draft' && !isExc ? 'draft' : st;
+    if (mode === 'draft' && isExc && st !== 'draft') nd._status = 'draft';
+    nd._missing = miss;
+    const bagCode = nd.bag_qr; fields.filter(f => f.virtual).forEach(f => delete nd[f.k]);
+    if (isNew && rec.tbl === 'sites') {
+      if (nd.record_kind !== 'New site (temporary no.)' && nd.record_kind !== 'Isolated find' && nd.record_kind !== 'Other investigation') {
+        const old = rec.id; rec.id = rec.site = await siteUUID(nd.sitename);
+        for (const ph of photosOf(old)) { ph.parent = ph.site = rec.id; await save(ph); }
+      }
+    }
+    rec.data = nd; await save(rec);
+    if (rec.tbl === 'levels' && bagCode) await createBag(rec, parseCode(bagCode));
+    if (rec.tbl === 'bags' && isNew && nd.qr) await custodyEvent(nd.qr, 'bag', 'Collected in field', { location: get(rec.site)?.data.sitename || '' });
+    if (rec.tbl === 'boxes' && isNew) await custodyEvent(nd.qr, 'box', 'Transferred', { location: nd.location, notes: 'Box registered' });
+    S.formDirty = false;
+    toast(nd._status === 'draft' ? '⚠ Saved UNFINISHED: not sent to the project' : nd._status === 'open' ? 'Saved: excavation open' : 'Finished ✓');
+    if (next) { const h = `#/new/${rec.tbl}/${rec.parent}`; if (location.hash === h) render(); else location.hash = h; }
+    else location.hash = opts.back || backHash(rec);
+  };
+  form.onsubmit = e => { e.preventDefault(); doSave('finish'); };
+  $('#saveNext') && ($('#saveNext').onclick = () => doSave('finish', true));
+  $('#draft').onclick = async () => {
+    const miss = completeness(rec, current());
+    if (!(await confirmUnfinished(def.label.toLowerCase(), miss))) return;
+    doSave('draft');
+  };
+  $('#cancel').onclick = async () => {
+    if (S.formDirty && !(await ask('Discard what you typed on this form? It has not been saved.', 'Discard', 'Keep editing'))) return;
+    S.formDirty = false;
+    if (isNew) for (const p of photosOf(rec.id)) { await softDelete(p); await CORE.delBlob(p.id); }
+    location.hash = opts.back || (isNew ? (parent ? hashFor(parent) : homeFor(rec.tbl)) : backHash(rec));
+  };
+  $('#del') && ($('#del').onclick = async () => {
+    const n = [...S.recs.values()].filter(r => r.parent === rec.id && !r.deleted).length;
+    if (await ask(`Delete this ${def.label.toLowerCase()}${n ? ` and everything under it (${n}+ records)` : ''}?`, 'Delete')) { S.formDirty = false; await softDelete(rec); toast('Deleted'); location.hash = parent ? hashFor(parent) : homeFor(rec.tbl); }
+  });
+  form.onkeydown = e => { if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); doSave($('#fin').disabled ? 'draft' : 'finish'); } };
+  const first = form.querySelector('input:not([type=checkbox]),select'); if (first && !('ontouchstart' in window)) first.focus();
+}
+const homeFor = t => t === 'boxes' || t === 'custody' ? '#/scan' : '#/sites';
+const hashFor = r => r.tbl === 'sites' ? `#/site/${r.id}` : `#/rec/${r.id}`;
+function backHash(rec) {
+  // after saving: excavations & levels open their own page; others go to parent
+  if (['sites', 'excavations', 'levels'].includes(rec.tbl)) return hashFor(rec) + '?v';
+  if (rec.tbl === 'bags' || rec.tbl === 'boxes') return '#/scan/' + rec.data.qr;
+  const p = get(rec.parent); return p ? hashFor(p) : homeFor(rec.tbl);
+}
+
+/* ================= views ================= */
+function viewSites() {
+  setTitle('Field · Sites');
+  const q = (S.q || '').toLowerCase();
+  const sites = live('sites').filter(s => !q || JSON.stringify(s.data).toLowerCase().includes(q)).sort((a, b) => (a.data.district || '').localeCompare(b.data.district || '') || a.data.sitename.localeCompare(b.data.sitename, undefined, { numeric: true }));
+  const byD = {}; sites.forEach(s => (byD[s.data.district || 'Other'] ||= []).push(s));
+  $('#app').innerHTML = `<div class="btns"><input class="search" id="q" placeholder="Search sites" value="${esc(S.q || '')}" style="flex:1;min-width:180px;margin:0"><a class="btn" href="#/new/sites/">+ Site</a><a class="btn sec" href="#/new/sites/?temp">+ New site (temp. no.)</a></div>
+    ${!sites.length ? `<div class="empty">No sites yet. ${live('sites').length ? '' : '<button class="btn sm sec" id="seed">Load the 30 Phase II candidate sites</button>'}</div>` : ''}
+    ${Object.entries(byD).map(([dn, ss]) => `<h3>${esc(dn)} <span class="badge">${ss.length}</span></h3><div class="list">${ss.map(s => {
+      const ex = kids(s.id, 'excavations'); const pos = ex.filter(e => e.data.positive).length;
+      return rowHTML(s, `<small>${ex.length ? `${ex.length} excavations · ${pos} positive` : 'Not started'}${s.data.site_code ? ' · code ' + esc(s.data.site_code) : ''}</small>`);
+    }).join('')}</div>`).join('')}`;
+  $('#q').oninput = e => { S.q = e.target.value; const pos = e.target.selectionStart; viewSites(); const i = $('#q'); i.focus(); i.setSelectionRange(pos, pos); };
+  $('#seed') && ($('#seed').onclick = async () => { for (const s of SEED_SITES) { const r = mk('sites', null, { ...s, _status: 'complete', _missing: [] }); r.id = r.site = await siteUUID(s.sitename); if (!get(r.id)) await save(r); } toast('Loaded 30 sites'); render(); });
+}
+function excRow(e) {
+  const levels = kids(e.id, 'levels'), hasLoc = e.data.lat != null || e.data.utme != null;
+  return rowHTML(e, `<small>${e.data.excavationid ? esc(e.data.excavationid) + ' · ' : ''}${levels.length} lv${e.data.depthcm != null ? ' · ' + e.data.depthcm + ' cmbs' : ''}${e.data.transect ? ' · T' + esc(e.data.transect) : ''}</small>`)
+    .replace('<span aria-hidden', `${e.data.positive ? '<span class="badge pos">+</span>' : ''}<span class="badge ${hasLoc ? 'gps' : 'nogps'}">${hasLoc ? 'GPS' : 'no GPS'}</span><span aria-hidden`);
+}
+function viewSite(id) {
+  const s = get(id); if (!s) return notFound();
+  setTitle(s.data.sitename);
+  const ex = kids(id, 'excavations').sort((a, b) => (TYPE_CODE[a.data.excavation_type] || '9').localeCompare(TYPE_CODE[b.data.excavation_type] || '9') || (a.data.seq - b.data.seq));
+  const feats = live('features').filter(r => r.site === id), samps = live('samples').filter(r => r.site === id), bags = live('bags').filter(r => r.site === id);
+  const pos = ex.filter(e => e.data.positive).length;
+  $('#app').innerHTML = `${crumbs(s)}<h2>${esc(s.data.sitename)}</h2>
+    <div class="card kv"><div><span>District</span><br>${esc(s.data.district || '—')}</div><div><span>ID code</span><br>${esc(s.data.site_code || '—')}</div>
+      <div><span>Excavations</span><br>${ex.length} (${pos} positive)</div><div><span>Bags · features · samples</span><br>${bags.length} · ${feats.length} · ${samps.length}</div></div>
+    <div class="btns"><a class="btn" href="#/new/excavations/${id}?STP">+ STP</a><a class="btn sec" href="#/new/excavations/${id}?TP">+ Test unit</a>
+      <a class="btn sec" href="#/edit/${id}">Edit site</a><a class="btn sec" href="#/catalog/${id}">Catalog</a></div>
+    <h3>Excavations</h3><div class="list">${ex.map(excRow).join('') || '<div class="empty">None yet</div>'}</div>
+    <h3>Features</h3><div class="list">${feats.map(f => rowHTML(f, `<small>${esc(get(f.parent) ? TABLES.excavations.title(get(f.parent).data) : '')}</small>`)).join('') || '<div class="empty">None</div>'}</div>
+    <h3>Samples</h3><div class="list">${samps.map(f => rowHTML(f, `<small>${esc(get(f.parent) ? TABLES.excavations.title(get(f.parent).data) : '')}${f.data.depth != null ? ' · ' + f.data.depth + ' cmbs' : ''}</small>`)).join('') || '<div class="empty">None</div>'}</div>`;
+}
+function viewRec(id) {
+  const r = get(id); if (!r) return notFound();
+  if (r.tbl === 'excavations') return viewExc(r);
+  if (r.tbl === 'levels') return viewLevel(r);
+  if (r.tbl === 'subunits') return subunitEditor(r, false);
+  return formView(r, false);
+}
+function viewExc(e) {
+  setTitle(TABLES.excavations.title(e.data));
+  const levels = kids(e.id, 'levels').sort((a, b) => (euIndex(a.data.excavation_unit) - euIndex(b.data.excavation_unit)) || (a.data.levelno - b.data.levelno));
+  const feats = kids(e.id, 'features'), samps = kids(e.id, 'samples');
+  const d = e.data;
+  $('#app').innerHTML = `${crumbs(e)}<h2>${esc(TABLES.excavations.title(d))} ${statusBadge(e)} ${d.positive ? '<span class="badge pos">positive</span>' : '<span class="badge">negative</span>'}</h2>
+    ${unfinishedBox(e)}
+    <div class="card kv">
+      <div><span>Excavation ID</span><br>${esc(d.excavationid || '—')}</div><div><span>Date</span><br>${esc(d.date || '—')}</div>
+      <div><span>Location</span><br>${d.utme != null ? `${d.utme} E, ${d.utmn} N (Z${d.utmzone})` : '<b style="color:var(--warn)">not recorded</b>'}</div>
+      <div><span>Accuracy</span><br>${d.gps_acc_m != null ? '±' + d.gps_acc_m + ' m' : '—'}</div>
+      <div><span>Final depth</span><br>${d.depthcm != null ? d.depthcm + ' cmbs' : '—'}</div><div><span>Size</span><br>${isUnit(d) ? `${subsOf(e.id).length} subunit(s), ${r2(subsOf(e.id).reduce((x, su) => x + partsArea(partsOf(su)), 0))} m²` : `${d.lengthcm ?? '?'} × ${d.widthcm ?? '?'} cm`}</div>
+      <div><span>Excavators</span><br>${esc(d.crew || '—')}</div>
+      ${d.comments ? `<div style="grid-column:1/-1"><span>Comments</span><br>${esc(d.comments)}</div>` : ''}
+    </div>
+    ${e.data._status === 'draft' ? '' : checklistHTML(e)}
+    ${levels.some(l => l.data._status === 'draft') ? `<div class="unfinbox"><b class="t">⚠ ${levels.filter(l => l.data._status === 'draft').length} level(s) UNFINISHED</b>Finish ${levels.filter(l => l.data._status === 'draft').map(l => 'EU ' + esc(l.data.excavation_unit) + ' Lvl ' + esc(l.data.levelno)).join(', ')} before starting another level.</div>` : ''}
+    <div class="card" style="margin-top:8px">${photoStripHTML(e)}</div>
+    <div class="btns">${isUnit(d) ? '' : `<a class="btn" href="#/new/levels/${e.id}">+ Next level</a>`}<a class="btn sec" href="#/edit/${e.id}">Edit / close out</a>
+      <a class="btn sec" href="#/new/features/${e.id}">+ Feature</a><a class="btn sec" href="#/new/samples/${e.id}">+ Sample</a></div>
+    ${unitSectionHTML(e)}
+    <h3>Levels</h3><div class="list">${levels.map(l => {
+      const b = kids(l.id, 'bags'), lab = Object.keys(TABLES).filter(t => TABLES[t].mode === 'lab').reduce((a, t) => a + kids(l.id, t).length, 0);
+      return rowHTML(l, `<small>${esc(l.data.munsell || '')} ${esc(l.data.soil_texture || '')}${l.data.artifacts ? ' · artifacts' : ''}${b.length ? ' · bag ' + b.map(x => x.data.bag_no).join(', ') : ''}${lab ? ' · ' + lab + ' lab' : ''}</small>`);
+    }).join('') || '<div class="empty">No levels yet</div>'}</div>
+    ${feats.length ? `<h3>Features</h3><div class="list">${feats.map(f => rowHTML(f)).join('')}</div>` : ''}
+    ${samps.length ? `<h3>Samples</h3><div class="list">${samps.map(f => rowHTML(f)).join('')}</div>` : ''}`;
+  bindPhotos($('[data-photos]'), e, () => { const c = $('#cl'); if (c) c.outerHTML = checklistHTML(e); });
+  bindFinish(e); bindUnitSection(e);
+}
+function bindFinish(r) { const b = $('#finnow'); if (b) b.onclick = () => finishNow(r); }
+function checklistHTML(r) {
+  const miss = completeness(r, r.data);
+  const stale = (r.data._status === 'complete') !== !miss.length;
+  return `<div id="cl">${miss.length ? `<div class="check"><b>${r.data._status === 'complete' ? 'Now incomplete' : 'To close out'}:</b><ul style="margin:4px 0 0;padding-left:18px">${miss.map(x => `<li>${esc(x)}</li>`).join('')}</ul>${stale ? '' : ''}</div>`
+    : `<div class="check okc">All checks pass${r.data._status !== 'complete' ? '. Open “Edit / close out” and save to mark it complete.' : ' ✓'}</div>`}</div>`;
+}
+function labSection(l) {
+  const labT = Object.keys(TABLES).filter(t => TABLES[t].mode === 'lab');
+  const tab = kids(l.id, 'tabulation')[0];
+  // catalogue vs tabulation check (catalogue is authoritative)
+  let check = '';
+  if (tab) {
+    const msgs = catalogueCheck(l);
+    check = msgs.length ? msgs.map(m => `<div class="check">${esc(m)}</div>`).join('') : (kids(l.id, 'prehistoric_ceramics').length || kids(l.id, 'lithic_tools').length ? '<div class="check okc">Tabulation matches the catalogue.</div>' : '');
+  }
+  return `<h3>Lab</h3>${check}
+    <div class="btns">${tab ? `<a class="btn sec sm" href="#/rec/${tab.id}">Edit tabulation</a>` : `<a class="btn sm" href="#/new/tabulation/${l.id}">+ Level tabulation</a>`}
+    ${labT.filter(t => !TABLES[t].single).map(t => `<a class="btn sec sm" href="#/new/${t}/${l.id}">+ ${esc(TABLES[t].label)}</a>`).join('')}</div>
+    ${labT.map(t => { const k = kids(l.id, t); return k.length ? `<h3>${esc(TABLES[t].plural)} <span class="badge">${k.length}</span></h3><div class="list">${k.sort((a, b) => (num(a.data[TABLES[t].fields[0].k]) || 0) - (num(b.data[TABLES[t].fields[0].k]) || 0)).map(r => rowHTML(r)).join('')}</div>` : ''; }).join('')}`;
+}
+function viewLevel(l) {
+  setTitle(TABLES.levels.title(l.data));
+  const d = l.data, bags = kids(l.id, 'bags');
+  $('#app').innerHTML = `${crumbs(l)}<h2>${esc(TABLES.levels.title(d))} ${statusBadge(l)}</h2>${unfinishedBox(l)}
+    <div class="card kv"><div><span>Level ID</span><br>${esc(d.levelid || '—')}</div><div><span>Soil</span><br>${esc(d.munsell || '—')} ${esc(d.soil_texture || '')}</div>
+      <div><span>Method / screen</span><br>${esc(d.excavation_method || '—')} · ${esc(d.screen || '—')}</div><div><span>Artifacts (field)</span><br>${d.artifacts ? 'Yes' : 'No'}${d.field_count != null ? ' · ' + d.field_count : ''}</div>
+      ${d.notes ? `<div style="grid-column:1/-1"><span>Notes</span><br>${esc(d.notes)}</div>` : ''}</div>
+    <div class="btns"><a class="btn sec" href="#/edit/${l.id}">Edit level</a><a class="btn" href="#/new/bags/${l.id}">+ Bag</a>
+      <a class="btn sec" href="#/new/features/${l.parent}?lv=${l.id}">+ Feature</a><a class="btn sec" href="#/new/samples/${l.parent}?lv=${l.id}">+ Sample</a>
+      <a class="btn sec" href="#/new/levels/${l.parent}">+ Next level</a></div>
+    ${l.data._status === 'draft' ? '' : checklistHTML(l)}
+    <div class="card" style="margin-top:8px">${photoStripHTML(l)}</div>
+    <h3>Bags</h3><div class="list">${bags.map(b => rowHTML(b)).join('') || '<div class="empty">No bags</div>'}</div>
+    ${labSection(l)}`;
+  bindPhotos($('[data-photos]'), l, () => { const c = $('#cl'); if (c) c.outerHTML = checklistHTML(l); const u = $('#app .unfinbox'); if (u && l.data._status === 'draft') { u.outerHTML = unfinishedBox(l); bindFinish(l); } });
+  bindFinish(l);
+}
+function viewLab() {
+  setTitle('Lab entry');
+  const L = S.lab ||= {};
+  const sites = live('sites').sort((a, b) => a.data.sitename.localeCompare(b.data.sitename, undefined, { numeric: true }));
+  const ex = L.site ? kids(L.site, 'excavations').sort((a, b) => (a.data.excavationid || '').localeCompare(b.data.excavationid || '')) : [];
+  if (L.exc && !ex.find(e => e.id === L.exc)) L.exc = null;
+  const lv = L.exc ? kids(L.exc, 'levels').sort((a, b) => (euIndex(a.data.excavation_unit) - euIndex(b.data.excavation_unit)) || (a.data.levelno - b.data.levelno)) : [];
+  if (L.lev && !lv.find(e => e.id === L.lev)) L.lev = null;
+  const opt = (list, cur, lab) => `<option value=""></option>` + list.map(r => `<option value="${r.id}" ${r.id === cur ? 'selected' : ''}>${esc(lab(r))}</option>`).join('');
+  const lev = L.lev ? get(L.lev) : null;
+  $('#app').innerHTML = `<h2>Lab entry</h2>
+    <div class="card grid">
+      <div class="f"><label>Site</label><select id="ls">${opt(sites, L.site, r => r.data.sitename)}</select></div>
+      <div class="f w2"><label>Excavation</label><select id="le">${opt(ex, L.exc, r => `${TABLES.excavations.title(r.data)}${r.data.excavationid ? ' (' + r.data.excavationid + ')' : ''}${r.data.positive ? ' +' : ''}`)}</select></div>
+      <div class="f w2"><label>Level</label><select id="ll">${opt(lv, L.lev, r => TABLES.levels.title(r.data))}</select></div>
+    </div>
+    <div class="btns"><button class="btn" id="labscan">▣ Scan bag</button>${L.site ? `<a class="btn sec" href="#/catalog/${L.site}">Site catalogue table</a>` : ''}</div>
+    <div id="labbody">${lev ? `<div class="crumbs">${crumbs(lev).replace(/^<div class="crumbs">|<\/div>$/g, '')}</div>${labSection(lev)}` : '<div class="empty">Pick a site, excavation and level to enter lab data. Levels are created in the field, or with “+ Next level” on the excavation page.</div>'}</div>`;
+  $('#labscan').onclick = async () => {
+    const c = await openScanner('Scan the bag'); if (!c) return;
+    const b = live('bags').find(r => r.data.qr === c); if (!b) { toast(`${c} is not assigned to a level yet`); return; }
+    const lv = get(b.parent); S.lab = { site: b.site, exc: lv?.parent, lev: lv?.id };
+    if (!itemState(c).last || !/Received at lab|Checked out/.test(itemState(c).last.data.action)) await custodyEvent(c, 'bag', 'Checked out for analysis', { from_person: itemState(c).holder, location: 'Lab (analysis)' });
+    viewLab();
+  };
+  $('#ls').onchange = e => { L.site = e.target.value; L.exc = L.lev = null; viewLab(); };
+  $('#le').onchange = e => { L.exc = e.target.value; L.lev = null; viewLab(); };
+  $('#ll').onchange = e => { L.lev = e.target.value; viewLab(); };
+}
+function viewCatalog(siteId) {
+  const s = get(siteId); if (!s) return notFound();
+  setTitle('Catalogue · ' + s.data.sitename);
+  const T = S.catT || 'lithic_tools', def = TABLES[T];
+  const rows = live(T).filter(r => r.site === siteId).sort((a, b) => (num(a.data[def.fields[0].k]) || 0) - (num(b.data[def.fields[0].k]) || 0));
+  const cols = def.fields.filter(f => !['area'].includes(f.t)).slice(0, 12);
+  const ctxOf = r => { const l = get(r.parent), e = l && get(l.parent); return `${e ? TABLES.excavations.title(e.data) : ''} ${l ? l.data.excavation_unit + '-' + l.data.levelno : ''}`; };
+  $('#app').innerHTML = `${crumbs(s)}<h2>Catalogue</h2>
+    <div class="btns">${Object.keys(TABLES).filter(t => TABLES[t].mode === 'lab').map(t => `<button class="btn sm ${t === T ? '' : 'sec'}" data-t="${t}">${esc(TABLES[t].plural)} (${live(t).filter(r => r.site === siteId).length})</button>`).join('')}</div>
+    <div class="tablewrap"><table class="cat"><thead><tr><th>Provenience</th>${cols.map(c => `<th>${esc(c.l)}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map(r => `<tr onclick="location.hash='#/rec/${r.id}'" style="cursor:pointer"><td>${esc(ctxOf(r))}</td>${cols.map(c => `<td>${esc(c.t === 'bool' ? (r.data[c.k] ? '✓' : '') : r.data[c.k] ?? '')}</td>`).join('')}</tr>`).join('') || `<tr><td colspan="${cols.length + 1}" class="empty">No records</td></tr>`}</tbody></table></div>`;
+  $('#app').querySelectorAll('[data-t]').forEach(b => b.onclick = () => { S.catT = b.dataset.t; viewCatalog(siteId); });
+}
+async function viewData() {
+  setTitle('Sync & export');
+  const n = pending(), sess = S.session, conf = !!(S.settings.sb_url && S.settings.sb_key);
+  const counts = Object.keys(TABLES).map(t => [t, live(t).length]).filter(x => x[1]);
+  const pPhotos = await CORE.pendingPhotos();
+  const dupKey = new Map();
+  live('excavations').forEach(e => { const k = e.parent + '|' + e.data.excavation_type + '|' + e.data.seq; (dupKey.get(k) || dupKey.set(k, []).get(k)).push(e); });
+  const catKey = new Map();
+  Object.keys(TABLES).filter(t => TABLES[t].catalog).forEach(t => live(t).forEach(r => { const v = r.data[TABLES[t].fields[0].k]; if (v == null) return; const k = r.site + '|' + v; (catKey.get(k) || catKey.set(k, []).get(k)).push(r); }));
+  const dups = [...dupKey.values(), ...catKey.values()].filter(a => a.length > 1);
+  const drafts = [...S.recs.values()].filter(r => !r.deleted && r.data?._status === 'draft').sort((a, b) => (a.site || '').localeCompare(b.site || ''));
+  $('#app').innerHTML = `<h2>Sync &amp; export</h2>
+    <div class="card">
+      <div class="kv"><div><span>Waiting to upload</span><br><b>${n}</b> record${n === 1 ? '' : 's'} · <b>${pPhotos}</b> photo${pPhotos === 1 ? '' : 's'}</div>
+      <div><span>Last sync</span><br>${S.lastSync ? new Date(S.lastSync).toLocaleString() : 'never'}</div>
+      <div><span>Connection</span><br>${navigator.onLine ? 'Online' : 'Offline'}</div>
+      <div><span>Account</span><br>${!conf ? 'Server not set up' : sess && !sess.expired ? esc(sess.email) : 'Not signed in'}</div></div>
+      ${S.syncErr ? `<div class="check">${esc(S.syncErr)}</div>` : ''}
+      <div class="btns">${conf && sess && !sess.expired ? `<button class="btn" id="syncnow">Sync now</button>` : conf ? `<a class="btn" href="#/settings">Sign in</a>` : `<a class="btn sec" href="#/settings">Set up server</a>`}</div>
+      <div class="help">Finished records are saved on this device first and upload automatically whenever there is signal. Drafts stay on this device until they are finished.</div>
+    </div>
+    ${dups.length ? `<h3>Possible duplicates <span class="badge nogps">${dups.length}</span></h3><div class="help">Two devices used the same number while offline. Renumber one of each pair.</div>
+    <div class="list">${dups.flat().map(r => rowHTML(r, `<small>${esc(get(r.site)?.data.sitename || '')} · entered by ${esc(r.created_by || '?')}</small>`)).join('')}</div>` : ''}
+    <h3>Unfinished drafts on this device <span class="badge">${drafts.length}</span></h3>
+    <div class="list">${drafts.slice(0, 200).map(r => rowHTML(r, `<small>${esc(get(r.site)?.data.sitename || '')} · ${esc(TABLES[r.tbl].label)} · missing: ${esc((r.data._missing || []).slice(0, 3).join('; '))}</small>`)).join('') || '<div class="empty">None. Everything entered is complete.</div>'}</div>
+    <h3>Export</h3>
+    <div class="card"><div class="btns"><button class="btn" id="csv">Download CSVs (zip)</button><button class="btn sec" id="json">Full backup (JSON)</button>
+      <label class="btn sec" style="cursor:pointer">Restore/merge backup<input type="file" id="imp" accept=".json,application/json" hidden></label></div>
+      <div class="help">CSV columns use the Access/GeoPackage field names, plus record IDs and provenience keys for joining in QGIS.</div>
+      <div class="kv" style="margin-top:8px">${counts.map(([t, c]) => `<div><span>${esc(TABLES[t].plural)}</span><br>${c}</div>`).join('')}</div></div>`;
+  $('#syncnow') && ($('#syncnow').onclick = () => runSync(true));
+  $('#csv').onclick = exportCSV; $('#json').onclick = exportJSON;
+  $('#imp').onchange = importJSON;
+}
+async function viewSettings() {
+  setTitle('Settings');
+  const s = S.settings, sess = S.session;
+  $('#app').innerHTML = `<h2>Settings</h2>
+    <form id="sf" class="card grid">
+      <div class="f w2"><label>Your name (recorder / lab tech)</label><input id="s_name" value="${esc(s.name)}" placeholder="Last, First"></div>
+      <div class="f"><label>Default level thickness (cm)</label><input id="s_level_cm" inputmode="numeric" value="${esc(s.level_cm)}"></div>
+      <div class="f"><label>GPS averaging (seconds)</label><input id="s_gps_secs" inputmode="numeric" value="${esc(s.gps_secs)}"></div>
+      <div class="f"><label>Warn if GPS accuracy worse than (m)</label><input id="s_gps_max_acc" inputmode="decimal" value="${esc(s.gps_max_acc)}"></div>
+      <div class="f w2"><label>GPS source label</label><input id="s_gps_source" value="${esc(s.gps_source)}"></div>
+      <div class="f w2"><label>Datum / reference frame label</label><input id="s_datum" value="${esc(s.datum)}"><div class="help">Phone/browser coordinates are WGS84. With Emlid RTK, use the frame of your correction source.</div></div>
+      <div class="f"><label>Theme</label><select id="s_theme">${['auto', 'light', 'dark'].map(t => `<option ${s.theme === t ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+      <div class="grp">Server (Supabase)</div>
+      <div class="f w2"><label>Project URL</label><input id="s_sb_url" value="${esc(s.sb_url)}" placeholder="https://xxxx.supabase.co"></div>
+      <div class="f w2"><label>Publishable (anon) key</label><input id="s_sb_key" value="${esc(s.sb_key)}"></div>
+      <div class="f w3"><button class="btn" type="submit">Save settings</button></div>
+    </form>
+    <h3>Account</h3>
+    <div class="card">${sess && !sess.expired ? `<p>Signed in as <b>${esc(sess.email)}</b></p><button class="btn bad" id="so">Sign out</button>`
+      : `<form id="lf" class="grid"><div class="f w2"><label>Email</label><input id="em" type="email" autocomplete="username" value="${esc(sess?.email || '')}"></div>
+      <div class="f w2"><label>Password</label><input id="pw" type="password" autocomplete="current-password"></div><div class="f w3"><button class="btn" type="submit">Sign in</button></div></form>
+      <div class="help">Accounts are created by the project director in the Supabase dashboard. You can enter data without signing in; it uploads after you sign in.</div>`}</div>
+    <h3>Test mode</h3>
+    <div class="card">${TESTMODE ? `<p><b>You are in TEST MODE.</b> Everything here is practice data, stored separately from the project.</p>
+      <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a><button class="btn sec" id="tmoff">Leave test mode</button></div>`
+      : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.4 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+  $('#demo') && ($('#demo').onclick = loadDemo);
+  $('#tmoff') && ($('#tmoff').onclick = () => switchMode(false));
+  $('#tmon') && ($('#tmon').onclick = () => switchMode(true));
+  $('#sf').onsubmit = async e => {
+    e.preventDefault();
+    for (const k of Object.keys(DEF)) { const el = $('#s_' + k); if (el) s[k] = el.value.trim(); }
+    await CORE.setMeta('settings', s); applyTheme(); toast('Settings saved'); updatePill(); viewSettings();
+  };
+  $('#lf') && ($('#lf').onsubmit = async e => {
+    e.preventDefault();
+    try { S.session = await CORE.signIn($('#em').value.trim(), $('#pw').value); if (!s.name) { s.name = S.session.email; await CORE.setMeta('settings', s); } toast('Signed in'); runSync(true); viewSettings(); }
+    catch (err) { toast(err.message); }
+  });
+  $('#so') && ($('#so').onclick = async () => {
+    if (draftCount() && !(await ask(`${draftCount()} UNFINISHED records exist only on this device. Finish them before signing out. Sign out anyway?`, 'Sign out anyway', 'Cancel'))) return;
+    if (pending() && !(await ask(`${pending()} records have not been uploaded. They stay on this device, but won't upload until someone signs in again. Sign out?`, 'Sign out'))) return;
+    await CORE.signOut(); S.session = null; updatePill(); viewSettings();
+  });
+}
+function notFound() { $('#app').innerHTML = '<div class="empty">Record not found (it may have been deleted). <a href="#/">Home</a></div>'; }
+
+/* ================= units: subunits, plan, corners ================= */
+const subsOf = excId => kids(excId, 'subunits').sort((a, b) => euIndex(a.data.letter) - euIndex(b.data.letter));
+const partsOf = s => Array.isArray(s?.data?.parts) ? s.data.parts : [];
+const r2 = v => Math.round(v * 1000) / 1000;
+function nextLetter(excId) {
+  const used = new Set(subsOf(excId).map(s => String(s.data.letter).toUpperCase()));
+  for (let i = 1; i < 702; i++) { const L = i <= 26 ? String.fromCharCode(64 + i) : String.fromCharCode(64 + Math.floor((i - 1) / 26)) + String.fromCharCode(65 + (i - 1) % 26); if (!used.has(L)) return L; }
+  return '';
+}
+function partsArea(parts) { return r2(parts.reduce((a, p) => a + (+p.w) * (+p.h), 0)); }
+function sizeLabel(parts) {
+  if (!parts.length) return '';
+  if (parts.length === 1) return `${fmtM(parts[0].w)} × ${fmtM(parts[0].h)} m`;
+  return `${parts.length === 2 ? 'L-shaped' : parts.length + ' pieces'}, ${partsArea(parts)} m²`;
+}
+const fmtM = v => String(r2(+v)).replace(/^0\./, '0.');
+function bbox(parts) {
+  if (!parts.length) return null;
+  return { x0: Math.min(...parts.map(p => p.x)), y0: Math.min(...parts.map(p => p.y)), x1: Math.max(...parts.map(p => p.x + p.w)), y1: Math.max(...parts.map(p => p.y + p.h)) };
+}
+function overlap(a, b) { const w = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), h = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y); return w > 1e-6 && h > 1e-6; }
+function touches(a, b) {
+  const w = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), h = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+  return (Math.abs(h) < 1e-6 && w > 1e-6) || (Math.abs(w) < 1e-6 && h > 1e-6);
+}
+/* unit grid (x east, y north, metres from datum) <-> UTM, with az = grid azimuth of the unit's north edge */
+function toWorld(e, x, y) {
+  const a = (num(e.data.azimuth) || 0) * Math.PI / 180;
+  return { E: num(e.data.utme) + x * Math.cos(a) + y * Math.sin(a), N: num(e.data.utmn) - x * Math.sin(a) + y * Math.cos(a) };
+}
+function toLocal(e, E, N) {
+  const a = (num(e.data.azimuth) || 0) * Math.PI / 180, dE = E - num(e.data.utme), dN = N - num(e.data.utmn);
+  return { x: dE * Math.cos(a) - dN * Math.sin(a), y: dE * Math.sin(a) + dN * Math.cos(a) };
+}
+function cornerOptions(excId) {
+  const seen = new Map();
+  for (const s of subsOf(excId)) for (const p of partsOf(s)) {
+    for (const [dir, x, y] of [['SW', p.x, p.y], ['SE', p.x + p.w, p.y], ['NW', p.x, p.y + p.h], ['NE', p.x + p.w, p.y + p.h]]) {
+      const k = r2(x) + ',' + r2(y); if (!seen.has(k)) seen.set(k, `${s.data.letter} ${dir} (${r2(x)}, ${r2(y)})`);
+    }
+  }
+  return [...seen.values()];
+}
+/* corner shots: computed azimuth and misfit against the plan */
+function cornerChecks(e) {
+  if (num(e.data.utme) == null || num(e.data.utmn) == null) return [];
+  return kids(e.id, 'mappoints').filter(m => m.data.kind === 'Unit corner' && m.data.local_x != null && num(m.data.utme) != null).map(m => {
+    const dE = m.data.utme - e.data.utme, dN = m.data.utmn - e.data.utmn, lx = m.data.local_x, ly = m.data.local_y;
+    const shotBear = Math.atan2(dE, dN) * 180 / Math.PI, planBear = Math.atan2(lx, ly) * 180 / Math.PI;
+    let az = (shotBear - planBear + 360) % 360;
+    const dShot = Math.hypot(dE, dN), dPlan = Math.hypot(lx, ly);
+    let misfit = null;
+    if (num(e.data.azimuth) != null) { const w = toWorld(e, lx, ly); misfit = Math.hypot(w.E - m.data.utme, w.N - m.data.utmn); }
+    return { m, az: dPlan > 0.3 ? +az.toFixed(1) : null, dShot, dPlan, misfit };
+  });
+}
+const CORNER_TOL = 0.15; // m
+function unitPlanSVG(e, o = {}) {
+  const subs = subsOf(e.id).filter(s => s.id !== o.editId);
+  const all = subs.flatMap(s => partsOf(s)).concat(o.parts || []);
+  const bb = bbox(all.concat([{ x: 0, y: 0, w: 0, h: 0 }])) || { x0: 0, y0: 0, x1: 1, y1: 1 };
+  const pad = 0.6, x0 = Math.floor((bb.x0 - pad) * 2) / 2, y0 = Math.floor((bb.y0 - pad) * 2) / 2;
+  let x1 = Math.ceil((bb.x1 + pad) * 2) / 2, y1 = Math.ceil((bb.y1 + pad) * 2) / 2;
+  if (x1 - x0 < 3) x1 = x0 + 3; if (y1 - y0 < 3) y1 = y0 + 3;
+  const W = x1 - x0, H = y1 - y0, Y = y => y1 - (y - y0) - y0; // flip so north is up (svg y = y1 - y)
+  let g = '';
+  for (let x = x0; x <= x1 + 1e-9; x += 0.5) g += `<line x1="${x}" y1="${Y(y0)}" x2="${x}" y2="${Y(y1)}" class="${Math.abs(x % 1) < 1e-9 ? 'g1' : 'g2'}"/>`;
+  for (let y = y0; y <= y1 + 1e-9; y += 0.5) g += `<line x1="${x0}" y1="${Y(y)}" x2="${x1}" y2="${Y(y)}" class="${Math.abs(y % 1) < 1e-9 ? 'g1' : 'g2'}"/>`;
+  const pieces = (ps, cls, letter, id) => ps.map(p => `<rect x="${p.x}" y="${Y(p.y + p.h)}" width="${p.w}" height="${p.h}" class="${cls}" ${letter ? `data-letter="${esc(letter)}"` : ''} ${id ? `data-id="${id}"` : ''}/>`).join('');
+  let body = '';
+  for (const s of subs) {
+    const ps = partsOf(s), big = ps.slice().sort((a, b) => b.w * b.h - a.w * a.h)[0];
+    const lv = kids(s.parent, 'levels').filter(l => String(l.data.excavation_unit).toUpperCase() === String(s.data.letter).toUpperCase());
+    const cls = 'su' + (o.sel && o.sel === s.data.letter ? ' sel' : '') + (lv.some(l => l.data.terminal_level) ? ' done' : '');
+    body += pieces(ps, cls, s.data.letter, s.id);
+    if (big) body += `<text x="${big.x + big.w / 2}" y="${Y(big.y + big.h / 2)}" class="sut">${esc(s.data.letter)}</text>`;
+  }
+  if (o.parts) body += pieces(o.parts, 'su edit');
+  // datum + corner shots
+  body += `<g class="datum"><circle cx="0" cy="${Y(0)}" r="0.09"/><path d="M-0.16 ${Y(0)}h0.32M0 ${Y(0) - 0.16}v0.32"/></g>`;
+  if (num(e.data.azimuth) != null) for (const c of cornerChecks(e)) {
+    const l = toLocal(e, c.m.data.utme, c.m.data.utmn);
+    body += `<rect x="${l.x - 0.06}" y="${Y(l.y) - 0.06}" width="0.12" height="0.12" class="shot ${c.misfit > CORNER_TOL ? 'bad' : ''}" transform="rotate(45 ${l.x} ${Y(l.y)})"/>`;
+  }
+  // grid-north arrow (plan is drawn in the unit's own grid)
+  const az = num(e.data.azimuth);
+  const arrow = az != null ? `<g transform="translate(${x1 - 0.35} ${Y(y1) + 0.45}) rotate(${-az})"><path d="M0 -0.28 L0.09 0.12 L0 0.05 L-0.09 0.12Z" class="narrow"/><text y="0.3" class="nt">N</text></g>` : '';
+  return `<svg class="plan" viewBox="${x0} ${Y(y1)} ${W} ${H}" preserveAspectRatio="xMidYMid meet" data-y1="${y1}" data-x0="${x0}" data-w="${W}" data-h="${H}">
+    <g class="grid">${g}</g>${body}${arrow}</svg>
+    <div class="help">Grid squares are 0.5 m. ✚ = unit datum${az != null ? ' · ◆ = GPS corner shots' : ''}${az == null ? ' · azimuth not set yet' : ''}</div>`;
+}
+/* ---- subunit editor ---- */
+function subunitEditor(rec, isNew) {
+  const e = get(rec.parent); if (!e) return notFound();
+  const others = subsOf(e.id).filter(s => s.id !== rec.id);
+  const first = !others.length;
+  const st = S.suEd && S.suEd.id === rec.id ? S.suEd : (S.suEd = {
+    id: rec.id, letter: rec.data.letter || nextLetter(e.id), opened: rec.data.opened || today(), reason: rec.data.reason || '', notes: rec.data.notes || '',
+    parts: partsOf(rec).length ? partsOf(rec).map(p => ({ ...p })) : [first ? { x: 0, y: 0, w: 1, h: 1 } : null].filter(Boolean),
+    datumCorner: 'SW', active: 0,
+  });
+  if (!st.parts.length) { // place next to the last-opened subunit by default
+    const last = others[others.length - 1], b = bbox(partsOf(last)) || { x0: 0, y0: 0, x1: 1, y1: 1 };
+    st.parts.push({ x: b.x1, y: b.y0, w: 1, h: 1 });
+  }
+  setTitle((isNew ? 'New ' : '') + 'subunit');
+  const p = st.parts[st.active] || st.parts[0];
+  const msgs = [], errs = [];
+  st.parts.forEach((a, i) => {
+    if (!(a.w > 0 && a.h > 0)) errs.push(`Piece ${i + 1}: size must be more than 0`);
+    for (const s of others) for (const b of partsOf(s)) if (overlap(a, b)) errs.push(`Piece ${i + 1} overlaps subunit ${s.data.letter}`);
+    st.parts.forEach((b, j) => { if (j > i && overlap(a, b)) errs.push(`Pieces ${i + 1} and ${j + 1} overlap`); });
+  });
+  if (st.parts.length > 1 && st.parts.some((a, i) => !st.parts.some((b, j) => j !== i && touches(a, b)))) msgs.push('The pieces of this subunit do not touch each other');
+  if (!first && !st.parts.some(a => others.some(s => partsOf(s).some(b => touches(a, b))))) msgs.push('This subunit does not touch any existing subunit. Fine for a separate block, but check the position.');
+  const L = String(st.letter || '').trim().toUpperCase();
+  if (!L) errs.push('Letter is required'); else if (others.some(s => String(s.data.letter).toUpperCase() === L)) errs.push(`Letter ${L} is already used in this unit`);
+  if (!isNew && L !== String(rec.data.letter).toUpperCase() && kids(e.id, 'levels').some(l => String(l.data.excavation_unit).toUpperCase() === String(rec.data.letter).toUpperCase())) errs.push('This subunit already has levels, so its letter cannot be changed');
+  const presets = [[1, 1], [0.5, 1], [1, 0.5], [0.5, 0.5], [1, 2], [2, 1]];
+  $('#app').innerHTML = `${crumbs(e)}<h2>${isNew ? 'New subunit' : 'Subunit ' + esc(rec.data.letter)} <span class="badge">${esc(sizeLabel(st.parts))}</span></h2>
+    <div class="card"><div id="planbox">${unitPlanSVG(e, { parts: st.parts, editId: rec.id })}</div>
+      <div class="help">Tap the plan to move the highlighted piece (its SW corner snaps to 0.25 m).</div></div>
+    <div class="card grid" style="margin-top:10px">
+      <div class="f"><label>Letter</label><input id="su_l" value="${esc(st.letter)}" autocapitalize="characters"></div>
+      <div class="f"><label>Opened</label><input id="su_o" type="date" value="${esc(st.opened)}"></div>
+      <div class="f w2"><label>Why opened</label><input id="su_r" value="${esc(st.reason)}" placeholder="${first ? 'Initial unit next to datum' : 'Expansion to follow feature 3'}"></div>
+    </div>
+    ${st.parts.map((a, i) => `<div class="card piece ${i === st.active ? 'act' : ''}" data-i="${i}" style="margin-top:10px">
+      <div style="display:flex;align-items:center;gap:8px"><b style="flex:1">Piece ${i + 1}${st.parts.length > 1 ? '' : ''}</b>${i !== st.active ? `<button class="btn sm sec" data-act="sel">Edit this piece</button>` : ''}${st.parts.length > 1 ? `<button class="btn sm bad" data-act="rm">Remove</button>` : ''}</div>
+      ${i === st.active ? `
+      <div class="help" style="margin-top:6px">Size (E–W × N–S)</div>
+      <div class="btns" style="margin:4px 0">${presets.map(([w, h]) => `<button class="btn sm ${a.w === w && a.h === h ? '' : 'sec'}" data-act="size" data-w="${w}" data-h="${h}">${fmtM(w)}×${fmtM(h)}</button>`).join('')}</div>
+      <div class="grid"><div class="f"><label>E–W (m)</label><input data-k="w" inputmode="decimal" value="${a.w}"></div><div class="f"><label>N–S (m)</label><input data-k="h" inputmode="decimal" value="${a.h}"></div>
+        <div class="f"><label>SW corner x (m E of datum)</label><input data-k="x" inputmode="decimal" value="${r2(a.x)}"></div><div class="f"><label>SW corner y (m N of datum)</label><input data-k="y" inputmode="decimal" value="${r2(a.y)}"></div></div>
+      ${first && i === 0 ? `<div class="f" style="margin-top:8px"><label>The datum is at this piece's…</label><div class="btns">${['SW', 'SE', 'NW', 'NE'].map(c => `<button class="btn sm ${st.datumCorner === c ? '' : 'sec'}" data-act="datum" data-c="${c}">${c} corner</button>`).join('')}</div></div>`
+        : `<div class="f" style="margin-top:8px"><label>Place against</label><div class="btns">${(others.length ? others : []).map(s => `<span style="display:inline-flex;gap:4px;align-items:center"><b>${esc(s.data.letter)}</b>${['N', 'S', 'E', 'W'].map(sd => `<button class="btn sm sec" data-act="att" data-id="${s.id}" data-side="${sd}">${sd}</button>`).join('')}</span>`).join('&nbsp;&nbsp;')}${i > 0 ? `<span style="display:inline-flex;gap:4px;align-items:center"><b>Piece 1</b>${['N', 'S', 'E', 'W'].map(sd => `<button class="btn sm sec" data-act="attp" data-side="${sd}">${sd}</button>`).join('')}</span>` : ''}</div></div>`}
+      <div class="btns"><span class="help">Nudge 0.25 m:</span>${[['←', -0.25, 0], ['→', 0.25, 0], ['↓', 0, -0.25], ['↑', 0, 0.25]].map(([t, dx, dy]) => `<button class="btn sm sec" data-act="nudge" data-dx="${dx}" data-dy="${dy}">${t}</button>`).join('')}</div>` : `<div class="help">${fmtM(a.w)} × ${fmtM(a.h)} m at (${r2(a.x)}, ${r2(a.y)})</div>`}
+    </div>`).join('')}
+    <div class="btns"><button class="btn sec" id="addp">+ Add a piece (L-shape)</button></div>
+    ${errs.map(m => `<div class="check" style="border-color:var(--bad)">${esc(m)}</div>`).join('')}${msgs.map(m => `<div class="check">${esc(m)}</div>`).join('')}
+    <div class="formbar"><button class="btn" id="sv" ${errs.length ? 'disabled' : ''}>${isNew ? 'Add subunit ✓' : 'Save subunit ✓'}</button><button class="btn sec" id="cx">Cancel</button>
+      ${!isNew ? '<span style="flex:1"></span><button class="btn bad" id="dl">Delete</button>' : ''}</div>`;
+  const redraw = () => subunitEditor(rec, isNew);
+  const keep = () => { st.letter = $('#su_l').value; st.opened = $('#su_o').value; st.reason = $('#su_r').value; };
+  $('#app').querySelectorAll('.piece input[data-k]').forEach(inp => inp.onchange = () => { keep(); const v = parseFloat(inp.value.replace(',', '.')); if (!isNaN(v)) p[inp.dataset.k] = v; redraw(); });
+  ['#su_l', '#su_o', '#su_r'].forEach(id => $(id).onchange = () => { keep(); redraw(); });
+  $('#app').querySelectorAll('.piece [data-act]').forEach(b => b.onclick = () => {
+    keep(); const i = +b.closest('.piece').dataset.i, a = st.parts[i], act = b.dataset.act;
+    if (act === 'sel') st.active = i;
+    if (act === 'rm') { st.parts.splice(i, 1); st.active = 0; }
+    if (act === 'size') {
+      const w = +b.dataset.w, h = +b.dataset.h;
+      if (first && i === 0) { a.w = w; a.h = h; setDatum(a, st.datumCorner); } else { a.w = w; a.h = h; }
+    }
+    if (act === 'datum') { st.datumCorner = b.dataset.c; setDatum(a, st.datumCorner); }
+    if (act === 'nudge') { a.x = r2(a.x + +b.dataset.dx); a.y = r2(a.y + +b.dataset.dy); }
+    if (act === 'att' || act === 'attp') {
+      const nb = act === 'att' ? bbox(partsOf(get(b.dataset.id))) : bbox([st.parts[0]]), sd = b.dataset.side;
+      if (sd === 'N') { a.x = nb.x0; a.y = nb.y1; } if (sd === 'S') { a.x = nb.x0; a.y = nb.y0 - a.h; }
+      if (sd === 'E') { a.x = nb.x1; a.y = nb.y0; } if (sd === 'W') { a.x = nb.x0 - a.w; a.y = nb.y0; }
+      a.x = r2(a.x); a.y = r2(a.y);
+    }
+    redraw();
+  });
+  const svg = $('#planbox svg');
+  svg.addEventListener('click', ev => {
+    keep(); const pt = svg.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY;
+    const q = pt.matrixTransform(svg.getScreenCTM().inverse()), y1 = +svg.dataset.y1;
+    p.x = r2(Math.floor(q.x * 4) / 4); p.y = r2(Math.floor((y1 - q.y) * 4) / 4); redraw();
+  });
+  $('#addp').onclick = () => { keep(); const b = bbox(st.parts); st.parts.push({ x: b.x1, y: b.y0, w: 0.5, h: 0.5 }); st.active = st.parts.length - 1; redraw(); };
+  $('#cx').onclick = () => { S.suEd = null; S._suNew = null; location.hash = hashFor(e); };
+  $('#sv').onclick = async () => {
+    keep();
+    rec.data = { ...rec.data, letter: String(st.letter).trim().toUpperCase(), opened: st.opened, reason: st.reason, parts: st.parts.map(a => ({ x: r2(a.x), y: r2(a.y), w: r2(a.w), h: r2(a.h) })) };
+    rec.data.area_m2 = partsArea(rec.data.parts); rec.data.size_label = sizeLabel(rec.data.parts); rec.data._status = 'complete'; rec.data._missing = [];
+    await save(rec); S.suEd = null; S._suNew = null; toast(`Subunit ${rec.data.letter} saved`); location.hash = hashFor(e);
+  };
+  $('#dl') && ($('#dl').onclick = async () => {
+    if (kids(e.id, 'levels').some(l => String(l.data.excavation_unit).toUpperCase() === String(rec.data.letter).toUpperCase())) return toast('This subunit has levels; delete those first');
+    if (await ask(`Delete subunit ${rec.data.letter}?`, 'Delete')) { await softDelete(rec); S.suEd = null; location.hash = hashFor(e); }
+  });
+}
+function setDatum(a, c) { a.x = c === 'SW' || c === 'NW' ? 0 : -a.w; a.y = c === 'SW' || c === 'SE' ? 0 : -a.h; }
+
+/* ---- unit section on the excavation page ---- */
+function unitSectionHTML(e) {
+  if (!isUnit(e.data)) return '';
+  const subs = subsOf(e.id), cc = cornerChecks(e), sel = S.suSel && subs.find(s => s.data.letter === S.suSel) ? S.suSel : subs[0]?.data.letter;
+  const lv = sel ? kids(e.id, 'levels').filter(l => String(l.data.excavation_unit).toUpperCase() === String(sel).toUpperCase()).sort((a, b) => a.data.levelno - b.data.levelno) : [];
+  const suggestAz = cc.filter(c => c.az != null);
+  return `<h3>Unit plan <span class="sp"></span><a class="btn sm" href="#/new/subunits/${e.id}">+ Subunit</a></h3>
+    <div class="card"><div id="unitplan">${subs.length ? unitPlanSVG(e, { sel }) : '<div class="empty">No subunits yet. Add the first one; it is usually the 1 × 1 m square next to the datum and gets the letter A.</div>'}</div>
+    ${subs.length ? `<div class="btns">${subs.map(s => `<button class="btn sm ${s.data.letter === sel ? '' : 'sec'}" data-su="${esc(s.data.letter)}">${esc(s.data.letter)} · ${esc(s.data.size_label || '')}</button>`).join('')}</div>` : ''}
+    ${sel ? `<div class="kv" style="margin-top:6px"><div><span>Subunit ${esc(sel)}</span><br>${lv.length ? `${lv.length} level${lv.length > 1 ? 's' : ''}, to ${esc(lv[lv.length - 1].data.bgscm)} cmbs${lv.some(l => l.data.terminal_level) ? ' (closed)' : ''}` : 'no levels yet'}</div></div>
+      <div class="btns"><a class="btn" href="#/new/levels/${e.id}?su=${encodeURIComponent(sel)}">+ Level in ${esc(sel)}</a><a class="btn sec" href="#/rec/${subs.find(s => s.data.letter === sel).id}">Edit ${esc(sel)}</a></div>` : ''}</div>
+    <h3>Unit datum &amp; corner shots <span class="sp"></span><a class="btn sm" href="#/new/mappoints/${e.id}?corner">+ Shoot a corner</a></h3>
+    <div class="card">
+      <div class="kv"><div><span>Datum</span><br>${e.data.utme != null ? `${e.data.utme} E, ${e.data.utmn} N` : '<b style="color:var(--warn)">not shot yet</b>'}${e.data.datum_desc ? '<br>' + esc(e.data.datum_desc) : ''}</div>
+        <div><span>Unit azimuth</span><br>${num(e.data.azimuth) != null ? esc(e.data.azimuth) + '°' : '<b style="color:var(--warn)">not set</b>'}</div></div>
+      ${cc.length ? `<div class="hist" style="margin-top:8px">${cc.map(c => `<div><b>${esc(c.m.data.label || c.m.data.corner || 'Corner')}</b> · ${c.dShot.toFixed(2)} m from datum (plan ${c.dPlan.toFixed(2)} m)${c.az != null ? ` · implies azimuth ${c.az}°` : ''}${c.misfit != null ? ` · <span style="color:${c.misfit > CORNER_TOL ? 'var(--bad)' : 'var(--ok)'}">${(c.misfit * 100).toFixed(0)} cm from plan</span>` : ''}</div>`).join('')}</div>` : '<div class="help">Shoot at least one unit corner with the GPS (two is better). The app works out the unit\'s orientation and checks it against the plan.</div>'}
+      ${suggestAz.length ? `<div class="btns"><button class="btn sm" id="useaz" data-az="${(suggestAz.reduce((a, c) => a + c.az, 0) / suggestAz.length).toFixed(1)}">Set azimuth to ${(suggestAz.reduce((a, c) => a + c.az, 0) / suggestAz.length).toFixed(1)}° from the corner shot${suggestAz.length > 1 ? 's' : ''}</button></div>` : ''}
+      ${kids(e.id, 'mappoints').length ? `<div class="list" style="margin-top:8px">${kids(e.id, 'mappoints').map(m => rowHTML(m, `<small>${m.data.utme != null ? `${m.data.utme} E, ${m.data.utmn} N · ±${esc(m.data.gps_acc_m ?? '?')} m` : 'no position'}</small>`)).join('')}</div>` : ''}
+    </div>`;
+}
+function bindUnitSection(e) {
+  $('#app').querySelectorAll('[data-su]').forEach(b => b.onclick = () => { S.suSel = b.dataset.su; viewExc(e); });
+  const svg = $('#unitplan svg'); if (svg) svg.addEventListener('click', ev => { const r = ev.target.closest('[data-letter]'); if (r) { S.suSel = r.dataset.letter; viewExc(e); } });
+  const ua = $('#useaz'); if (ua) ua.onclick = async () => { e.data = { ...e.data, azimuth: +ua.dataset.az }; const miss = completeness(e, e.data); e.data._status = statusFor(e, e.data, miss) === 'draft' ? 'draft' : (e.data._status === 'complete' && miss.length ? 'open' : e.data._status); await save(e); toast('Azimuth set'); viewExc(e); };
+}
+
+/* ================= labels, scanning, custody ================= */
+const CODE_ALPHA = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'; // no I, L, O, U
+function parseCode(t) {
+  t = String(t || ''); const i = t.indexOf('#/scan/'); if (i >= 0) t = t.slice(i + 7);
+  const m = t.toUpperCase().match(/\b([BX])-?([0-9A-HJKMNP-TV-Z]{6})\b/);
+  return m ? `${m[1]}-${m[2]}` : null;
+}
+function newCode(kind) { const b = crypto.getRandomValues(new Uint8Array(6)); return kind + '-' + [...b].map(x => CODE_ALPHA[x % 32]).join(''); }
+function nextTemp(district) {
+  const [abbr, dig] = DISTRICT_CODE[district] || ['OTH', 9];
+  const re = new RegExp('^' + abbr + '-T(\\d+)$');
+  const n = live('sites').reduce((m, r) => { const a = (r.data.temp_name || r.data.sitename || '').match(re); return a ? Math.max(m, +a[1]) : m; }, 0) + 1;
+  return { name: `${abbr}-T${pad(n, 2)}`, code: '8' + dig + pad(n % 100, 2) };
+}
+async function custodyEvent(code, kind, action, extra = {}) {
+  const r = mk('custody', null, { item_qr: code, item_kind: kind, action, to_person: me(), from_person: '', location: '', time: now(), ...extra, _status: 'complete', _missing: [] });
+  await save(r); return r;
+}
+async function createBag(level, code) {
+  const b = mk('bags', level.id, {});
+  b.data = { qr: code, bag_no: nextNum(live('bags').filter(r => r.site === level.site), 'bag_no'), contents: 'Prehistoric artifacts', date: today(), _status: 'complete', _missing: [] };
+  await save(b);
+  await custodyEvent(code, 'bag', 'Collected in field', { location: get(level.site)?.data.sitename || '' });
+  return b;
+}
+function custodyLog(code) { return live('custody').filter(r => r.data.item_qr === code).sort((a, b) => (a.data.time > b.data.time ? 1 : -1)); }
+function itemState(code) {
+  const h = custodyLog(code), last = h[h.length - 1];
+  let box = null; for (const e of h) { if (e.data.action === 'Placed in box') box = e.data.box_qr; if (e.data.action === 'Removed from box') box = null; }
+  return { last, box, holder: last?.data.to_person || '', location: last?.data.location || '' };
+}
+function boxContents(code) { return live('bags').filter(b => itemState(b.data.qr).box === code); }
+function qrSVG(text, size) {
+  const q = qrcode(0, 'M'); q.addData(text); q.make();
+  const n = q.getModuleCount(); let d = '';
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) d += `M${c} ${r}h1v1h-1z`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 ${n + 2} ${n + 2}" width="${size}" height="${size}" shape-rendering="crispEdges"><rect x="-1" y="-1" width="${n + 2}" height="${n + 2}" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
+}
+const appBase = () => location.protocol.startsWith('http') ? location.href.split('#')[0] : '';
+const labelText = code => appBase() ? `${appBase()}#/scan/${code}` : code;
+
+let scanStream = null;
+function openScanner(title = 'Scan label') {
+  return new Promise(resolve => {
+    const m = document.createElement('div'); m.className = 'modal';
+    m.innerHTML = `<div class="card" style="max-width:520px"><b>${esc(title)}</b>
+      <div class="scanbox" style="margin:10px 0"><video playsinline muted></video><div class="aim"></div></div>
+      <div class="help sm" id="smsg">Point the camera at the QR code.</div>
+      <div class="qrrow" style="margin-top:8px"><input id="sman" placeholder="…or type / use a USB scanner" autocapitalize="characters" autocomplete="off"><button class="btn sm" id="sok">OK</button></div>
+      <div class="btns" style="justify-content:flex-end"><button class="btn sec" id="sx">Cancel</button></div></div>`;
+    document.body.append(m);
+    const video = $('video', m), msg = $('#smsg', m), man = $('#sman', m);
+    let stop = false; const cv = document.createElement('canvas'), cx = cv.getContext('2d', { willReadFrequently: true });
+    const done = v => { if (stop) return; stop = true; scanStream?.getTracks().forEach(t => t.stop()); scanStream = null; m.remove(); resolve(v); };
+    $('#sx', m).onclick = () => done(null);
+    const manual = () => { const v = man.value.trim(); if (!v) return; const c = parseCode(v); if (!c) { msg.textContent = `“${v}” is not a KNF label code (B-XXXXXX or X-XXXXXX).`; return; } done(c); };
+    $('#sok', m).onclick = manual; man.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); manual(); } };
+    if (!('ontouchstart' in window)) man.focus();
+    let det = null;
+    (async () => {
+      try { if ('BarcodeDetector' in window && (await BarcodeDetector.getSupportedFormats()).includes('qr_code')) det = new BarcodeDetector({ formats: ['qr_code'] }); } catch (e) { }
+      try {
+        scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }, audio: false });
+        if (stop) { scanStream.getTracks().forEach(t => t.stop()); return; }
+        video.srcObject = scanStream; await video.play();
+      } catch (e) { msg.textContent = 'Camera not available here: type the code or use a USB scanner.'; return; }
+      const loop = async () => {
+        if (stop) return;
+        if (video.readyState >= 2 && video.videoWidth) {
+          let txt = null;
+          try {
+            if (det) { const r = await det.detect(video); if (r[0]) txt = r[0].rawValue; }
+            else {
+              const w = Math.min(720, video.videoWidth), h = Math.round(video.videoHeight * w / video.videoWidth);
+              cv.width = w; cv.height = h; cx.drawImage(video, 0, 0, w, h);
+              const r = jsQR(cx.getImageData(0, 0, w, h).data, w, h, { inversionAttempts: 'attemptBoth' }); if (r) txt = r.data;
+            }
+          } catch (e) { }
+          if (txt) { const c = parseCode(txt); if (c) { navigator.vibrate?.(60); return done(c); } msg.textContent = 'That QR code is not a KNF label.'; }
+        }
+        setTimeout(loop, 120);
+      };
+      loop();
+    })();
+  });
+}
+
+function viewHome() {
+  setTitle('KNF Field Data');
+  const dc = draftCount();
+  $('#app').innerHTML = `
+    <div class="home">
+      <a class="tile field" href="#/sites"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><span>Field<small>Sites · excavations · levels · bags</small></span></a>
+      <a class="tile lab" href="#/lab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/><path d="M7.5 14h9"/></svg><span>Lab<small>Analysis · catalogue · tabulation</small></span></a>
+    </div>
+    <div class="minis">
+      <a class="mini" href="#/scan">▣ Scan a label</a>
+      <a class="mini" href="#/data">⟳ Sync${dc ? ` <span class="badge nogps">${dc} draft${dc > 1 ? 's' : ''}</span>` : ''}</a>
+      <a class="mini" href="#/labels">⎙ Print labels</a>
+      <a class="mini" href="#/settings">⚙ Settings</a>
+      ${TESTMODE ? '<a class="mini" href="#/testplan">🧪 Test checklist</a>' : ''}
+    </div>
+    <footer class="legal">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.</footer>`;
+}
+
+async function viewScan(code) {
+  setTitle('Scan');
+  if (!code) {
+    $('#app').innerHTML = `<h2>Scan a label</h2>
+      <button class="btn bigscan" id="go">▣ Open camera</button>
+      <div class="card" style="margin-top:12px"><div class="f"><label for="typed">Or type the code / use a USB scanner</label><div class="qrrow"><input id="typed" placeholder="B-XXXXXX or X-XXXXXX" autocapitalize="characters" autocomplete="off"><button class="btn sm" id="tok">Go</button></div></div></div>
+      <div class="btns"><a class="btn sec" href="#/labels">Print labels</a><a class="btn sec" href="#/boxes">All boxes</a></div>
+      <div class="help">Bag labels start with B-, box labels with X-. Phones can also scan with their own camera app: the label opens this page.</div>`;
+    $('#go').onclick = async () => { const c = await openScanner(); if (c) location.hash = '#/scan/' + c; };
+    const t = $('#typed'); const go = () => { const c = parseCode(t.value); if (c) location.hash = '#/scan/' + c; else toast('Not a label code'); };
+    $('#tok').onclick = go; t.onkeydown = e => { if (e.key === 'Enter') go(); }; if (!('ontouchstart' in window)) t.focus();
+    return;
+  }
+  code = parseCode(code) || code;
+  const bag = live('bags').find(b => b.data.qr === code), box = live('boxes').find(b => b.data.qr === code);
+  const st = itemState(code), hist = custodyLog(code).reverse();
+  const histHTML = hist.length ? `<h3>Custody log</h3><div class="card hist">${hist.map(e => `<div><b>${esc(e.data.action)}</b> · ${esc(new Date(e.data.time).toLocaleString())}<br><span class="help">held by ${esc(e.data.to_person || '?')}${e.data.from_person ? ' (from ' + esc(e.data.from_person) + ')' : ''}${e.data.location ? ' · ' + esc(e.data.location) : ''}${e.data.box_qr ? ' · box ' + esc(e.data.box_qr) : ''}${e.data.notes ? ' · ' + esc(e.data.notes) : ''}</span></div>`).join('')}</div>` : '';
+  const actions = list => `<div class="btns">${list.map(([id, label, cls]) => `<button class="btn ${cls || 'sec'}" data-act="${id}">${esc(label)}</button>`).join('')}</div>`;
+  if (bag) {
+    const lv = get(bag.parent), ex = lv && get(lv.parent), site = get(bag.site);
+    const boxRec = st.box && live('boxes').find(b => b.data.qr === st.box);
+    $('#app').innerHTML = `<h2>Bag <span class="code">${esc(code)}</span></h2>
+      <div class="card kv">
+        <div><span>Site</span><br><a href="#/site/${site?.id}">${esc(site?.data.sitename || '?')}</a></div>
+        <div><span>Provenience</span><br>${ex ? `<a href="#/rec/${ex.id}">${esc(TABLES.excavations.title(ex.data))}</a>` : '?'} · ${lv ? `<a href="#/rec/${lv.id}">EU ${esc(lv.data.excavation_unit)} Lvl ${esc(lv.data.levelno)} (${esc(lv.data.top_cm)}–${esc(lv.data.bgscm)} cm)</a>` : ''}</div>
+        <div><span>Bag no. · contents</span><br>${esc(bag.data.bag_no)} · ${esc(bag.data.contents || '')}</div>
+        <div><span>Now held by</span><br><b>${esc(st.holder || '—')}</b>${st.location ? ' · ' + esc(st.location) : ''}</div>
+        <div><span>Box</span><br>${st.box ? `<a href="#/scan/${esc(st.box)}">${esc(boxRec ? TABLES.boxes.title(boxRec.data) : st.box)}</a>` : 'not boxed'}</div>
+      </div>
+      ${actions([['lab', 'Lab entry for this bag', ''], ['give', 'Hand over / transfer'], ['recv', 'Received at lab'], st.box ? ['unbox', 'Remove from box'] : ['box', 'Put in a box'], ['out', 'Check out for analysis'], ['ret', 'Return to storage'], ['edit', 'Edit bag']])}
+      ${histHTML}`;
+  } else if (box) {
+    const bags = boxContents(code);
+    $('#app').innerHTML = `<h2>${esc(TABLES.boxes.title(box.data))} <span class="code">${esc(code)}</span></h2>
+      <div class="card kv"><div><span>Storage location</span><br>${esc(st.location || box.data.location || '—')}</div><div><span>Held by</span><br>${esc(st.holder || '—')}</div><div><span>Bags in box</span><br><b>${bags.length}</b></div></div>
+      ${actions([['add', 'Add bags (scan)', ''], ['give', 'Move / hand over box'], ['edit', 'Edit box'], ['print', 'Print contents list']])}
+      <h3>Contents</h3><div class="list">${bags.map(b => { const l = get(b.parent), e = l && get(l.parent); return `<a class="row" href="#/scan/${b.data.qr}"><div class="t"><b class="code">${esc(b.data.qr)}</b><small>${esc(get(b.site)?.data.sitename || '')} · ${esc(e ? TABLES.excavations.title(e.data) : '')} · EU ${esc(l?.data.excavation_unit || '')} Lvl ${esc(l?.data.levelno ?? '')} · bag ${esc(b.data.bag_no)}</small></div><span aria-hidden="true">›</span></a>`; }).join('') || '<div class="empty">Empty</div>'}</div>
+      ${histHTML}`;
+  } else {
+    const isBag = code.startsWith('B-');
+    $('#app').innerHTML = `<h2>New label <span class="code">${esc(code)}</span></h2>
+      <div class="card">${isBag ? `<p>This bag label isn't assigned yet.</p>
+        <div class="grid"><div class="f"><label>Site</label><select id="as"></select></div><div class="f w2"><label>Excavation</label><select id="ae"></select></div><div class="f w2"><label>Level</label><select id="al"><option value="">— start a new level with this bag —</option></select></div></div>
+        <div class="btns"><button class="btn" id="assign">Assign</button></div>`
+        : code.startsWith('X-') ? `<p>This box label isn't registered yet.</p><div class="btns"><a class="btn" href="#/new/boxes/?qr=${code}">Register box</a></div>` : '<p>Not a KNF label.</p>'}</div>`;
+    if (isBag) {
+      const A = S.lab || {}, sites = live('sites').sort((a, b) => a.data.sitename.localeCompare(b.data.sitename, undefined, { numeric: true }));
+      const fill = () => {
+        $('#as').innerHTML = '<option value=""></option>' + sites.map(r => `<option value="${r.id}" ${r.id === A.site ? 'selected' : ''}>${esc(r.data.sitename)}</option>`).join('');
+        const ex = A.site ? kids(A.site, 'excavations') : [];
+        $('#ae').innerHTML = '<option value=""></option>' + ex.map(r => `<option value="${r.id}" ${r.id === A.exc ? 'selected' : ''}>${esc(TABLES.excavations.title(r.data))}</option>`).join('');
+        const lv = A.exc ? kids(A.exc, 'levels').sort((a, b) => a.data.levelno - b.data.levelno) : [];
+        $('#al').innerHTML = '<option value="">— start a new level with this bag —</option>' + lv.map(r => `<option value="${r.id}">${esc(TABLES.levels.title(r.data))}${kids(r.id, 'bags').length ? ' (has bag)' : ''}</option>`).join('');
+      };
+      fill();
+      $('#as').onchange = e => { A.site = e.target.value; A.exc = null; fill(); };
+      $('#ae').onchange = e => { A.exc = e.target.value; fill(); };
+      S.lab = A;
+      $('#assign').onclick = async () => {
+        if (!A.exc) return toast('Pick the excavation');
+        const lid = $('#al').value;
+        if (!lid) { location.hash = `#/new/levels/${A.exc}?bag=${code}`; return; }
+        await createBag(get(lid), code); toast('Bag assigned'); viewScan(code);
+      };
+    }
+    return;
+  }
+  const item = bag ? 'bag' : 'box';
+  $('#app').querySelectorAll('[data-act]').forEach(b => b.onclick = async () => {
+    const a = b.dataset.act;
+    if (a === 'lab') { const lv = get(bag.parent), ex = lv && get(lv.parent); S.lab = { site: bag.site, exc: ex?.id, lev: lv?.id }; location.hash = '#/lab'; return; }
+    if (a === 'edit') { location.hash = '#/edit/' + (bag || box).id; return; }
+    if (a === 'print') { window.print(); return; }
+    if (a === 'give') {
+      const r = await custodyForm(`Hand over ${item} ${code}`, st.holder);
+      if (r) await custodyEvent(code, item, 'Transferred', { from_person: st.holder, ...r });
+    }
+    if (a === 'recv') await custodyEvent(code, item, 'Received at lab', { from_person: st.holder, location: 'Lab' });
+    if (a === 'out') await custodyEvent(code, item, 'Checked out for analysis', { from_person: st.holder, location: 'Lab (analysis)' });
+    if (a === 'ret') await custodyEvent(code, item, 'Returned to storage', { from_person: st.holder, location: st.box ? 'In box ' + st.box : 'Storage', box_qr: st.box || '' });
+    if (a === 'unbox') await custodyEvent(code, item, 'Removed from box', { from_person: st.holder, box_qr: st.box });
+    if (a === 'box') {
+      const bx = await openScanner('Scan the BOX label'); if (!bx) return;
+      if (!bx.startsWith('X-')) return toast('That is not a box label');
+      if (!live('boxes').find(r => r.data.qr === bx)) { toast('Register this box first'); location.hash = `#/new/boxes/?qr=${bx}`; return; }
+      await custodyEvent(code, item, 'Placed in box', { from_person: st.holder, box_qr: bx, location: 'Box ' + bx });
+    }
+    if (a === 'add') {
+      for (let n = 0; ; n++) {
+        const c = await openScanner(`Scan bag ${n + 1} for box ${box.data.box_no || code} (Cancel when done)`); if (!c) break;
+        const bg = live('bags').find(r => r.data.qr === c);
+        if (!bg) { toast(`${c} is not an assigned bag`); continue; }
+        if (itemState(c).box === code) { toast(`${c} is already in this box`); continue; }
+        await custodyEvent(c, 'bag', 'Placed in box', { from_person: itemState(c).holder, box_qr: code, location: 'Box ' + code }); toast(`${c} added`);
+      }
+    }
+    viewScan(code);
+  });
+}
+function custodyForm(title, holder) {
+  return new Promise(res => {
+    const m = document.createElement('div'); m.className = 'modal';
+    m.innerHTML = `<div class="card"><b>${esc(title)}</b><div class="grid" style="margin-top:8px">
+      <div class="f w3"><label>Now held by</label><input id="cto" value="${esc(me())}"></div>
+      <div class="f w3"><label>Location</label><input id="cloc" placeholder="Truck, motel, LPAL lab…"></div>
+      <div class="f w3"><label>Notes</label><input id="cn"></div></div>
+      ${holder ? `<div class="help">Handed over by ${esc(holder)}</div>` : ''}
+      <div class="btns" style="justify-content:flex-end"><button class="btn sec" data-v="0">Cancel</button><button class="btn" data-v="1">Record</button></div></div>`;
+    m.onclick = e => { const v = e.target.dataset.v; if (v == null) return; const out = v === '1' ? { to_person: $('#cto', m).value.trim() || me(), location: $('#cloc', m).value.trim(), notes: $('#cn', m).value.trim() } : null; m.remove(); res(out); };
+    document.body.append(m);
+  });
+}
+function viewBoxes() {
+  setTitle('Boxes');
+  const bx = live('boxes').sort((a, b) => String(a.data.box_no).localeCompare(String(b.data.box_no), undefined, { numeric: true }));
+  $('#app').innerHTML = `<h2>Boxes</h2><div class="btns"><button class="btn" id="scanbox">▣ Scan a box</button><a class="btn sec" href="#/labels?X">Print box labels</a></div>
+    <div class="list">${bx.map(b => `<a class="row" href="#/scan/${b.data.qr}"><div class="t"><b>${esc(TABLES.boxes.title(b.data))}</b><small>${esc(b.data.qr)} · ${esc(itemState(b.data.qr).location || b.data.location || '')} · ${boxContents(b.data.qr).length} bags</small></div><span aria-hidden="true">›</span></a>`).join('') || '<div class="empty">No boxes yet. Scan a box label to register one.</div>'}</div>`;
+  $('#scanbox').onclick = async () => { const c = await openScanner('Scan box label'); if (c) location.hash = '#/scan/' + c; };
+}
+const LAYOUTS = {
+  '5160': { name: 'Avery 5160 / 8160 / weatherproof equiv. (30 per sheet, 2⅝ × 1 in)', cols: 3, rows: 10, w: 2.625, h: 1, top: 0.5, left: 0.1875, gx: 0.125, gy: 0, qr: 0.86 },
+  '5163': { name: 'Avery 5163 / 8163 (10 per sheet, 4 × 2 in), good for boxes', cols: 2, rows: 5, w: 4, h: 2, top: 0.5, left: 0.156, gx: 0.1875, gy: 0, qr: 1.75 },
+  'grid': { name: 'Plain paper grid (24 per sheet, cut by hand)', cols: 4, rows: 6, w: 2, h: 1.75, top: 0.25, left: 0.25, gx: 0, gy: 0, qr: 1.15 },
+};
+function viewLabels(qs) {
+  setTitle('Print labels');
+  const L = S.lbl ||= { kind: qs === 'X' ? 'X' : 'B', layout: qs === 'X' ? '5163' : '5160', sheets: 1, codes: [] };
+  const lay = LAYOUTS[L.layout];
+  const sheetHTML = codes => {
+    const per = lay.cols * lay.rows, pages = [];
+    for (let p = 0; p < codes.length; p += per) {
+      pages.push(`<div class="sheet">${codes.slice(p, p + per).map((c, i) => {
+        const col = i % lay.cols, row = Math.floor(i / lay.cols);
+        const x = lay.left + col * (lay.w + lay.gx), y = lay.top + row * (lay.h + lay.gy);
+        return `<div class="lbl" style="left:${x}in;top:${y}in;width:${lay.w}in;height:${lay.h}in">${qrSVG(labelText(c), lay.qr + 'in')}
+          <div class="lt"><div class="lc">${c}</div><div class="ls">${c[0] === 'B' ? 'KNF · Site ______<br>Unit ____ Lvl ____<br>Date ______' : 'KNF BOX · No. ______<br>Project ____________'}</div></div></div>`;
+      }).join('')}</div>`);
+    }
+    return pages.join('');
+  };
+  $('#app').innerHTML = `<div class="noprint"><h2>Print labels</h2>
+    <div class="card grid">
+      <div class="f"><label>Labels for</label><select id="lk"><option value="B" ${L.kind === 'B' ? 'selected' : ''}>Bags (B-)</option><option value="X" ${L.kind === 'X' ? 'selected' : ''}>Boxes (X-)</option></select></div>
+      <div class="f w2"><label>Label sheet</label><select id="ll">${Object.entries(LAYOUTS).map(([k, v]) => `<option value="${k}" ${k === L.layout ? 'selected' : ''}>${esc(v.name)}</option>`).join('')}</select></div>
+      <div class="f"><label>Sheets</label><input id="ln" inputmode="numeric" value="${L.sheets}"></div>
+      <div class="f w3"><div class="btns"><button class="btn" id="lgen">Make new labels</button>${L.codes.length ? `<button class="btn sec" id="lprint">⎙ Print</button>` : ''}</div></div>
+    </div>
+    <div class="help">Every label gets a random code that can't repeat, so several people can print labels without coordinating. Print at 100% / “Actual size”. Use weatherproof labels for field bags.${appBase() ? '' : ' <b>Print from the installed/hosted app so phone cameras can open the label directly.</b>'}</div>
+    ${L.codes.length ? `<h3>${L.codes.length} labels</h3>` : ''}</div>
+    <div class="sheetwrap">${L.codes.length ? sheetHTML(L.codes) : ''}</div>`;
+  $('#lk').onchange = e => { L.kind = e.target.value; L.layout = L.kind === 'X' ? '5163' : '5160'; L.codes = []; viewLabels(); };
+  $('#ll').onchange = e => { L.layout = e.target.value; L.codes = []; viewLabels(); };
+  $('#lgen').onclick = () => { L.sheets = Math.max(1, Math.min(20, +$('#ln').value || 1)); const lay2 = LAYOUTS[L.layout]; L.codes = Array.from({ length: L.sheets * lay2.cols * lay2.rows }, () => newCode(L.kind)); viewLabels(); };
+  $('#lprint') && ($('#lprint').onclick = () => window.print());
+}
+
+/* ================= export / import ================= */
+function csvCell(v) { if (v == null) return ''; const s = typeof v === 'object' ? JSON.stringify(v) : String(v); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+function provenience(r) {
+  const out = {}; let p = r.parent ? get(r.parent) : null;
+  while (p) {
+    if (p.tbl === 'levels') { out.level_uuid = p.id; out.levelid = p.data.levelid; out.excavation_unit = p.data.excavation_unit; out.levelno = p.data.levelno; out.top_cm = p.data.top_cm; out.bottom_cm = p.data.bgscm; }
+    if (p.tbl === 'excavations') { out.excavation_uuid = p.id; out.excavationid = p.data.excavationid; out.excavation_name = p.data.excavation_name; }
+    p = p.parent ? get(p.parent) : null;
+  }
+  const s = get(r.site); out.sitename = s?.data.sitename;
+  return out;
+}
+function tableCSV(t) {
+  const def = TABLES[t], recs = live(t);
+  const extra = t === 'excavations' ? ['lat', 'lon', 'utmzone', 'utme', 'utmn', 'gps_acc_m', 'gps_n', 'gps_time', 'gps_source', 'datum', 'elev_m'] : [];
+  const fk = def.fields.filter(f => f.t !== 'gps').map(f => f.k);
+  const provK = { sites: [], excavations: ['sitename'], levels: ['sitename', 'excavation_uuid', 'excavationid', 'excavation_name'] }[t]
+    || ['sitename', 'excavation_uuid', 'excavationid', 'excavation_name', 'level_uuid', 'levelid', 'excavation_unit', 'levelno', 'top_cm', 'bottom_cm'];
+  const head = ['uuid', 'parent_uuid', ...provK, ...[...new Set([...fk, ...extra])].filter(k => !provK.includes(k)), 'record_status', 'missing_items', 'created_by', 'created_at', 'updated_by', 'updated_at'];
+  const lines = [head.join(',')];
+  for (const r of recs) {
+    const pv = provenience(r), row = { uuid: r.id, parent_uuid: r.parent, ...pv, ...r.data, record_status: r.data._status || '', missing_items: (r.data._missing || []).join('; '), created_by: r.created_by, created_at: r.created_at, updated_by: r.updated_by, updated_at: r.updated_at };
+    lines.push(head.map(k => csvCell(row[k])).join(','));
+  }
+  return '﻿' + lines.join('\r\n');
+}
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return b => { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = t[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }; })();
+function zip(files) { // store-only zip
+  const enc = new TextEncoder(), parts = [], central = []; let off = 0;
+  const d = new Date(), dt = ((d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1)), dd = (((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate());
+  for (const [name, text] of files) {
+    const nb = enc.encode(name), data = enc.encode(text), crc = CRC(data);
+    const h = new DataView(new ArrayBuffer(30)); h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(10, dt, true); h.setUint16(12, dd, true);
+    h.setUint32(14, crc, true); h.setUint32(18, data.length, true); h.setUint32(22, data.length, true); h.setUint16(26, nb.length, true);
+    parts.push(h.buffer, nb, data);
+    const c = new DataView(new ArrayBuffer(46)); c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(12, dt, true); c.setUint16(14, dd, true);
+    c.setUint32(16, crc, true); c.setUint32(20, data.length, true); c.setUint32(24, data.length, true); c.setUint16(28, nb.length, true); c.setUint32(42, off, true);
+    central.push(c.buffer, nb); off += 30 + nb.length + data.length;
+  }
+  const csize = central.reduce((a, b) => a + b.byteLength, 0);
+  const e = new DataView(new ArrayBuffer(22)); e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, csize, true); e.setUint32(16, off, true);
+  return new Blob([...parts, ...central, e.buffer], { type: 'application/zip' });
+}
+function download(blob, name) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); }
+const stamp = () => new Date().toISOString().slice(0, 16).replace(/[:T]/g, '');
+function exportCSV() {
+  const files = Object.keys(TABLES).filter(t => live(t).length).map(t => [`${t}.csv`, tableCSV(t)]);
+  if (!files.length) return toast('Nothing to export yet');
+  download(zip(files), `knf_field_data_${stamp()}.zip`);
+}
+function exportJSON() { download(new Blob([JSON.stringify({ app: 'knf-field-data', exported: now(), by: me(), records: [...S.recs.values()] })], { type: 'application/json' }), `knf_backup_${stamp()}.json`); }
+async function importJSON(e) {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const j = JSON.parse(await f.text()); if (!Array.isArray(j.records)) throw new Error('Not a KNF backup file');
+    let n = 0; const put = [];
+    for (const r of j.records) { const l = S.recs.get(r.id); if (!l || (r.updated_at > l.updated_at)) { put.push({ ...r, dirty: 1 }); n++; } }
+    if (!(await ask(`Merge ${n} new or newer records from this backup? Existing newer records are kept.`, 'Merge'))) return;
+    await CORE.putMany(put); await reload(); updatePill(); queueSync(500); toast(`Merged ${n} records`); render();
+  } catch (err) { toast('Import failed: ' + err.message); }
+}
+
+/* ================= router ================= */
+function render() {
+  const h = location.hash || '#/';
+  const [path, qs] = h.slice(1).split('?');
+  const seg = path.split('/').filter(Boolean);
+  const tab = { sites: 'field', site: 'field', rec: 'field', edit: 'field', new: 'field', lab: 'lab', catalog: 'lab', scan: 'scan', boxes: 'scan', labels: 'scan', data: 'data' }[seg[0]] || (seg.length ? '' : 'home');
+  document.querySelectorAll('#tabs a').forEach(a => a.classList.toggle('on', a.dataset.t === tab));
+  if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; document.querySelectorAll('.modal').forEach(m => m.remove()); }
+  scrollTo(0, 0);
+  if (!seg.length) return viewHome();
+  switch (seg[0]) {
+    case 'sites': return viewSites();
+    case 'site': return viewSite(seg[1]);
+    case 'rec': return viewRec(seg[1]);
+    case 'edit': { const r = get(seg[1]); return !r ? notFound() : r.tbl === 'subunits' ? subunitEditor(r, false) : formView(r, false); }
+    case 'new': {
+      const t = seg[1], parent = seg[2] || null;
+      if (!TABLES[t]) return notFound();
+      if (t === 'tabulation') { const ex = kids(parent, 'tabulation')[0]; if (ex) return formView(ex, false); }
+      if (t === 'levels') {
+        const open = kids(parent, 'levels').filter(l => l.data._status === 'draft');
+        if (open.length) {
+          const l = open[0];
+          $('#app').innerHTML = `${crumbs(get(parent))}<div class="unfinbox"><b class="t">⚠ Finish the previous level first</b>EU ${esc(l.data.excavation_unit)} Level ${esc(l.data.levelno)} is UNFINISHED and has not been sent to the project. Missing: ${esc(completeness(l, l.data).join('; '))}.
+            <div class="btns"><a class="btn" href="#/rec/${l.id}">Go to that level</a></div></div>`;
+          return;
+        }
+      }
+      if (qs && t === 'excavations') S._newType = { STP: 'STP', TP: 'TP' }[qs] || null;
+      const lv = qs && qs.startsWith('lv=') ? get(qs.slice(3)) : null;
+      if (t === 'subunits') { const r0 = S._suNew && S._suNew.parent === parent ? S._suNew : (S._suNew = mk('subunits', parent, {})); return subunitEditor(r0, true); }
+      S._newSU = qs && qs.startsWith('su=') ? decodeURIComponent(qs.slice(3)) : null;
+      const rec = mk(t, parent, {});
+      rec.data = defaults(t, lv ? lv.id : parent);
+      S._newType = null; S._newSU = null;
+      if (t === 'mappoints') { rec.data.kind = qs === 'corner' ? 'Unit corner' : 'Other'; }
+      if (t === 'levels' && qs && qs.startsWith('bag=')) rec.data.bag_qr = parseCode(qs.slice(4));
+      if (t === 'boxes') { rec.data.qr = qs && qs.startsWith('qr=') ? parseCode(qs.slice(3)) : ''; rec.data.box_no = nextNum(live('boxes'), 'box_no'); }
+      if (t === 'sites') { rec.data.record_kind = qs === 'temp' ? 'New site (temporary no.)' : 'Previously recorded site'; rec.data.project = 'KNF Phase II 2026-27'; }
+      return formView(rec, true);
+    }
+    case 'drafts': return viewDrafts();
+    case 'testplan': return viewTestPlan();
+    case 'lab': return viewLab();
+    case 'catalog': return viewCatalog(seg[1]);
+    case 'scan': return viewScan(seg[1] ? decodeURIComponent(seg[1]) : null);
+    case 'boxes': return viewBoxes();
+    case 'labels': return viewLabels(qs);
+    case 'data': return viewData();
+    case 'settings': return viewSettings();
+  }
+  notFound();
+}
+function applyTheme() { const t = S.settings.theme; if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme; }
+let guardHash = location.hash;
+addEventListener('hashchange', async () => {
+  if (S.formDirty && !S.guarding) {
+    const to = location.hash;
+    S.guarding = true; history.replaceState(null, '', guardHash);
+    const leave = await ask('You have typed changes on this form that are NOT saved. Leave anyway and lose them?', 'Leave without saving', 'Stay');
+    S.guarding = false;
+    if (!leave) return;
+    S.formDirty = false; location.hash = to; return;
+  }
+  if (S.guarding) return;
+  guardHash = location.hash; render(); updateDraftBar();
+});
+addEventListener('beforeunload', e => { if (S.formDirty || draftCount()) { e.preventDefault(); e.returnValue = ''; } });
+
+(async function init() {
+  S.settings = { ...DEF, ...((await CORE.getMeta('settings')) || {}) };
+  S.session = await CORE.getMeta('session');
+  S.lastSync = await CORE.getMeta('last_sync');
+  await reload(); applyTheme(); updatePill();
+  if (TESTMODE) { $('#testbar').classList.remove('hidden'); document.documentElement.style.setProperty('--acc', '#5b2a86'); }
+  render();
+  try { if (navigator.storage?.persist) S.persisted = await navigator.storage.persist(); } catch (e) { }
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    navigator.serviceWorker.register('sw.js').then(async reg => {
+      try { if ('periodicSync' in reg) await reg.periodicSync.register('upload', { minInterval: 15 * 60 * 1000 }); } catch (e) { }
+    }).catch(() => { });
+    navigator.serviceWorker.addEventListener('message', async e => { if (e.data?.type === 'synced') { await reload(); updatePill(); } });
+  }
+  if (!S.settings.name) setTimeout(() => toast('Add your name in Settings so records show who entered them'), 800);
+  if (draftCount()) setTimeout(async () => { if (await ask(`⚠ ${draftCount()} UNFINISHED record(s) on this device are NOT sent to the project. Finish them now?`, 'Show me', 'Later')) location.hash = '#/drafts'; }, 600);
+  runSync();
+})();
+</script>
+</body>
+</html>
