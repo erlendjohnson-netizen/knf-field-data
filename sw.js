@@ -1,5 +1,5 @@
 /* Service worker: offline app shell + background upload (Chrome/Edge on Android and Windows). */
-const VERSION = 'knf-v1.4.0';
+const VERSION = 'knf-v1.5.0';
 const SHELL = ['./', './index.html', './schema.js', './core.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './vendor/qrcode.js', './vendor/jsQR.js'];
 importScripts('./core.js');
 

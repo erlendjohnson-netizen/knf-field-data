@@ -26,7 +26,7 @@ Put the folder on GitHub Pages, the same way as your Garden Log app. Anyone on t
 - **Android / Windows (Chrome or Edge):** menu → *Install app*
 - **iPhone / iPad (Safari):** Share → *Add to Home Screen*
 
-The code holds no site locations; coordinates live only on the devices and in Supabase. The seed list of 30 trinomials is in `schema.js`. If you'd rather not publish even that, host from a private repo (Cloudflare Pages or Netlify, both free).
+The public code holds no site numbers or locations. The KNF site list (about 6,000 trinomials with district, parish, recorded locations for Caney, Kisatchie and Grant/Winn sites, and the Phase II candidates) is stored privately in Supabase (`site_registry`) and downloads to each device after sign-in, then works offline. A copy is kept in the KNF_Field_Data_PRIVATE folder; never upload that folder to GitHub.
 
 ## 3. Emlid Reach RX2 → app
 - **Android:** pair the RX2 over Bluetooth. In Developer options, set *Select mock location app* to **Emlid Flow** (or Lefebure NTRIP Client). Get an RTK fix in Flow, then press **Capture position** in the app. The app averages fixes for the number of seconds set in Settings and warns when accuracy is worse than the threshold.
@@ -38,6 +38,14 @@ Add a PostgreSQL connection to the Supabase database (Project Settings → Datab
 - `excavations_pts`: point layer
 - `excavations`, `levels`, `lithic_tools`, `prehistoric_ceramics`, etc.: **complete** records only, using the Access column names
 - `*_all` views: include drafts (`record_status` column)
+
+## Sites
+- **Previously recorded sites:** choose the district, then pick the trinomial from the list (type to search). The app fills in the site name, parish, ID code and USGS quad.
+- **New sites (temporary number):** *📍 Fill parish, quad & district from my position* takes the quad from the 7.5' grid and the parish and district from the nearest recorded site, so check those near parish lines. If you are standing within 400 m of a recorded site, the app asks whether it is that site.
+- ID codes are parish digit + site number (NA 1, CL 2, WE 3, GR 4, WN 5, RA 6, VN 7). For example, 16NA41 is 1041.
+
+## Test mode
+Settings → *Switch to test mode* gives a practice copy of the app with a purple TEST MODE banner. Practice records use their own storage on the device and their own server table (`records_test`), so they never mix with project data. In test mode, *Load practice data* adds a practice site (KRD-T99) with a finished STP, an STP in progress, a test unit with subunits, bags and a box. The *Test checklist* lists everything to try.
 
 ## Test units: subunits, datum and corners
 - Each test unit gets its own **unit datum**: capture it with the GPS when creating the TP/Unit and describe it ("rebar with cap at SW corner of A").

@@ -4,7 +4,8 @@
    Field types: text, int, num, date, time, select, combo (list + free text), bool, area, munsell, ro (computed). */
 
 const LISTS = {
-  district: ['Kisatchie RD', 'Caney RD', 'Vernon Unit', 'Calcasieu RD', 'Catahoula RD', 'Winn RD', 'Other'],
+  district: ['Kisatchie RD', 'Caney RD', 'Winn RD', 'Catahoula RD', 'Evangeline Unit', 'Vernon Unit', 'Other'],
+  _sites: [],
   mappoint_kind: ['Unit corner', 'Feature', 'Other'],
   _corners: [],
   record_kind: ['Previously recorded site', 'New site (temporary no.)', 'Isolated find', 'Other investigation'],
@@ -93,7 +94,8 @@ const TABLES = {
     fields: [
       { k: 'record_kind', l: 'Kind', t: 'select', o: 'record_kind', req: 1 },
       { k: 'district', l: 'District', t: 'select', o: 'district', req: 1 },
-      { k: 'sitename', l: 'Site number / temporary designation', t: 'text', req: 1, ph: '16NA41 or KRD-T01', help: 'Replace a temporary designation with the trinomial once it is assigned' },
+      { k: 'sitename', l: 'Site number / temporary designation', t: 'combo', o: '_sites', req: 1, ph: '16NA41 or KRD-T01', help: 'Pick from the KNF site list, or replace a temporary designation with the trinomial once it is assigned' },
+      { k: 'site_name', l: 'Site name', t: 'text' },
       { k: 'temp_name', l: 'Temporary designation (kept)', t: 'ro' },
       { k: 'requested_by', l: 'Requested by', t: 'text', ph: 'e.g. Matt Helmer', show: r => r.record_kind && r.record_kind !== 'Previously recorded site' },
       { k: 'purpose', l: 'Purpose / task', t: 'text', w: 2, show: r => r.record_kind && r.record_kind !== 'Previously recorded site' },
@@ -394,7 +396,11 @@ TABLES.custody = {
     { k: 'time', l: 'Time', t: 'text' }, { k: 'notes', l: 'Notes', t: 'text', w: 2 },
   ],
 };
-const DISTRICT_CODE = { 'Kisatchie RD': ['KRD', 1], 'Caney RD': ['CRD', 2], 'Vernon Unit': ['VU', 3], 'Calcasieu RD': ['CAL', 4], 'Catahoula RD': ['CAT', 5], 'Winn RD': ['WRD', 6], 'Other': ['OTH', 9] };
+const DISTRICT_CODE = { 'Kisatchie RD': ['KRD', 1], 'Caney RD': ['CRD', 2], 'Vernon Unit': ['VU', 3], 'Evangeline Unit': ['EVU', 4], 'Catahoula RD': ['CAT', 5], 'Winn RD': ['WRD', 6], 'Other': ['OTH', 9] };
+const PARISH = { NA: 'Natchitoches', CL: 'Claiborne', WE: 'Webster', GR: 'Grant', WN: 'Winn', RA: 'Rapides', VN: 'Vernon' };
+const PARISH_DIGIT = { NA: '1', CL: '2', WE: '3', GR: '4', WN: '5', RA: '6', VN: '7' };
+/* USGS 7.5' quadrangles around KNF (bounds W, S, E, N in degrees, from the HTMC sheets in the project GIS) */
+const QUADS = {"Hurricane Branch": [-93.25, 30.875, -93.125, 31.0], "Sugrue": [-93.125, 30.875, -93.0, 31.0], "Arizona": [-93.0, 32.75, -92.875, 32.875], "Bernice": [-92.75, 32.75, -92.625, 32.875], "Blackburn": [-93.25, 32.75, -93.125, 32.875], "Colquitt": [-93.0, 32.875, -92.875, 33.0], "Haynesville East": [-93.125, 32.875, -93.0, 33.0], "Homer": [-93.125, 32.75, -93.0, 32.875], "Langston": [-93.25, 32.625, -93.125, 32.75], "Leton": [-93.375, 32.75, -93.25, 32.875], "Lillie": [-92.75, 32.875, -92.625, 33.0], "Minden North": [-93.375, 32.625, -93.25, 32.75], "Summerfield": [-92.875, 32.875, -92.75, 33.0], "Savage Creek": [-92.75, 31.625, -92.625, 31.75], "Williana": [-92.625, 31.625, -92.5, 31.75], "Bayou Livrogne": [-93.125, 31.375, -93.0, 31.5], "Bellwood": [-93.25, 31.5, -93.125, 31.625], "Flora": [-93.125, 31.5, -93.0, 31.625], "Gorum": [-93.0, 31.375, -92.875, 31.5], "Kisatchie": [-93.25, 31.375, -93.125, 31.5], "Kurthwood": [-93.25, 31.25, -93.125, 31.375], "Simpson North": [-93.125, 31.25, -93.0, 31.375], "Pitkin": [-93.0, 30.875, -92.875, 31.0]};
 
 /* Photo records: metadata syncs like any record; the image goes to Supabase Storage (bucket "photos"). */
 TABLES.photos = {
@@ -415,22 +421,12 @@ const PHOTO_KINDS = {
   prehistoric_ceramics: ['Exterior', 'Interior', 'Profile', 'Other'],
   ground_stone: ['Obverse', 'Reverse', 'Other'],
   historic_artifacts: ['Front', 'Back', 'Maker\'s mark', 'Other'],
-  sites: ['Overview', 'Datum', 'Other'],
 };
 
 const TYPE_CODE = { 'STP': '01', 'TP': '02', 'Unit': '03', 'Surface collection': '04', 'Feature grouping': '05' };
 
-/* Phase II candidate sites (from the 2026-27 field packets). ID codes are suggestions: parish digit + 3-digit number
-   (NA=1, CL=2, WE=3). Edit them in the app before fieldwork if you prefer another scheme. */
-const SEED_SITES = [
-  ...['16NA41', '16NA670', '16NA678', '16NA324', '16NA666', '16NA618', '16NA839', '16NA459', '16NA698', '16NA446', '16NA697', '16NA680', '16NA677', '16NA696', '16NA669']
-    .map(s => ({ sitename: s, district: 'Kisatchie RD', parish: 'Natchitoches' })),
-  ...['16CL102', '16CL117', '16CL46', '16CL172', '16CL86', '16WE309', '16CL79', '16CL205', '16CL190', '16WE446', '16CL179', '16CL198', '16CL206', '16CL58', '16WE210']
-    .map(s => ({ sitename: s, district: 'Caney RD', parish: s.startsWith('16CL') ? 'Claiborne' : 'Webster' })),
-].map(s => {
-  const m = s.sitename.match(/^16([A-Z]{2})(\d+)$/);
-  const p = { NA: '1', CL: '2', WE: '3' }[m[1]] || '9';
-  return { ...s, record_kind: 'Previously recorded site', site_code: p + m[2].padStart(3, '0'), project: 'KNF Phase II 2026-27' };
-});
+/* The KNF site list (trinomials, districts, recorded locations, Phase II candidates) is NOT in this public code:
+   it is kept in the private Supabase table site_registry and downloaded after sign-in. */
+const SEED_SITES = [];
 
-if (typeof module !== 'undefined') module.exports = { LISTS, TABLES, TYPE_CODE, SEED_SITES, PHOTO_KINDS, DISTRICT_CODE, isUnit };
+if (typeof module !== 'undefined') module.exports = { LISTS, TABLES, TYPE_CODE, SEED_SITES, PHOTO_KINDS, DISTRICT_CODE, isUnit, PARISH, QUADS };

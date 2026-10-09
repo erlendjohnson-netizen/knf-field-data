@@ -163,6 +163,15 @@ const CORE = (() => {
     await setMeta('last_sync', new Date().toISOString());
     return { pushed, pulled, photos };
   }
-  return { setMode, mode: () => MODE, db, allRecs, putRec, putMany, getMeta, setMeta, dirtyRecs, sync, signIn, signOut, cfg, getBlob, putBlob, delBlob, pendingPhotos, fetchPhoto };
+  /* private KNF site list (downloaded after sign-in, cached on the device) */
+  async function fetchRegistry() {
+    const { url, key, sess } = await cfg(); if (!url || !sess || sess.expired) return null;
+    const tok = await token();
+    const r = await fetch(`${url}/rest/v1/site_registry?select=payload&id=eq.1`, { headers: { apikey: key, Authorization: `Bearer ${tok}` } });
+    if (!r.ok) return null;
+    const j = await r.json(); if (!j[0]) return null;
+    await setMeta('registry', j[0].payload); return j[0].payload;
+  }
+  return { fetchRegistry, setMode, mode: () => MODE, db, allRecs, putRec, putMany, getMeta, setMeta, dirtyRecs, sync, signIn, signOut, cfg, getBlob, putBlob, delBlob, pendingPhotos, fetchPhoto };
 })();
 if (typeof self !== 'undefined') self.CORE = CORE;

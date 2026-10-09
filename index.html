@@ -4,20 +4,20 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>KNF Field Data</title>
-<meta name="theme-color" content="#2f4a3a">
+<meta name="theme-color" content="#CE181E">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="KNF Data">
 <style>
-:root{--bg:#f4f1ea;--card:#fffdf8;--ink:#1f2420;--mut:#5f665f;--line:#d9d3c6;--acc:#2f4a3a;--acc2:#a3542b;--ok:#2e7d4f;--warn:#b26a00;--bad:#b3261e;--chip:#ebe6da;--inp:#fff}
-@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#141714;--card:#1d211d;--ink:#e8e6df;--mut:#a3a89f;--line:#343a33;--acc:#8fbf9f;--acc2:#e09a6e;--ok:#6fcf97;--warn:#f2b34b;--bad:#ff8a80;--chip:#2a2f29;--inp:#111411}}
-:root[data-theme=dark]{--bg:#141714;--card:#1d211d;--ink:#e8e6df;--mut:#a3a89f;--line:#343a33;--acc:#8fbf9f;--acc2:#e09a6e;--ok:#6fcf97;--warn:#f2b34b;--bad:#ff8a80;--chip:#2a2f29;--inp:#111411}
+:root{--bg:#f7f4f2;--card:#ffffff;--ink:#0A0203;--mut:#5d5555;--line:#e2d9d6;--acc:#CE181E;--acc2:#610B0E;--ok:#2e7d4f;--warn:#b26a00;--bad:#b3261e;--chip:#ebe6da;--inp:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#151112;--card:#201a1b;--ink:#f1eaea;--mut:#b3a7a7;--line:#3a3031;--acc:#ff5a5f;--acc2:#e9a3a5;--ok:#6fcf97;--warn:#f2b34b;--bad:#ff8a80;--chip:#2a2f29;--inp:#111411}}
+:root[data-theme=dark]{--bg:#151112;--card:#201a1b;--ink:#f1eaea;--mut:#b3a7a7;--line:#3a3031;--acc:#ff5a5f;--acc2:#e9a3a5;--ok:#6fcf97;--warn:#f2b34b;--bad:#ff8a80;--chip:#2a2f29;--inp:#111411}
 *{box-sizing:border-box}html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:calc(72px + env(safe-area-inset-bottom))}
-header{position:sticky;top:0;z-index:5;background:var(--acc);color:#fff;padding:calc(8px + env(safe-area-inset-top)) 16px 8px;display:flex;align-items:center;gap:10px}
-@media (prefers-color-scheme:dark){:root:not([data-theme=light]) header{color:#0f1410}}
+header{position:sticky;top:0;z-index:5;background:#CE181E;color:#fff;padding:calc(8px + env(safe-area-inset-top)) 16px 8px;display:flex;align-items:center;gap:10px}
+
 header h1{font-size:17px;margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pill{font-size:12px;padding:3px 9px;border-radius:99px;background:rgba(255,255,255,.18);white-space:nowrap;cursor:pointer;border:0;color:inherit}
 .pill.warn{background:var(--warn);color:#fff}.pill.ok{background:rgba(255,255,255,.18)}
@@ -39,7 +39,7 @@ h3 .sp{flex:1}
 .badge{font-size:12px;padding:2px 8px;border-radius:99px;background:var(--chip);color:var(--mut);white-space:nowrap}
 .badge.pos{background:var(--acc2);color:#fff}.badge.gps{background:var(--ok);color:#fff}.badge.nogps{background:var(--warn);color:#fff}
 .btn{appearance:none;border:1px solid var(--acc);background:var(--acc);color:#fff;border-radius:10px;padding:10px 14px;font:inherit;font-weight:600;cursor:pointer;min-height:44px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;justify-content:center}
-@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .btn{color:#0f1410}}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .btn:not(.sec):not(.bad):not(.warnbtn){color:#1a0d0e}}
 .btn.sec{background:transparent;color:var(--acc)}.btn.sm{padding:6px 10px;min-height:34px;font-size:14px}.btn.bad{background:transparent;color:var(--bad);border-color:var(--bad)}
 .btns{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px 12px}
@@ -76,7 +76,7 @@ header{gap:8px}
 @media (max-width:520px){.home{grid-template-columns:1fr}}
 .tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:190px;border-radius:18px;text-decoration:none;color:#fff;font-size:28px;font-weight:800;letter-spacing:.02em;padding:18px;text-align:center}
 .tile svg{width:76px;height:76px}.tile small{font-size:14px;font-weight:500;opacity:.9;letter-spacing:0}
-.tile.field{background:#2f4a3a}.tile.lab{background:#8a4a2a}
+.tile.field{background:#CE181E}.tile.lab{background:#610B0E}
 @media (max-width:520px){.tile{min-height:150px;flex-direction:row;justify-content:flex-start;font-size:26px}.tile svg{width:60px;height:60px}.tile span{display:flex;flex-direction:column;align-items:flex-start;gap:2px}}
 .minis{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
 .mini{display:flex;align-items:center;gap:8px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);text-decoration:none;font-weight:600}
@@ -97,18 +97,18 @@ header{gap:8px}
 .sheetwrap{overflow-x:auto}
 @media print{header,nav,.noprint,.toast{display:none!important}body{background:#fff;padding:0}main{padding:0;max-width:none}.sheet{box-shadow:none;margin:0;page-break-after:always}.sheetwrap{overflow:visible}@page{size:letter;margin:0}}
 .testbar{display:block;background:repeating-linear-gradient(45deg,#5b2a86 0 14px,#6d35a0 14px 28px);color:#fff;padding:8px 16px;font-weight:800;text-align:center;font-size:14px;text-decoration:none;letter-spacing:.02em}
-.draftbar{display:block;background:#b3261e;color:#fff;padding:10px 16px;font-weight:700;text-decoration:none;text-align:center;font-size:15px;position:sticky;top:44px;z-index:4}
+.draftbar{display:block;background:repeating-linear-gradient(-45deg,#ffcc00 0 14px,#ffd84d 14px 28px);color:#0A0203;padding:10px 16px;font-weight:700;text-decoration:none;text-align:center;font-size:15px;position:sticky;top:44px;z-index:4}
 .draftbar small{display:block;font-weight:500;opacity:.95}
 @media (min-width:900px){.draftbar{top:92px}}
-.row.unfin{border:2px solid #b3261e;background:repeating-linear-gradient(-45deg,rgba(179,38,30,.07) 0 10px,transparent 10px 20px)}
-.unfinlabel{background:#b3261e;color:#fff;font-size:12px;font-weight:800;padding:3px 8px;border-radius:6px;letter-spacing:.04em;white-space:nowrap}
-.unfinbox{border:2px solid #b3261e;border-radius:12px;padding:12px;margin:10px 0;background:var(--card)}
-.unfinbox b.t{color:#b3261e;font-size:17px;display:block;margin-bottom:4px}
-.btn.warnbtn{background:transparent;color:#b3261e;border-color:#b3261e}
+.row.unfin{border:2px solid #e0a800;background:repeating-linear-gradient(-45deg,rgba(255,204,0,.18) 0 10px,transparent 10px 20px)}
+.unfinlabel{background:#ffcc00;color:#0A0203;border:1px solid #0A0203;font-size:12px;font-weight:800;padding:3px 8px;border-radius:6px;letter-spacing:.04em;white-space:nowrap}
+.unfinbox{border:3px solid #e0a800;border-radius:12px;padding:12px;margin:10px 0;background:var(--card)}
+.unfinbox b.t{color:var(--ink);font-size:17px;display:block;margin-bottom:4px}
+.btn.warnbtn{background:#ffcc00;color:#0A0203;border-color:#0A0203}
 .plan{width:100%;max-height:340px;display:block;background:var(--inp);border-radius:8px;touch-action:manipulation}
 .plan .g1{stroke:var(--line);stroke-width:.02}.plan .g2{stroke:var(--line);stroke-width:.008;stroke-dasharray:.04 .04}
-.plan .su{fill:rgba(47,74,58,.18);stroke:var(--acc);stroke-width:.03;cursor:pointer}.plan .su.sel{fill:rgba(163,84,43,.35);stroke:var(--acc2)}
-.plan .su.done{fill:rgba(47,74,58,.38)}.plan .su.edit{fill:rgba(163,84,43,.45);stroke:var(--acc2);stroke-width:.04;stroke-dasharray:.08 .05}
+.plan .su{fill:rgba(206,24,30,.12);stroke:var(--acc);stroke-width:.03;cursor:pointer}.plan .su.sel{fill:rgba(0,151,167,.35);stroke:#0097A7}
+.plan .su.done{fill:rgba(206,24,30,.32)}.plan .su.edit{fill:rgba(163,84,43,.45);stroke:var(--acc2);stroke-width:.04;stroke-dasharray:.08 .05}
 .plan .sut{font:700 .32px system-ui,sans-serif;fill:var(--ink);text-anchor:middle;dominant-baseline:central;pointer-events:none}
 .plan .datum circle{fill:#b3261e}.plan .datum path{stroke:#b3261e;stroke-width:.03}
 .plan .shot{fill:var(--ok)}.plan .shot.bad{fill:var(--bad)}.plan .narrow{fill:var(--ink)}.plan .nt{font:700 .18px system-ui;fill:var(--ink);text-anchor:middle}
@@ -164,7 +164,7 @@ async function demoPhoto(rec, kind) {
 async function loadDemo() {
   if (!TESTMODE) return;
   if (!(await ask('Load practice data? This adds a practice site (KRD-T99) with a finished STP, an STP in progress, a test unit with subunits, bags and a box.', 'Load'))) return;
-  for (const s of SEED_SITES) { const r = mk('sites', null, { ...s, _status: 'complete', _missing: [] }); r.id = r.site = await siteUUID(s.sitename); if (!get(r.id)) await save(r); }
+  await seedPhase2();
   const site = mk('sites', null, { record_kind: 'New site (temporary no.)', district: 'Kisatchie RD', sitename: 'KRD-T99', temp_name: 'KRD-T99', site_code: '8199', requested_by: 'Practice', purpose: 'Testing the app', project: 'PRACTICE', _status: 'complete', _missing: [] });
   await save(site);
   const base = { lat: 31.4521, lon: -93.0834, utmzone: 15, gps_acc_m: 0.02, gps_n: 10, gps_source: 'Practice', datum: 'WGS84', gps_time: now() };
@@ -324,6 +324,7 @@ async function runSync(manual) {
   try {
     const r = await CORE.sync();
     S.syncErr = null;
+    if (r && !r.skipped && !REG.list.length) await loadRegistry(true);
     if (r && !r.skipped) { await reload(); if (manual) toast(`Synced: ${r.pushed} up, ${r.pulled} down`); if (r.pulled) render(); }
   } catch (e) { S.syncErr = e.message; if (manual) toast(e.message); }
   S.syncing = false; S.lastSync = await CORE.getMeta('last_sync'); S.session = await CORE.getMeta('session'); updatePill();
@@ -589,7 +590,6 @@ function excHeaderMissing(d) {
 function completeness(rec, d) {
   const t = rec.tbl, m = t === 'excavations' ? excHeaderMissing(d) : requiredMissing(rec, d), need = (k, label) => { if (blank(d[k]) && !m.includes(label)) m.push(label); };
   const hasPhoto = kinds => photosOf(rec.id).some(p => !kinds || kinds.includes(p.data.kind));
-  if (t === 'sites') { need('site_code', 'ID code'); need('district', 'District'); }
   if (t === 'excavations') {
     need('depthcm', 'Final depth');
     const lv = kids(rec.id, 'levels');
@@ -844,6 +844,7 @@ function formView(rec, isNew, opts = {}) {
     fields = fields.map(f => f.k === 'excavation_unit' ? { ...f, l: 'Subunit', t: 'select', o: '_su', help: LISTS._su.length ? '' : 'Add a subunit on the unit page first' } : f);
   }
   if (rec.tbl === 'mappoints' && parent) LISTS._corners = cornerOptions(parent.id);
+  if (rec.tbl === 'sites') LISTS._sites = [];
   const ctx = () => ({ site: rec.tbl === 'sites' ? rec : get(rec.site), parentRec: parent, self: rec });
   d = compute(rec.tbl, d, ctx());
   setTitle((isNew ? 'New ' : '') + def.label);
@@ -853,6 +854,8 @@ function formView(rec, isNew, opts = {}) {
   $('#app').innerHTML = `${parent ? crumbs(parent) : rec.tbl === 'sites' ? '<div class="crumbs"><a href="#/sites">Sites</a></div>' : ''}
     <h2>${isNew ? 'New ' + esc(def.label.toLowerCase()) : esc(def.title(d))} ${statusBadge(rec)}</h2>
     <form id="frm" class="card" autocomplete="off" novalidate><div class="grid">${fields.map(f => fieldHTML(f, d[f.k], d)).join('')}</div>${lists}
+    ${rec.tbl === 'sites' ? `<div id="sitemsg"></div><div class="btns"><button type="button" class="btn sec" id="sitepos">📍 Fill parish, quad &amp; district from my position</button></div>
+      ${REG.list.length ? '' : '<div class="help">Sign in once so the app can download the KNF site list; it then works offline.</div>'}` : ''}
     ${photoStripHTML(rec)}
     <div id="chk"></div>
     <div class="formbar">
@@ -885,6 +888,24 @@ function formView(rec, isNew, opts = {}) {
     showMsgs(form, v, true);
   };
   bindPhotos($('[data-photos]', form), rec, () => refresh());
+  if (rec.tbl === 'sites') {
+    fillSiteList(form);
+    $('#sitepos', form).onclick = () => {
+      if (!navigator.geolocation) return toast('No location on this device');
+      $('#sitemsg', form).innerHTML = '<div class="help">Getting position…</div>';
+      navigator.geolocation.getCurrentPosition(p => {
+        const { latitude: lat, longitude: lon, accuracy } = p.coords, info = infoAt(lat, lon);
+        d.site_lat = +lat.toFixed(7); d.site_lon = +lon.toFixed(7);
+        if (info.quad) $('#f_usgsquad').value = info.quad;
+        if (info.parish) $('#f_parish').value = info.parish;
+        if (info.district && !$('#f_district').value) { $('#f_district').value = info.district; fillSiteList(form); }
+        $('#sitemsg', form).innerHTML = `<div class="check okc">Position ±${Math.round(accuracy)} m. ${info.quad ? 'Quad: ' + esc(info.quad) + '. ' : 'Quad not in the app’s list; type it. '}${info.parish ? 'Parish from the nearest recorded site (' + (info.dist / 1000).toFixed(1) + ' km): check near parish lines.' : ''}</div>`
+          + (info.near ? `<div class="check">You are ${info.dist} m from recorded site <b>${esc(info.near.t)}</b>${info.near.name ? ' (' + esc(info.near.name) + ')' : ''}. Is this that site? <button type="button" class="btn sm" id="usenear">Use ${esc(info.near.t)}</button></div>` : '');
+        const u = $('#usenear', form); if (u) u.onclick = () => { $('#f_record_kind').value = 'Previously recorded site'; $('#f_sitename').value = info.near.t; $('#f_sitename').dispatchEvent(new Event('change', { bubbles: true })); };
+        refresh();
+      }, e => { $('#sitemsg', form).innerHTML = `<div class="check">Location error: ${esc(e.message)}</div>`; }, { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 });
+    };
+  }
   form.addEventListener('click', async e => {
     const b = e.target.closest('[data-scan]'); if (!b) return;
     const code = await openScanner(b.dataset.title || 'Scan label'); if (!code) return;
@@ -904,8 +925,18 @@ function formView(rec, isNew, opts = {}) {
         const t = nextTemp(dist); $('#f_sitename').value = t.name; $('#f_site_code').value = t.code; d.temp_name = t.name;
       } else if (kind === 'Previously recorded site' && TEMP_RE.test($('#f_sitename').value)) { $('#f_sitename').value = ''; $('#f_site_code').value = ''; d.temp_name = ''; }
     }
-    if (rec.tbl === 'sites' && e.target.id === 'f_sitename' && /^16[A-Z]{2}\d+$/.test(e.target.value.trim().toUpperCase()) && !$('#f_site_code').value) {
-      const m = e.target.value.trim().toUpperCase().match(/^16([A-Z]{2})(\d+)$/); $('#f_site_code').value = ({ NA: '1', CL: '2', WE: '3' }[m[1]] || '9') + m[2].padStart(3, '0').slice(-3);
+    if (rec.tbl === 'sites' && e.target.id === 'f_district') fillSiteList(form);
+    if (rec.tbl === 'sites' && e.target.id === 'f_sitename') {
+      const v = e.target.value.trim().toUpperCase(); e.target.value = v;
+      const info = regInfo(v);
+      if (info) {
+        for (const [k, val] of Object.entries(info)) { const el = $('#f_' + k, form); if (el && val && (!el.value || isNew || k !== 'site_name')) el.value = val; }
+        $('#sitemsg', form).innerHTML = `<div class="check okc">${esc(v)} found in the KNF site list${info.usgsquad ? '' : '. Its quad isn\'t known; type it in'}.</div>`;
+      } else if (/^16[A-Z]{2}\d+$/.test(v)) {
+        if (!$('#f_site_code').value) $('#f_site_code').value = siteCodeFor(v);
+        const pc = v.slice(2, 4); if (!$('#f_parish').value && PARISH[pc]) $('#f_parish').value = PARISH[pc];
+        $('#sitemsg', form).innerHTML = REG.list.length ? `<div class="check">${esc(v)} is not in the KNF site list. Check the number.</div>` : '';
+      }
     }
     refresh();
   });
@@ -972,13 +1003,13 @@ function viewSites() {
   const sites = live('sites').filter(s => !q || JSON.stringify(s.data).toLowerCase().includes(q)).sort((a, b) => (a.data.district || '').localeCompare(b.data.district || '') || a.data.sitename.localeCompare(b.data.sitename, undefined, { numeric: true }));
   const byD = {}; sites.forEach(s => (byD[s.data.district || 'Other'] ||= []).push(s));
   $('#app').innerHTML = `<div class="btns"><input class="search" id="q" placeholder="Search sites" value="${esc(S.q || '')}" style="flex:1;min-width:180px;margin:0"><a class="btn" href="#/new/sites/">+ Site</a><a class="btn sec" href="#/new/sites/?temp">+ New site (temp. no.)</a></div>
-    ${!sites.length ? `<div class="empty">No sites yet. ${live('sites').length ? '' : '<button class="btn sm sec" id="seed">Load the 30 Phase II candidate sites</button>'}</div>` : ''}
+    ${!sites.length ? `<div class="empty">No sites yet. ${live('sites').length ? '' : '<button class="btn sm sec" id="seed">Load the Phase II candidate sites</button>'}</div>` : ''}
     ${Object.entries(byD).map(([dn, ss]) => `<h3>${esc(dn)} <span class="badge">${ss.length}</span></h3><div class="list">${ss.map(s => {
       const ex = kids(s.id, 'excavations'); const pos = ex.filter(e => e.data.positive).length;
       return rowHTML(s, `<small>${ex.length ? `${ex.length} excavations · ${pos} positive` : 'Not started'}${s.data.site_code ? ' · code ' + esc(s.data.site_code) : ''}</small>`);
     }).join('')}</div>`).join('')}`;
   $('#q').oninput = e => { S.q = e.target.value; const pos = e.target.selectionStart; viewSites(); const i = $('#q'); i.focus(); i.setSelectionRange(pos, pos); };
-  $('#seed') && ($('#seed').onclick = async () => { for (const s of SEED_SITES) { const r = mk('sites', null, { ...s, _status: 'complete', _missing: [] }); r.id = r.site = await siteUUID(s.sitename); if (!get(r.id)) await save(r); } toast('Loaded 30 sites'); render(); });
+  $('#seed') && ($('#seed').onclick = async () => { const n = await seedPhase2(); toast(n ? `Loaded ${n} sites` : 'Sign in first so the app can download the KNF site list'); render(); });
 }
 function excRow(e) {
   const levels = kids(e.id, 'levels'), hasLoc = e.data.lat != null || e.data.utme != null;
@@ -1177,7 +1208,7 @@ async function viewSettings() {
     <div class="card">${TESTMODE ? `<p><b>You are in TEST MODE.</b> Everything here is practice data, stored separately from the project.</p>
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a><button class="btn sec" id="tmoff">Leave test mode</button></div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.4 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.5 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   $('#demo') && ($('#demo').onclick = loadDemo);
   $('#tmoff') && ($('#tmoff').onclick = () => switchMode(false));
   $('#tmon') && ($('#tmon').onclick = () => switchMode(true));
@@ -1199,6 +1230,69 @@ async function viewSettings() {
 }
 function notFound() { $('#app').innerHTML = '<div class="empty">Record not found (it may have been deleted). <a href="#/">Home</a></div>'; }
 
+/* ================= KNF site list (private registry) ================= */
+const REG = { list: [], by: new Map() };
+function buildRegistry(p) {
+  REG.list = []; REG.by = new Map();
+  if (!p || !p.sites) return;
+  const expand = str => String(str).split(',').flatMap(x => { const m = x.match(/^(\d+)-(\d+)$/); if (!m) return x ? [x] : []; const o = []; for (let i = +m[1]; i <= +m[2]; i++) o.push(String(i)); return o; });
+  for (const [district, ps] of Object.entries(p.sites)) for (const [pc, nums] of Object.entries(ps)) for (const n of expand(nums)) {
+    const t = '16' + pc + n, pt = p.pts?.[t];
+    const r = { t, district, parish: PARISH[pc] || '', pc, e: pt?.[0] ?? null, n: pt?.[1] ?? null, name: pt?.[2] || '' };
+    REG.list.push(r); REG.by.set(t, r);
+  }
+  REG.phase2 = p.phase2 || {};
+}
+async function loadRegistry(refresh) {
+  let p = await CORE.getMeta('registry');
+  if (refresh || !p) { try { p = (await CORE.fetchRegistry()) || p; } catch (e) { } }
+  buildRegistry(p);
+}
+function fromUTM(E, N, zone = 15) {
+  const a = 6378137, f = 1 / 298.257223563, k0 = 0.9996, e2 = f * (2 - f), ep2 = e2 / (1 - e2), e1 = (1 - Math.sqrt(1 - e2)) / (1 + Math.sqrt(1 - e2));
+  const x = E - 500000, M = N / k0, mu = M / (a * (1 - e2 / 4 - 3 * e2 ** 2 / 64 - 5 * e2 ** 3 / 256));
+  const p1 = mu + (3 * e1 / 2 - 27 * e1 ** 3 / 32) * Math.sin(2 * mu) + (21 * e1 ** 2 / 16 - 55 * e1 ** 4 / 32) * Math.sin(4 * mu) + (151 * e1 ** 3 / 96) * Math.sin(6 * mu);
+  const N1 = a / Math.sqrt(1 - e2 * Math.sin(p1) ** 2), T1 = Math.tan(p1) ** 2, C1 = ep2 * Math.cos(p1) ** 2, R1 = a * (1 - e2) / (1 - e2 * Math.sin(p1) ** 2) ** 1.5, D = x / (N1 * k0);
+  const lat = p1 - (N1 * Math.tan(p1) / R1) * (D ** 2 / 2 - (5 + 3 * T1 + 10 * C1 - 4 * C1 ** 2 - 9 * ep2) * D ** 4 / 24 + (61 + 90 * T1 + 298 * C1 + 45 * T1 ** 2 - 252 * ep2 - 3 * C1 ** 2) * D ** 6 / 720);
+  const lon = ((zone - 1) * 6 - 180 + 3) * Math.PI / 180 + (D - (1 + 2 * T1 + C1) * D ** 3 / 6 + (5 - 2 * C1 + 28 * T1 - 3 * C1 ** 2 + 8 * ep2 + 24 * T1 ** 2) * D ** 5 / 120) / Math.cos(p1);
+  return { lat: lat * 180 / Math.PI, lon: lon * 180 / Math.PI };
+}
+function quadAt(lat, lon) { for (const [q, b] of Object.entries(QUADS)) if (lon >= b[0] && lon < b[2] && lat >= b[1] && lat < b[3]) return q; return ''; }
+function siteCodeFor(t) {
+  const m = String(t || '').match(/^16([A-Z]{2})(\d+)$/); if (!m) return '';
+  const n = +m[2], d = PARISH_DIGIT[m[1]] || '9';
+  return n < 1000 ? d + String(n).padStart(3, '0') : String(n).slice(-4);
+}
+/* what the app can fill in for a known site */
+function regInfo(t) {
+  const r = REG.by.get(String(t || '').trim().toUpperCase()); if (!r) return null;
+  let quad = '';
+  if (r.e != null) { const g = fromUTM(r.e, r.n); quad = quadAt(g.lat, g.lon); }
+  return { district: r.district, parish: r.parish, site_code: siteCodeFor(r.t), usgsquad: quad, site_name: r.name };
+}
+/* parish, quad and district suggested from a position (nearest recorded site; quad from the 7.5' grid) */
+function infoAt(lat, lon) {
+  const u = toUTM(lat, lon); let best = null, bd = Infinity;
+  for (const r of REG.list) if (r.e != null) { const d = Math.hypot(r.e - u.e, r.n - u.n); if (d < bd) { bd = d; best = r; } }
+  return { quad: quadAt(lat, lon), parish: best && bd < 15000 ? best.parish : '', district: best && bd < 8000 ? best.district : '', near: best && bd < 400 ? best : null, dist: Math.round(bd) };
+}
+
+function fillSiteList(form) {
+  const dl = $('#l__sites', form); if (!dl) return;
+  const dist = $('#f_district', form)?.value;
+  const list = REG.list.filter(r => !dist || r.district === dist).sort((a, b) => a.t.localeCompare(b.t, undefined, { numeric: true }));
+  dl.innerHTML = list.map(r => `<option value="${r.t}">${esc(r.name || r.parish)}</option>`).join('');
+}
+async function seedPhase2() {
+  if (!REG.list.length) await loadRegistry(true);
+  let n = 0;
+  for (const [district, list] of Object.entries(REG.phase2 || {})) for (const t of list) {
+    const info = regInfo(t) || {};
+    const r = mk('sites', null, { record_kind: 'Previously recorded site', sitename: t, project: 'KNF Phase II 2026-27', ...info, district, _status: 'complete', _missing: [] });
+    r.id = r.site = await siteUUID(t); if (!get(r.id)) { await save(r); n++; }
+  }
+  return n;
+}
 /* ================= units: subunits, plan, corners ================= */
 const subsOf = excId => kids(excId, 'subunits').sort((a, b) => euIndex(a.data.letter) - euIndex(b.data.letter));
 const partsOf = s => Array.isArray(s?.data?.parts) ? s.data.parts : [];
@@ -1806,8 +1900,8 @@ addEventListener('beforeunload', e => { if (S.formDirty || draftCount()) { e.pre
   S.settings = { ...DEF, ...((await CORE.getMeta('settings')) || {}) };
   S.session = await CORE.getMeta('session');
   S.lastSync = await CORE.getMeta('last_sync');
-  await reload(); applyTheme(); updatePill();
-  if (TESTMODE) { $('#testbar').classList.remove('hidden'); document.documentElement.style.setProperty('--acc', '#5b2a86'); }
+  await reload(); applyTheme(); updatePill(); await loadRegistry(false);
+  if (TESTMODE) { $('#testbar').classList.remove('hidden'); }
   render();
   try { if (navigator.storage?.persist) S.persisted = await navigator.storage.persist(); } catch (e) { }
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
