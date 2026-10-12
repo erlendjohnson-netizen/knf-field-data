@@ -218,7 +218,7 @@ async function loadDemo() {
   const s2 = await stp(2, 0, 15, false);
   await lvl(s2, 'A', 1, 0, false, false, 'draft');
   // TU1 with subunits A (1x1) and B (0.5x1 east of A), datum at SW corner of A, azimuth 10 deg
-  const tu = mk('excavations', site.id, { excavation_type: 'TP', excavation_name: 'TU1', seq: 1, date: today(), crew: me(), ...base, utme: +(u0.e + 8).toFixed(2), utmn: +(u0.n + 5).toFixed(2), datum_desc: 'Rebar at SW corner of A (practice)' });
+  const tu = mk('excavations', site.id, { excavation_type: 'TP', excavation_name: 'TU1', seq: 1, date: today(), crew: me(), ...base, utme: +(u0.e + 8).toFixed(2), utmn: +(u0.n + 5).toFixed(2), datum_desc: 'Wooden stake at SW corner of A (practice)' });
   tu.data = compute('excavations', tu.data, { site, self: tu }); tu.data._status = 'open'; await save(tu);
   for (const [L, parts] of [['A', [{ x: 0, y: 0, w: 1, h: 1 }]], ['B', [{ x: 1, y: 0, w: 0.5, h: 1 }]]]) {
     const su = mk('subunits', tu.id, { letter: L, parts, opened: today(), reason: L === 'A' ? 'Initial unit next to datum' : 'Expansion east', area_m2: partsArea(parts), size_label: sizeLabel(parts), _status: 'complete', _missing: [] });
@@ -236,7 +236,7 @@ const TESTPLAN = [
   ['Sites', ['Open a Phase II site from the list', 'Create a new site with a temporary number (+ New site (temp. no.)) and check the KRD-T## / CRD-T## number', 'Rename a temporary site to a trinomial and check the temporary number is kept', 'Create a survey area (+ Survey area) and check it gets a KRD-S## number', 'Capture a GPS point on a new site or survey area and check parish and quad fill in', 'In a survey area, finish an STP level with more than 5 artifacts and create the new site from the pop-up', 'Open the new site and check the delineation targets and the link back to the survey STP', 'New site or survey area: capture GPS first and check district, parish and quad fill in', 'Survey area: Plan transects…, then open a planned STP, check How far is it?, and dig it', 'Mark a planned STP as Can’t dig with a reason', 'Import planned STPs from a CSV (transect, stp, easting, northing)', 'Add an STP: only the name, date, crew and location are asked; answer Yes to start Level 1']],
   ['STP', ['Start an STP and capture GPS (with the Emlid on Android if available)', 'Check the accuracy warning appears when accuracy is poor', 'Record a level with “Artifacts recovered” ticked, press Finish, and scan the bag label in the pop-up', 'Tick “Special find”: check it needs a description and a special-find photo, and scan a second bag for it', 'Press “Back to the form” in the bag pop-up and check the level is NOT finished', 'Try to scan a bag label that is already used (must be refused)', 'Try to Finish a level without a photo (must be blocked)', 'Save a level as unfinished and check the red banner and acknowledgement box', 'Try to start the next level while one is unfinished (must be blocked)', 'Finish the level from its page with “Finish now” after adding a photo', 'Close out an STP (final depth must match the deepest level)', 'Tick Feature on a level, press Finish, and check the feature form opens linked to that level']],
   ['GPS & points', ['Watch the live GPS readout on a location box (green = good for the chosen source)', 'Switch the GPS source (Emlid / Trimble / phone) and check the warning thresholds change', 'Type in coordinates from another instrument and check they show as “typed in”', 'On a site page, Take a point: walk a few boundary points with “Finish & add next” (B1, B2, B3…)', 'Check the site map shows STPs, units, points and the boundary outline', 'Tap a symbol on the site map to open it']],
-  ['Test unit', ['Create a TU and capture the datum', 'Add subunit A and choose the datum corner', 'Add a 0.5 × 1 m subunit against A', 'Build an L-shaped subunit from two pieces', 'Try to overlap two subunits (must be blocked)', 'Start a level in a specific subunit and check the volume', 'Shoot a corner, choose which plan corner it is, and set the azimuth', 'Check close-out lists what is missing']],
+  ['Test unit', ['Create a TU and capture the datum', 'Add subunit A and choose the datum corner', 'Add a 0.5 × 1 m subunit against A', 'Build an L-shaped subunit from two pieces', 'Try to overlap two subunits (must be blocked)', 'Start a level in a specific subunit and check the volume', 'Shoot a corner, choose which plan corner it is, and set the azimuth', 'Check close-out lists what is missing', 'New unit: set the size, subunit size and datum corner; check the layout preview and that the subunits are made', 'Answer Yes to start Level 1 in A', 'Check close-out asks for overview, plan view and profile photos']],
   ['Bags & boxes', ['Print a sheet of bag labels and a sheet of box labels', 'Scan a bag with the app and with the phone’s own camera app', 'Hand over a bag and check the custody log', 'Register a box and scan bags into it', 'Remove a bag from a box', 'Scan an unassigned bag label and assign it to a level']],
   ['End-of-day bag check', ['Sync every test device first', 'Home → Bag check: start, scan a box label, then scan most (not all) of the day’s bags', 'Scan a bag label that was never used (must show as extra)', 'Finish and read the report: missing bags grouped by who bagged them', 'Copy the report as text and paste it into a message', 'Box a missing bag later and reopen the report (shows “found since”)']],
   ['Lab', ['Scan a bag on the Lab screen and check it opens the right level', 'Enter a lithic tool with a named chert source on visual ID (warning)', 'Enter a hafted biface without a photo (must be blocked)', 'Enter ceramics, then a tabulation that disagrees with the catalogue (must be blocked)', 'Fix the tabulation and finish it', 'Open the site catalogue table']],
@@ -434,7 +434,7 @@ function toUTM(lat, lon) {
 const GPS_SOURCES = [
   { k: 'Emlid Reach RX2 (RTK via Emlid Flow)', warn: 0.1, hint: 'Android: Emlid Flow set as the mock location app, with an RTK fix.' },
   { k: 'Trimble TDC600 (RTX via Trimble Mobile Manager)', warn: 1, hint: 'Open this app on the TDC600 itself; set Trimble Mobile Manager as the mock location app.' },
-  { k: 'Phone/tablet built-in GPS', warn: 10, hint: 'Usually 3–10 m. Fine for finding STPs, too coarse for unit datums and corners.' },
+  { k: 'Phone/tablet built-in GPS', warn: 4, hint: 'Accepted at ±4 m or better: wait for the readout to turn green. Fine for STPs, too coarse for unit datums and corners.' },
   { k: 'Other receiver (mock location)', warn: 2, hint: '' },
 ];
 const srcInfo = k => GPS_SOURCES.find(x => x.k === k) || (/emlid/i.test(k || '') ? GPS_SOURCES[0] : /trimble|tdc/i.test(k || '') ? GPS_SOURCES[1] : /phone|tablet|device/i.test(k || '') ? GPS_SOURCES[2] : GPS_SOURCES[3]);
@@ -661,6 +661,7 @@ function showMsgs(form, { errs, warns }, quiet) {
 /* ---- extra sanity checks (block obvious mistakes) ---- */
 function sanity(tbl, d, rec, v) {
   const { errs, warns } = v;
+  if (tbl === 'excavations' && isUnit(d) && d.unit_ew !== undefined) { const L = unitLayout(d); if (L.err) errs[L.field || 'su_size'] = L.err; }
   if (d.date && /^\d{4}-\d{2}-\d{2}$/.test(d.date) && d.date > today()) errs.date = 'Date is in the future';
   for (const [c, w] of [['cnt', 'wt'], ['cnt', 'weight']]) if (num(d[c]) > 0 && d[w] === 0) errs[w] = 'Weight 0 with a count: leave blank if not weighed';
   if (num(d.cnt) === 0) errs.cnt = 'Count must be at least 1';
@@ -766,7 +767,8 @@ function completeness(rec, d) {
     if (d.dateablematerial && !kids(rec.id, 'samples').length) m.push('Dateable material ticked but no sample record');
     if (d.excavation_type === 'TP' || d.excavation_type === 'Unit') {
       if (!hasPhoto(['Profile'])) m.push('Profile photo');
-      if (!hasPhoto(['Plan view', 'Overview'])) m.push('Plan or overview photo');
+      if (!hasPhoto(['Overview'])) m.push('Overview photo of the unit');
+      if (!hasPhoto(['Plan view'])) m.push('Plan view photo');
       need('profile_drawing_1', 'Profile drawing no.');
     }
   }
@@ -946,9 +948,10 @@ function defaults(tbl, parentId) {
     d.excavation_type = (S._newType) || last?.data.excavation_type || 'STP';
     d.seq = nextNum(kids(parentId, 'excavations').filter(r => r.data.excavation_type === d.excavation_type), 'seq');
     d.excavation_name = (d.excavation_type === 'STP' ? 'STP ' : d.excavation_type === 'TP' ? 'TU' : d.excavation_type === 'Unit' ? 'Unit ' : '') + d.seq;
-    d.transect = isSurvey(get(siteId)) ? last?.data.transect || '' : ''; d.date = today(); d.crew = last?.data.crew || me();
+    d.transect = isSurvey(get(siteId)) ? last?.data.transect || '' : ''; d.date = today(); d.crew = me(); // whoever is signed in; add the others
     if (d.excavation_type === 'STP') { d.lengthcm = 30; d.widthcm = 30; d.number_of_eu = 1; }
     if (d.excavation_type === 'TP') { d.lengthcm = 100; d.widthcm = 100; d.number_of_eu = 1; }
+    if (isUnit(d)) Object.assign(d, { unit_ew: 1, unit_ns: 1, su_size: 'Whole unit (one subunit)', datum_corner: 'SW corner', datum_desc: 'Wooden stake at SW corner of A', azimuth: 0 });
   }
   if (tbl === 'levels') {
     const ls = kids(parentId, 'levels').sort((a, b) => (euIndex(a.data.excavation_unit) - euIndex(b.data.excavation_unit)) || (a.data.levelno - b.data.levelno));
@@ -1016,7 +1019,7 @@ function formView(rec, isNew, opts = {}) {
   let d = { ...rec.data };
   let fields = def.fields.filter(f => !(f.newOnly && !isNew));
   if (rec.tbl === 'excavations' && !isSurvey(get(rec.site)) && !rec.data.transect) fields = fields.filter(f => f.k !== 'transect');
-  const EXC_HEAD = ['excavation_type', 'excavation_name', 'seq', 'excavationid', 'transect', 'date', 'crew', '_gps', 'datum_desc', 'azimuth'];
+  const EXC_HEAD = ['excavation_type', 'excavation_name', 'seq', 'excavationid', 'transect', 'date', 'crew', '_gps', 'unit_ew', 'unit_ns', 'su_size', 'datum_corner', 'datum_desc', 'azimuth'];
   const headOnly = rec.tbl === 'excavations' && (isNew || rec.data.planned);
   if (headOnly) fields = fields.filter(f => EXC_HEAD.includes(f.k));
   if (rec.tbl === 'excavations' && rec.data.planned) {
@@ -1037,10 +1040,12 @@ function formView(rec, isNew, opts = {}) {
   const isExc = rec.tbl === 'excavations';
   $('#app').innerHTML = `${parent ? crumbs(parent) : rec.tbl === 'sites' ? '<div class="crumbs"><a href="#/sites">Sites &amp; areas</a></div>' : ''}
     <h2>${isNew ? 'New ' + esc(def.label.toLowerCase()) : esc(def.title(d))} ${statusBadge(rec)}</h2>
+    <div class="help" style="margin:-4px 0 8px">${isNew ? 'Entered by' : 'Last edited by'} <b>${esc(isNew ? me() : rec.updated_by || '?')}</b>${isNew && !S.settings.name ? ' (add your name in Settings)' : ''}</div>
     ${rec.tbl === 'excavations' && rec.data.planned ? `<div class="check">Planned point: <b>${rec.data.target_e} E, ${rec.data.target_n} N</b>. Capture the position where you actually dig.</div>` : ''}
     <form id="frm" class="card" autocomplete="off" novalidate><div class="grid">${fields.map(f => fieldHTML(f, d[f.k], d)).join('')}</div>${lists}
     ${rec.tbl === 'sites' ? `<div id="sitemsg"></div>
       ${REG.list.length ? '' : '<div class="help">Sign in once so the app can download the KNF site list; it then works offline.</div>'}` : ''}
+    ${rec.tbl === 'excavations' && isNew ? `<div id="unitprev"${isUnit(d) ? '' : ' class="hidden"'}>${isUnit(d) ? unitPreviewHTML(d) : ''}</div>` : ''}
     ${photoStripHTML(rec)}
     <div id="chk"></div>
     <div class="formbar">
@@ -1080,7 +1085,7 @@ function formView(rec, isNew, opts = {}) {
       if (f.t === 'ro') { const el = $('#f_' + f.k, form); if (el) el.textContent = cur[f.k] === '' || cur[f.k] == null ? '—' : cur[f.k]; }
       if (f.show) form.querySelector(`.f[data-k="${f.k}"]`)?.classList.toggle('hidden', !f.show(cur));
     });
-    const v = validate(rec.tbl, cur, rec), errs = Object.keys(v.errs).length, missAll = completeness(rec, cur), bagNext = missAll.includes(BAG_MISS), featNext = missAll.includes(FEAT_MISS), miss = missAll.filter(x => !AFTER.includes(x)), st = statusFor(rec, cur, miss);
+    const v = validate(rec.tbl, cur, rec), errs = Object.keys(v.errs).length, missAll = headOnly ? excHeaderMissing(cur) : completeness(rec, cur), bagNext = missAll.includes(BAG_MISS), featNext = missAll.includes(FEAT_MISS), miss = missAll.filter(x => !AFTER.includes(x)), st = statusFor(rec, cur, miss);
     $('#chk').innerHTML = (bagNext ? '<div class="check bagnext">🏷 <b>Artifacts recorded:</b> when you press Finish, the app asks you to scan the bag label for this level.</div>' : '') + (featNext ? '<div class="check bagnext">🕳 <b>Feature ticked:</b> when you press Finish, the feature form opens next.</div>' : '') + (miss.length ? `<div class="check"><b>${isExc && st === 'open' ? 'Before close-out' : 'Still needed before this can be finished'}:</b><ul style="margin:4px 0 0;padding-left:18px">${miss.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : '<div class="check okc">Everything is filled in ✓</div>')
       + (errs ? `<div class="check" style="border-color:var(--bad)"><b>${errs} field${errs > 1 ? 's have' : ' has'} an error</b> (see highlighted fields)</div>` : '');
     const fin = $('#fin'), canFin = !errs && (st === 'complete' || (isExc && st === 'open'));
@@ -1122,8 +1127,15 @@ function formView(rec, isNew, opts = {}) {
     if (isNew && rec.tbl === 'excavations' && e.target.id === 'f_excavation_type') {
       S._newType = e.target.value; const nd = defaults('excavations', rec.parent); S._newType = null;
       $('#f_seq').value = nd.seq; $('#f_excavation_name').value = nd.excavation_name;
-      if (nd.lengthcm) { $('#f_lengthcm').value = nd.lengthcm; $('#f_widthcm').value = nd.widthcm; }
+      if (nd.lengthcm && $('#f_lengthcm')) { $('#f_lengthcm').value = nd.lengthcm; $('#f_widthcm').value = nd.widthcm; }
+      const pv0 = $('#unitprev'); if (pv0) { pv0.classList.toggle('hidden', !isUnit(nd)); if (isUnit(nd)) setTimeout(() => { pv0.innerHTML = unitPreviewHTML(current()); }, 0); }
+      if (isUnit(nd)) for (const k of ['unit_ew', 'unit_ns', 'su_size', 'datum_corner', 'datum_desc', 'azimuth']) { const el = $('#f_' + k); if (el && !el.value) el.value = nd[k]; }
     }
+    if (rec.tbl === 'excavations' && e.target.id === 'f_datum_corner') {
+      const dd = $('#f_datum_desc'), c = e.target.value.split(' ')[0];
+      if (dd && (!dd.value || /^Wooden stake at [NS][EW] corner of A$/.test(dd.value))) dd.value = `Wooden stake at ${c} corner of A`;
+    }
+    if (rec.tbl === 'excavations' && ['f_unit_ew', 'f_unit_ns', 'f_su_size', 'f_datum_corner'].includes(e.target.id)) { const pv = $('#unitprev'); if (pv) pv.innerHTML = unitPreviewHTML(current()); }
     if (isNew && rec.tbl === 'sites' && (e.target.id === 'f_record_kind' || e.target.id === 'f_district')) {
       const kind = $('#f_record_kind').value, dist = $('#f_district').value;
       if (kind && kind !== 'Previously recorded site' && dist) {
@@ -1166,6 +1178,7 @@ function formView(rec, isNew, opts = {}) {
     nd._missing = miss;
     const startedNow = rec.tbl === 'excavations' && (isNew || nd.planned) && nd._status !== 'draft';
     if (rec.tbl === 'excavations' && nd.planned) { nd.planned = 0; nd.planned_dug = 1; }
+    const unitCells = rec.tbl === 'excavations' && isNew && isUnit(nd) && mode !== 'draft' ? unitLayout(nd).cells : null;
     const bagCode = nd.bag_qr, bagContents = nd._bag_contents; delete nd._bag_contents; fields.filter(f => f.virtual).forEach(f => delete nd[f.k]);
     if (isNew && rec.tbl === 'sites') {
       if (nd.record_kind === 'Previously recorded site') {
@@ -1174,6 +1187,10 @@ function formView(rec, isNew, opts = {}) {
       }
     }
     rec.data = nd; await save(rec);
+    if (unitCells && !subsOf(rec.id).length) for (const c of unitCells) {
+      const su = mk('subunits', rec.id, {}); su.data = { letter: c.letter, opened: nd.date || today(), reason: 'Initial unit layout', parts: c.parts, area_m2: partsArea(c.parts), size_label: sizeLabel(c.parts), _status: 'complete', _missing: [] }; await save(su);
+    }
+    if (rec.tbl === 'excavations' && unitCells) { rec.data = compute('excavations', rec.data, { site: get(rec.site), self: rec }); await save(rec); }
     if (rec.tbl === 'levels' && bagCode && !live('bags').some(b => b.data.qr === parseCode(bagCode))) await createBag(rec, parseCode(bagCode), bagContents);
     for (const b of extraBags) await createBag(rec, b.code, b.contents);
     if (rec.tbl === 'bags' && isNew && nd.qr) await custodyEvent(nd.qr, 'bag', 'Collected in field', { location: get(rec.site)?.data.sitename || '' });
@@ -1185,8 +1202,10 @@ function formView(rec, isNew, opts = {}) {
     if (next) { const h = `#/new/${rec.tbl}/${rec.parent}`; if (location.hash === h) render(); else location.hash = h; }
     else if (startedNow) {
       const unit = isUnit(nd), nm = TABLES.excavations.title(nd);
-      const yes = await ask(unit ? `${nm} saved. Open it now to lay out subunit A?` : `${nm} saved. Open it now and start Level 1?`, unit ? 'Yes, open it' : 'Yes, start Level 1', 'No, back to the site');
-      location.hash = yes ? (unit ? '#/rec/' + rec.id : '#/new/levels/' + rec.id) : '#/site/' + rec.site;
+      const su0 = unit ? subsOf(rec.id)[0]?.data.letter : null;
+      const yes = await ask(unit ? (su0 ? `${nm} saved with ${subsOf(rec.id).length} subunit${subsOf(rec.id).length > 1 ? 's' : ''}. Start Level 1 in ${su0}?` : `${nm} saved. Open it now to lay out subunit A?`) : `${nm} saved. Open it now and start Level 1?`,
+        unit ? (su0 ? `Yes, start Level 1 in ${su0}` : 'Yes, open it') : 'Yes, start Level 1', 'No, back to the site');
+      location.hash = yes ? (unit ? (su0 ? `#/new/levels/${rec.id}?su=${encodeURIComponent(su0)}` : '#/rec/' + rec.id) : '#/new/levels/' + rec.id) : '#/site/' + rec.site;
     }
     else location.hash = opts.back || backHash(rec);
   };
@@ -1456,7 +1475,7 @@ async function viewSettings() {
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a><button class="btn sec" id="tmoff">Leave test mode</button></div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
     <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a></div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.14 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.15 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   $('#demo') && ($('#demo').onclick = loadDemo);
   $('#tmoff') && ($('#tmoff').onclick = () => switchMode(false));
   $('#tmon') && ($('#tmon').onclick = () => switchMode(true));
@@ -1681,6 +1700,34 @@ function unitPlanSVG(e, o = {}) {
     <g class="grid">${g}</g>${body}${arrow}</svg>
     <div class="help">Grid squares are 0.5 m. ✚ = unit datum${az != null ? ' · ◆ = GPS corner shots' : ''}${az == null ? ' · azimuth not set yet' : ''}</div>`;
 }
+/* ---- a new unit's subunits, laid out from its size, subunit size and datum corner ---- */
+function unitLayout(d) {
+  const W = num(d.unit_ew), H = num(d.unit_ns);
+  if (!(W > 0)) return { err: 'Enter the E–W size', field: 'unit_ew' };
+  if (!(H > 0)) return { err: 'Enter the N–S size', field: 'unit_ns' };
+  if (W > 10 || H > 10) return { err: 'Up to 10 m a side; add more as expansions later', field: W > 10 ? 'unit_ew' : 'unit_ns' };
+  let sw = W, sh = H;
+  const m = String(d.su_size || '').match(/([\d.]+)\s*×\s*([\d.]+)/); if (m) { sw = +m[1]; sh = +m[2]; }
+  const nx = W / sw, ny = H / sh;
+  if (sw > W + 1e-9 || sh > H + 1e-9 || Math.abs(nx - Math.round(nx)) > 1e-6 || Math.abs(ny - Math.round(ny)) > 1e-6)
+    return { err: `A ${fmtM(W)} × ${fmtM(H)} m unit doesn’t split evenly into ${fmtM(sw)} × ${fmtM(sh)} m subunits` };
+  if (Math.round(nx) * Math.round(ny) > 60) return { err: 'That makes more than 60 subunits; use bigger subunits' };
+  const c = String(d.datum_corner || 'SW').slice(0, 2), x0 = c[1] === 'E' ? -W : 0, y0 = c[0] === 'N' ? -H : 0;
+  const cells = [];
+  for (let j = 0; j < Math.round(ny); j++) for (let i = 0; i < Math.round(nx); i++) cells.push({ x: r2(x0 + i * sw), y: r2(y0 + j * sh), w: sw, h: sh });
+  const dist = p => Math.hypot(p.x + p.w / 2, p.y + p.h / 2);
+  cells.sort((a, b) => dist(a) - dist(b) || b.y - a.y || a.x - b.x); // A touches the datum, then outward
+  return { cells: cells.map((p, i) => ({ letter: i < 26 ? String.fromCharCode(65 + i) : 'A' + String.fromCharCode(65 + i - 26), parts: [p] })) };
+}
+function unitPreviewHTML(d) {
+  const L = unitLayout(d); if (L.err) return `<div class="check" style="border-color:var(--bad)">${esc(L.err)}</div>`;
+  const fake = { id: '_prev', data: { azimuth: null } };
+  const all = L.cells.flatMap(c => c.parts), bb = bbox(all.concat([{ x: 0, y: 0, w: 0, h: 0 }])), pad = 0.3;
+  const x0 = bb.x0 - pad, y0 = bb.y0 - pad, x1 = bb.x1 + pad, y1 = bb.y1 + pad, Y = y => y1 - (y - y0) - y0;
+  const rects = L.cells.map(c => { const p = c.parts[0]; return `<rect x="${p.x}" y="${Y(p.y + p.h)}" width="${p.w}" height="${p.h}" class="su"/><text x="${p.x + p.w / 2}" y="${Y(p.y + p.h / 2)}" class="sut">${c.letter}</text>`; }).join('');
+  return `<div class="card" style="margin-top:6px"><b>Layout</b> <span class="help">${L.cells.length} subunit${L.cells.length > 1 ? 's' : ''} (${L.cells.map(c => c.letter).join(', ')}), north up, ✚ = datum stake</span>
+    <svg class="plan" style="max-height:200px" viewBox="${x0} ${Y(y1)} ${x1 - x0} ${y1 - y0}">${rects}<g class="datum"><circle cx="0" cy="${Y(0)}" r="0.07"/><path d="M-0.13 ${Y(0)}h0.26M0 ${Y(0) - 0.13}v0.26"/></g></svg></div>`;
+}
 /* ---- subunit editor ---- */
 function subunitEditor(rec, isNew) {
   const e = get(rec.parent); if (!e) return notFound();
@@ -1781,16 +1828,18 @@ function unitSectionHTML(e) {
   const subs = subsOf(e.id), cc = cornerChecks(e), sel = S.suSel && subs.find(s => s.data.letter === S.suSel) ? S.suSel : subs[0]?.data.letter;
   const lv = sel ? kids(e.id, 'levels').filter(l => String(l.data.excavation_unit).toUpperCase() === String(sel).toUpperCase()).sort((a, b) => a.data.levelno - b.data.levelno) : [];
   const suggestAz = cc.filter(c => c.az != null);
-  return `<h3>Unit plan <span class="sp"></span><a class="btn sm" href="#/new/subunits/${e.id}">+ Subunit</a></h3>
-    <div class="card"><div id="unitplan">${subs.length ? unitPlanSVG(e, { sel }) : '<div class="empty">No subunits yet. Add the first one; it is usually the 1 × 1 m square next to the datum and gets the letter A.</div>'}</div>
+  const ov = photosOf(e.id).some(p => p.data.kind === 'Overview');
+  return `${ov ? '' : `<div class="check">📷 <b>Overview photo of the unit needed</b> (required to close out). Take it under Photos below, with “Overview” picked.</div>`}
+    <h3>Unit plan <span class="sp"></span><a class="btn sm" href="#/new/subunits/${e.id}">+ Add subunit / expansion</a></h3>
+    <div class="card"><div id="unitplan">${subs.length ? unitPlanSVG(e, { sel }) : '<div class="empty">No subunits yet. Add the first one (+ Add subunit): it is the square next to the datum stake and gets the letter A.</div>'}</div>
     ${subs.length ? `<div class="btns">${subs.map(s => `<button class="btn sm ${s.data.letter === sel ? '' : 'sec'}" data-su="${esc(s.data.letter)}">${esc(s.data.letter)} · ${esc(s.data.size_label || '')}</button>`).join('')}</div>` : ''}
     ${sel ? `<div class="kv" style="margin-top:6px"><div><span>Subunit ${esc(sel)}</span><br>${lv.length ? `${lv.length} level${lv.length > 1 ? 's' : ''}, to ${esc(lv[lv.length - 1].data.bgscm)} cmbs${lv.some(l => l.data.terminal_level) ? ' (closed)' : ''}` : 'no levels yet'}</div></div>
       <div class="btns"><a class="btn" href="#/new/levels/${e.id}?su=${encodeURIComponent(sel)}">+ Level in ${esc(sel)}</a><a class="btn sec" href="#/rec/${subs.find(s => s.data.letter === sel).id}">Edit ${esc(sel)}</a></div>` : ''}</div>
     <h3>Unit datum &amp; corner shots <span class="sp"></span><a class="btn sm" href="#/new/mappoints/${e.id}?corner">+ Shoot a corner</a></h3>
     <div class="card">
       <div class="kv"><div><span>Datum</span><br>${e.data.utme != null ? `${e.data.utme} E, ${e.data.utmn} N` : '<b style="color:var(--warn)">not shot yet</b>'}${e.data.datum_desc ? '<br>' + esc(e.data.datum_desc) : ''}</div>
-        <div><span>Unit azimuth</span><br>${num(e.data.azimuth) != null ? esc(e.data.azimuth) + '°' : '<b style="color:var(--warn)">not set</b>'}</div></div>
-      ${cc.length ? `<div class="hist" style="margin-top:8px">${cc.map(c => `<div><b>${esc(c.m.data.label || c.m.data.corner || 'Corner')}</b> · ${c.dShot.toFixed(2)} m from datum (plan ${c.dPlan.toFixed(2)} m)${c.az != null ? ` · implies azimuth ${c.az}°` : ''}${c.misfit != null ? ` · <span style="color:${c.misfit > CORNER_TOL ? 'var(--bad)' : 'var(--ok)'}">${(c.misfit * 100).toFixed(0)} cm from plan</span>` : ''}</div>`).join('')}</div>` : '<div class="help">Shoot at least one unit corner with the GPS (two is better). The app works out the unit\'s orientation and checks it against the plan.</div>'}
+        <div><span>Orientation (north wall faces)</span><br>${num(e.data.azimuth) != null ? esc(e.data.azimuth) + '°' : '<b style="color:var(--warn)">not set</b>'}</div></div>
+      ${cc.length ? `<div class="hist" style="margin-top:8px">${cc.map(c => `<div><b>${esc(c.m.data.label || c.m.data.corner || 'Corner')}</b> · ${c.dShot.toFixed(2)} m from datum (plan ${c.dPlan.toFixed(2)} m)${c.az != null ? ` · implies azimuth ${c.az}°` : ''}${c.misfit != null ? ` · <span style="color:${c.misfit > CORNER_TOL ? 'var(--bad)' : 'var(--ok)'}">${(c.misfit * 100).toFixed(0)} cm from plan</span>` : ''}</div>`).join('')}</div>` : '<div class="help">Shoot at least one unit corner with the GPS (two is better). The app works out which way the unit is turned (its orientation) and checks the plan.</div>'}
       ${suggestAz.length ? `<div class="btns"><button class="btn sm" id="useaz" data-az="${(suggestAz.reduce((a, c) => a + c.az, 0) / suggestAz.length).toFixed(1)}">Set azimuth to ${(suggestAz.reduce((a, c) => a + c.az, 0) / suggestAz.length).toFixed(1)}° from the corner shot${suggestAz.length > 1 ? 's' : ''}</button></div>` : ''}
       ${kids(e.id, 'mappoints').length ? `<div class="list" style="margin-top:8px">${kids(e.id, 'mappoints').map(m => rowHTML(m, `<small>${m.data.utme != null ? `${m.data.utme} E, ${m.data.utmn} N · ±${esc(m.data.gps_acc_m ?? '?')} m` : 'no position'}</small>`)).join('')}</div>` : ''}
     </div>`;

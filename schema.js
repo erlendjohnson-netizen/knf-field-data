@@ -12,6 +12,8 @@ const LISTS = {
   parish: ['Acadia', 'Allen', 'Ascension', 'Assumption', 'Avoyelles', 'Beauregard', 'Bienville', 'Bossier', 'Caddo', 'Calcasieu', 'Caldwell', 'Cameron', 'Catahoula', 'Claiborne', 'Concordia', 'De Soto', 'East Baton Rouge', 'East Carroll', 'East Feliciana', 'Evangeline', 'Franklin', 'Grant', 'Iberia', 'Iberville', 'Jackson', 'Jefferson', 'Jefferson Davis', 'La Salle', 'Lafayette', 'Lafourche', 'Lincoln', 'Livingston', 'Madison', 'Morehouse', 'Natchitoches', 'Orleans', 'Ouachita', 'Plaquemines', 'Pointe Coupee', 'Rapides', 'Red River', 'Richland', 'Sabine', 'St. Bernard', 'St. Charles', 'St. Helena', 'St. James', 'St. John the Baptist', 'St. Landry', 'St. Martin', 'St. Mary', 'St. Tammany', 'Tangipahoa', 'Tensas', 'Terrebonne', 'Union', 'Vermilion', 'Vernon', 'Washington', 'Webster', 'West Baton Rouge', 'West Carroll', 'West Feliciana', 'Winn', 'Outside Louisiana'],
   custody_action: ['Collected in field', 'Transferred', 'Placed in box', 'Removed from box', 'Received at lab', 'Checked out for analysis', 'Returned to storage', 'Sent to specialist', 'Curated'],
   excavation_type: ['STP', 'TP', 'Unit', 'Surface collection', 'Feature grouping'],
+  su_size: ['Whole unit (one subunit)', '1 × 1 m', '0.5 × 1 m (E–W × N–S)', '1 × 0.5 m (E–W × N–S)', '0.5 × 0.5 m', '2 × 2 m'],
+  datum_corner: ['SW corner', 'SE corner', 'NW corner', 'NE corner'],
   excavation_method: ['Shovel', 'Flat shovel', 'Round shovel', 'Shovel/Trowel', 'Trowel', 'Surface', 'Auger/Core', 'Not excavated'],
   screen: ['1/4 in', '1/8 in', '1/16 in (water)', 'Not screened'],
   soil_texture: ['Sand', 'Loamy sand', 'Sandy loam', 'Loam', 'Silt loam', 'Silt', 'Sandy clay loam', 'Clay loam',
@@ -119,8 +121,12 @@ const TABLES = {
       { k: 'date', l: 'Date', t: 'date', req: 1 }, // new
       { k: 'crew', l: 'Excavators', t: 'text' }, // new
       { k: '_gps', l: 'Location (for units: the unit datum)', t: 'gps', w: 3 },
-      { k: 'datum_desc', l: 'Unit datum: what and where', t: 'text', w: 2, ph: 'Rebar with cap at SW corner of A', show: r => isUnit(r) },
-      { k: 'azimuth', l: 'Unit grid azimuth (°, UTM grid)', t: 'num', show: r => isUnit(r), help: 'Direction of the unit’s “north” edge. Can be computed from a corner shot on the unit page.' },
+      { k: 'unit_ew', l: 'Unit size E–W (m)', t: 'num', virtual: 1, newOnly: 1, show: r => isUnit(r), help: 'Whole unit, e.g. 1, 2' },
+      { k: 'unit_ns', l: 'Unit size N–S (m)', t: 'num', virtual: 1, newOnly: 1, show: r => isUnit(r) },
+      { k: 'su_size', l: 'Split into subunits of', t: 'select', o: 'su_size', virtual: 1, newOnly: 1, show: r => isUnit(r), help: 'The subunits are laid out and lettered for you (A at the datum). Expansions can be added later on the unit page.' },
+      { k: 'datum_corner', l: 'Datum stake is at the unit’s', t: 'select', o: 'datum_corner', virtual: 1, newOnly: 1, show: r => isUnit(r) },
+      { k: 'datum_desc', l: 'Datum stake (description)', t: 'text', w: 2, ph: 'Wooden stake at SW corner of A', show: r => isUnit(r) },
+      { k: 'azimuth', l: 'Unit orientation (° the unit’s north wall faces)', t: 'num', show: r => isUnit(r), help: 'Which way the unit is turned. 0 = walls run straight N–S and E–W. If the unit was laid out turned, enter the compass bearing its “north” wall faces (e.g. 15). The app uses it to draw the unit and its subunits in the right place on the maps. Not sure? Leave 0 and shoot a corner with the GPS on the unit page: the app works it out.' },
       { k: 'positive', l: 'Positive?', t: 'bool' },
       { k: 'depthcm', l: 'Final depth (cmbs)', t: 'num' },
       { k: 'depthsterile', l: 'Depth to sterile (cmbs)', t: 'num' },
