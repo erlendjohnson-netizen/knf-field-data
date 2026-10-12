@@ -419,12 +419,6 @@ TABLES.daychecks = {
   ],
 };
 LISTS.quad = ['Unknown (find later)'];
-/* who uses the app: one record per account (or device), written at setup; lets the project see names and roles */
-TABLES.people = {
-  label: 'Person', plural: 'People', parent: null, mode: 'admin', legacy: null,
-  title: r => `${r.name || '?'}${r.role ? ' · ' + r.role : ''}`,
-  fields: [{ k: 'name', l: 'Name', t: 'text', req: 1 }, { k: 'role', l: 'Role', t: 'select', o: 'role', req: 1 }, { k: 'email', l: 'Email', t: 'text' }, { k: 'last_setup', l: 'Set up', t: 'text' }],
-};
 const DISTRICT_CODE = { 'Kisatchie RD': ['KRD', 1], 'Caney RD': ['CRD', 2], 'Vernon Unit': ['VU', 3], 'Evangeline Unit': ['EVU', 4], 'Catahoula RD': ['CAT', 5], 'Winn RD': ['WRD', 6], 'Other': ['OTH', 9] };
 const PARISH = { NA: 'Natchitoches', CL: 'Claiborne', WE: 'Webster', GR: 'Grant', WN: 'Winn', RA: 'Rapides', VN: 'Vernon' };
 /* Site ID codes are 6 digits: a 2-digit parish number + the 4-digit site number. Parishes are numbered 01–64 from the

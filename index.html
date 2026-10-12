@@ -331,11 +331,20 @@ function compute(tbl, d, ctx) {
 /* ================= persistence ================= */
 async function save(rec) {
   rec.updated_at = now(); rec.updated_by = me(); rec.dirty = 1;
-  if (!rec.created_at) { rec.created_at = rec.updated_at; rec.created_by = me(); }
+  if (!rec.created_at) { rec.created_at = rec.updated_at; rec.created_by = me(); rec.created_uid = S.session?.uid || null; }
   S.recs.set(rec.id, rec);
   await CORE.putRec(rec);
   updatePill(); queueSync();
 }
+/* who may delete: staff roles may delete anything; everyone else only records they made themselves
+   (the server enforces the same rule; see is_staff() in supabase_setup.sql) */
+const STAFF_ROLES = ['PI / Co-PI', 'Project staff', 'Field director / crew chief', 'USFS staff'];
+const isStaff = () => STAFF_ROLES.includes(S.settings.role);
+const isAdmin = () => S.settings.role === 'PI / Co-PI';
+const mine = r => r.created_uid ? r.created_uid === S.session?.uid : (r.dirty && r.created_by === me());
+function subtree(rec) { const all = [rec]; const walk = id => [...S.recs.values()].filter(r => r.parent === id && !r.deleted).forEach(c => { all.push(c); walk(c.id); }); walk(rec.id); return all; }
+const canDelete = rec => isStaff() || subtree(rec).every(mine);
+const noDeleteMsg = 'Only project staff and USFS staff can delete records made by someone else. Ask the field director.';
 async function softDelete(rec) {
   const all = [rec]; const walk = id => [...S.recs.values()].filter(r => r.parent === id && !r.deleted).forEach(c => { all.push(c); walk(c.id); });
   walk(rec.id);
@@ -368,7 +377,7 @@ async function runSync(manual) {
     const r = await CORE.sync();
     S.syncErr = null;
     if (r && !r.skipped && !REG.list.length) await loadRegistry(true);
-    if (r && !r.skipped) { await reload(); if (r.pulled) await migrateCodes(); if (manual) toast(`Synced: ${r.pushed} up, ${r.pulled} down`); if (r.pulled) render(); }
+    if (r && !r.skipped) { await reload(); if (r.pulled) await migrateCodes(); refreshProfile(); if (manual) toast(`Synced: ${r.pushed} up, ${r.pulled} down`); if (r.pulled) render(); }
   } catch (e) { S.syncErr = e.message; if (manual) toast(e.message); }
   S.syncing = false; S.lastSync = await CORE.getMeta('last_sync'); S.session = await CORE.getMeta('session'); updatePill();
   if (location.hash.startsWith('#/data')) render();
@@ -933,7 +942,7 @@ function photoModal(p, u, redraw) {
   m.onclick = async e => {
     const a = e.target.dataset.a; if (!a && e.target !== m) return;
     if (a === 'ok') { p.data = { ...p.data, caption: $('#pcap', m).value.trim(), kind: $('#pk', m).value.trim() }; await save(p); }
-    if (a === 'del') { if (!(await ask('Delete this photo?', 'Delete'))) return; await softDelete(p); }
+    if (a === 'del') { if (!canDelete(p)) return toast(noDeleteMsg); if (!(await ask('Delete this photo?', 'Delete'))) return; await softDelete(p); }
     m.remove(); redraw();
   };
   document.body.append(m);
@@ -1053,7 +1062,7 @@ function formView(rec, isNew, opts = {}) {
       ${hasNext ? `<button class="btn sec" type="button" id="saveNext">Finish &amp; add next</button>` : ''}
       <button class="btn warnbtn" type="button" id="draft">Save unfinished…</button>
       <button class="btn sec" type="button" id="cancel">Cancel</button>
-      ${!isNew ? `<span style="flex:1"></span><button class="btn bad" type="button" id="del">Delete</button>` : ''}
+      ${!isNew && canDelete(rec) ? `<span style="flex:1"></span><button class="btn bad" type="button" id="del">Delete</button>` : ''}
     </div>
     <div class="help" id="finhelp"></div></form>
     ${!isNew ? `<div class="help">Created ${esc(new Date(rec.created_at).toLocaleString())} by ${esc(rec.created_by || '?')} · last edit ${esc(new Date(rec.updated_at).toLocaleString())} by ${esc(rec.updated_by || '?')}</div>` : ''}`;
@@ -1455,7 +1464,7 @@ async function viewSettings() {
   $('#app').innerHTML = `<h2>Settings</h2>
     <form id="sf" class="card grid">
       <div class="f w2"><label>Your name (recorder / lab tech)</label><input id="s_name" value="${esc(s.name)}" placeholder="First Last"></div>
-      <div class="f"><label>Your role</label><select id="s_role">${LISTS.role.map(r => `<option ${r === s.role ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select></div>
+      <div class="f"><label>Your role</label><div class="ro">${esc(s.role || '—')}</div></div>
       <div class="f"><label>Default level thickness (cm)</label><input id="s_level_cm" inputmode="numeric" value="${esc(s.level_cm)}"></div>
       <div class="f"><label>GPS averaging (seconds)</label><input id="s_gps_secs" inputmode="numeric" value="${esc(s.gps_secs)}"></div>
       <div class="f w2"><label>Usual GPS source on this device</label><select id="s_gps_source">${GPS_SOURCES.map(g => `<option ${g.k === srcInfo(s.gps_source).k ? 'selected' : ''}>${esc(g.k)}</option>`).join('')}</select><div class="help">Can be changed for each capture. Accuracy warnings follow the source.</div></div>
@@ -1471,31 +1480,31 @@ async function viewSettings() {
       : `<form id="lf" class="grid"><div class="f w2"><label>Email</label><input id="em" type="email" autocomplete="username" value="${esc(sess?.email || '')}"></div>
       <div class="f w2"><label>Password</label><input id="pw" type="password" autocomplete="current-password"></div><div class="f w3"><button class="btn" type="submit">Sign in</button></div></form>
       <div class="help">Accounts are set up by Erlend (project director). You can enter data without signing in; it uploads after you sign in.</div>`}</div>
-    ${live('people').length ? `<h3>People using the app</h3><div class="card"><table class="tgt" style="width:100%">${live('people').sort((a, b) => (a.data.name || '').localeCompare(b.data.name || '')).map(p => `<tr><td><b>${esc(p.data.name)}</b></td><td>${esc(p.data.role || '')}</td><td class="help">${esc(p.data.email || 'not signed in')}</td></tr>`).join('')}</table></div>` : ''}
+    <div class="btns" style="margin-top:8px"><a class="btn sec" href="#/people">People &amp; logins${isAdmin() ? ' (add people, roles)' : ''}</a></div>
     <h3>Test mode</h3>
     <div class="card">${TESTMODE ? `<p><b>You are in TEST MODE.</b> Everything here is practice data, stored separately from the project.</p>
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a><button class="btn sec" id="tmoff">Leave test mode</button></div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
     <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a></div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.16 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.17 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   $('#demo') && ($('#demo').onclick = loadDemo);
   $('#tmoff') && ($('#tmoff').onclick = () => switchMode(false));
   $('#tmon') && ($('#tmon').onclick = () => switchMode(true));
   $('#sf').onsubmit = async e => {
     e.preventDefault();
     for (const k of Object.keys(DEF)) { const el = $('#s_' + k); if (el) s[k] = el.value.trim(); }
-    if (!s.name || !s.role) { toast('Name and role are needed'); return; }
-    await CORE.setMeta('settings', s); await savePerson(); applyTheme(); toast('Settings saved'); updatePill(); viewSettings();
+    if (!s.name) { toast('Your name is needed'); return; }
+    await CORE.setMeta('settings', s); CORE.setMyName(s.name).catch(() => { }); applyTheme(); toast('Settings saved'); updatePill(); viewSettings();
   };
   $('#lf') && ($('#lf').onsubmit = async e => {
     e.preventDefault();
-    try { S.session = await CORE.signIn($('#em').value.trim(), $('#pw').value); await savePerson(); toast('Signed in'); runSync(true); viewSettings(); }
+    try { S.session = await CORE.signIn($('#em').value.trim(), $('#pw').value); await refreshProfile(); toast('Signed in'); runSync(true); viewSettings(); }
     catch (err) { toast(err.message); }
   });
   $('#so') && ($('#so').onclick = async () => {
     if (draftCount() && !(await ask(`${draftCount()} UNFINISHED records exist only on this device. Finish them before signing out. Sign out anyway?`, 'Sign out anyway', 'Cancel'))) return;
     if (pending() && !(await ask(`${pending()} records have not been uploaded. They stay on this device, but won't upload until someone signs in again. Sign out?`, 'Sign out'))) return;
-    await CORE.signOut(); S.session = null; updatePill(); viewSettings();
+    await CORE.signOut(); S.session = null; updatePill(); location.hash = '#/'; render();
   });
 }
 function notFound() { $('#app').innerHTML = '<div class="empty">Record not found (it may have been deleted). <a href="#/">Home</a></div>'; }
@@ -1820,6 +1829,7 @@ function subunitEditor(rec, isNew) {
   };
   $('#dl') && ($('#dl').onclick = async () => {
     if (kids(e.id, 'levels').some(l => String(l.data.excavation_unit).toUpperCase() === String(rec.data.letter).toUpperCase())) return toast('This subunit has levels; delete those first');
+    if (!canDelete(rec)) return toast(noDeleteMsg);
     if (await ask(`Delete subunit ${rec.data.letter}?`, 'Delete')) { await softDelete(rec); S.suEd = null; location.hash = hashFor(e); }
   });
 }
@@ -2294,51 +2304,86 @@ function viewDayReport(r) {
   $('#dcsave').onclick = async () => { r.data = { ...r.data, notes: $('#dcnotes').value.trim() }; await save(r); toast('Notes saved'); };
 }
 
-/* ---- first-time setup: name, role, sign-in ---- */
-const needsSetup = () => !String(S.settings.name || '').trim() || /@/.test(S.settings.name) || !S.settings.role;
-async function savePerson() {
-  const s = S.settings;
-  if (!s.device_id) { s.device_id = uuid(); await CORE.setMeta('settings', s); }
-  const id = S.session?.uid || s.device_id;
-  const old = S.recs.get(id);
-  const r = old || { id, tbl: 'people', parent: null, site: null, data: {}, deleted: 0 };
-  const nd = { name: s.name, role: s.role, email: S.session?.email || r.data.email || '', last_setup: now(), _status: 'complete', _missing: [] };
-  if (old && old.data.name === nd.name && old.data.role === nd.role && old.data.email === nd.email) return;
-  r.data = nd; await save(r);
+/* ---- sign-in gate and first-time setup: the app opens only for a signed-in person with a name ---- */
+const needsSetup = () => !S.session || S.session.expired || !String(S.settings.name || '').trim() || /@/.test(S.settings.name) || !S.settings.role;
+async function applyProfile(p) {
+  if (!p) return;
+  if (p.disabled) { await CORE.signOut(); S.session = null; toast('This account has been switched off. Ask Erlend.'); render(); return; }
+  const s = S.settings; let ch = false;
+  if (p.role && p.role !== s.role) { s.role = p.role; ch = true; }
+  if (p.name && p.name !== s.name) { s.name = p.name; ch = true; }
+  if (ch) await CORE.setMeta('settings', s);
 }
+async function refreshProfile() { try { await applyProfile(await CORE.myProfile()); } catch (e) { } }
 function viewSetup() {
-  setTitle('Welcome');
+  setTitle('Sign in');
   const s = S.settings, sess = S.session && !S.session.expired ? S.session : null;
-  const nm = /@/.test(s.name || '') ? '' : s.name || '';
-  $('#app').innerHTML = `<h2>Welcome to KNF Field Data</h2>
-    <div class="help">Set up this device once. Everything you record is labelled with your name.</div>
+  if (!sess) {
+    $('#app').innerHTML = `<h2>KNF Field Data</h2>
+      ${S.session?.expired ? '<div class="check">Your sign-in has expired. Sign in again; nothing on this device is lost.</div>' : '<div class="help">Sign in with the email and password Erlend gave you. No login yet? Ask Erlend (project director).</div>'}
+      <form id="li" class="card grid" style="margin-top:8px" novalidate>
+        <div class="f w3"><label for="li_e">Email</label><input id="li_e" type="email" autocomplete="username" value="${esc(S.session?.email || '')}"></div>
+        <div class="f w3"><label for="li_p">Password</label><input id="li_p" type="password" autocomplete="current-password"></div>
+        <div class="f w3"><button class="btn big" type="submit">Sign in</button></div>
+        <div class="help w3">Sign in once while you have signal; after that the app works offline in the field.</div>
+      </form>`;
+    $('#li').onsubmit = async e => {
+      e.preventDefault();
+      if (!navigator.onLine) return toast('No internet: signing in needs a connection');
+      try {
+        S.session = await CORE.signIn($('#li_e').value.trim(), $('#li_p').value);
+        const p = await CORE.myProfile().catch(() => null);
+        if (p?.disabled) { await CORE.signOut(); S.session = null; return toast('This account has been switched off. Ask Erlend.'); }
+        s.role = p?.role || 'Volunteer'; if (p?.name) s.name = p.name; else if (/@/.test(s.name || '')) s.name = '';
+        await CORE.setMeta('settings', s); updatePill(); runSync(true); render();
+      } catch (err) { toast(err.message); }
+    };
+    return;
+  }
+  $('#app').innerHTML = `<h2>Welcome, ${esc(sess.email)}</h2>
+    <div class="help">One more step: your name goes on everything you record.</div>
     <form id="su" class="card grid" style="margin-top:8px" novalidate>
-      <div class="f w3"><label for="su_n">1. Your name *</label><input id="su_n" value="${esc(nm)}" placeholder="First Last" autocomplete="name"><div class="msg"></div></div>
-      <div class="f w3"><label for="su_r">2. Your role *</label><select id="su_r"><option value=""></option>${LISTS.role.map(r => `<option ${r === s.role ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select><div class="msg"></div></div>
-      <div class="f w3"><label>3. Sign in</label>${sess ? `<div class="check okc">Signed in as <b>${esc(sess.email)}</b></div>`
-        : `<input id="su_e" type="email" autocomplete="username" placeholder="Email"><input id="su_p" type="password" autocomplete="current-password" placeholder="Password" style="margin-top:6px">
-           <div class="help">Use the email and password Erlend set up for you. No account yet? Ask Erlend; you can still finish setup and sign in later in Settings, but nothing reaches the project until you do.</div>`}</div>
-      <div class="f w3"><button class="btn big" type="submit">Finish setup ✓</button></div>
+      <div class="f w3"><label for="su_n">Your name *</label><input id="su_n" value="${esc(/@/.test(s.name || '') ? '' : s.name || '')}" placeholder="First Last" autocomplete="name"><div class="msg"></div></div>
+      <div class="f w3"><label>Your role</label><div class="ro">${esc(s.role || 'Volunteer')}</div><div class="help">Set by Erlend. Ask him if it is wrong.</div></div>
+      <div class="f w3"><button class="btn big" type="submit">Continue ✓</button></div>
     </form>`;
   $('#su').onsubmit = async e => {
     e.preventDefault();
-    const n = $('#su_n').value.trim().replace(/\s+/g, ' '), r = $('#su_r').value;
-    let bad = false;
-    const msg = (id, t) => { const m = $('#' + id).closest('.f').querySelector('.msg'); m.textContent = t; if (t) bad = true; };
-    msg('su_n', n.length < 3 || !/\s/.test(n) || /@/.test(n) ? 'Your first and last name, as it should appear on the records' : '');
-    msg('su_r', r ? '' : 'Pick your role');
-    if (bad) return;
-    if (!sess) {
-      const em = $('#su_e').value.trim(), pw = $('#su_p').value;
-      if (em || pw) {
-        try { S.session = await CORE.signIn(em, pw); toast('Signed in'); }
-        catch (err) { toast(err.message); return; }
-      } else if (!(await ask('Finish without signing in?\n\nYou can record data, but it stays on this device and is NOT sent to the project until you sign in (Settings → Account).', 'Finish without signing in', 'Go back'))) return;
-    }
-    s.name = n; s.role = r; await CORE.setMeta('settings', s);
-    await savePerson(); updatePill(); if (S.session) runSync(true);
+    const n = $('#su_n').value.trim().replace(/\s+/g, ' ');
+    const m = $('#su_n').closest('.f').querySelector('.msg');
+    if (n.length < 3 || !/\s/.test(n) || /@/.test(n)) { m.textContent = 'Your first and last name, as it should appear on the records'; return; }
+    s.name = n; if (!s.role) s.role = 'Volunteer'; await CORE.setMeta('settings', s);
+    CORE.setMyName(n).catch(() => { });
     location.hash = '#/'; render();
   };
+}
+/* ---- people & logins (the PI manages them; everyone can see who is on the project) ---- */
+async function viewPeople() {
+  setTitle('People & logins');
+  $('#app').innerHTML = '<h2>People &amp; logins</h2><div class="help">Loading…</div>';
+  let list = [];
+  try { list = await CORE.listProfiles(); } catch (e) { $('#app').innerHTML = `<h2>People &amp; logins</h2><div class="check">Needs an internet connection (${esc(e.message)}).</div>`; return; }
+  const admin = isAdmin(), roleSel = (id, cur) => `<select data-role="${id}">${LISTS.role.map(r => `<option ${r === cur ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select>`;
+  const pw = () => { const a = 'abcdefghjkmnpqrstuvwxyz23456789'; return Array.from(crypto.getRandomValues(new Uint8Array(10)), b => a[b % a.length]).join(''); };
+  $('#app').innerHTML = `<h2>People &amp; logins</h2>
+    <div class="help">Staff roles (${STAFF_ROLES.join(', ')}) can delete anyone's records; everyone else can delete only what they recorded themselves. ${admin ? 'Only the PI / Co-PI can add people and change roles.' : ''}</div>
+    ${admin ? `<form id="np" class="card grid" style="margin-top:8px" novalidate><b class="w3">Add a person</b>
+      <div class="f w2"><label>Name</label><input id="np_n" placeholder="First Last"></div>
+      <div class="f"><label>Role</label><select id="np_r">${LISTS.role.map(r => `<option ${r === 'Student' ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select></div>
+      <div class="f w2"><label>Email</label><input id="np_e" type="email" autocomplete="off"></div>
+      <div class="f"><label>Starting password</label><input id="np_p" value="${pw()}" autocomplete="off"></div>
+      <div class="f w3"><button class="btn" type="submit">Create login</button><div class="help">Give them the app link, their email and this password (they can sign in straight away).</div></div></form>` : ''}
+    <h3>${list.length} ${list.length === 1 ? 'person' : 'people'}</h3><div class="list">
+      ${list.map(p => `<div class="card"${p.disabled ? ' style="opacity:.55"' : ''}><div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><b style="flex:1">${esc(p.name || '(no name yet)')}</b>${p.disabled ? '<span class="badge">switched off</span>' : ''}<span class="help">${esc(p.email || '')}</span></div>
+        ${admin ? `<div class="grid" style="margin-top:6px"><div class="f w3"><label>Role</label>${roleSel(p.id, p.role)}</div></div>
+        <div class="btns"><button class="btn sm sec" data-pw="${p.id}">New password</button>${p.id === S.session?.uid ? '' : `<button class="btn sm ${p.disabled ? '' : 'bad'}" data-off="${p.id}" data-on="${p.disabled ? 1 : 0}">${p.disabled ? 'Switch on' : 'Switch off'}</button>`}</div>` : `<div class="help">${esc(p.role)}</div>`}</div>`).join('')}
+    </div>`;
+  if (!admin) return;
+  const call = async (body, ok) => { try { await CORE.adminCall(body); toast(ok); viewPeople(); } catch (e) { toast(e.message); } };
+  $('#np').onsubmit = e => { e.preventDefault(); call({ action: 'create', name: $('#np_n').value.trim(), role: $('#np_r').value, email: $('#np_e').value.trim(), password: $('#np_p').value }, 'Login created'); };
+  $('#app').querySelectorAll('[data-role]').forEach(sel => sel.onchange = () => call({ action: 'set_role', id: sel.dataset.role, role: sel.value }, 'Role changed'));
+  $('#app').querySelectorAll('[data-pw]').forEach(b => b.onclick = async () => { const np = pw(); if (await ask(`Set this person's password to:\n\n${np}\n\nWrite it down and give it to them.`, 'Set password')) call({ action: 'reset_password', id: b.dataset.pw, password: np }, 'Password changed'); });
+  $('#app').querySelectorAll('[data-off]').forEach(b => b.onclick = async () => { const on = b.dataset.on === '1'; if (on || await ask('Switch off this login? They can no longer sign in or sync (their records stay).', 'Switch off')) call({ action: on ? 'enable' : 'disable', id: b.dataset.off }, on ? 'Login switched on' : 'Login switched off'); });
 }
 function viewParishKey() {
   setTitle('Parish numbers');
@@ -2636,6 +2681,7 @@ function render() {
     case 'daycheck': return viewDayCheck();
     case 'parishes': return viewParishKey();
     case 'setup': return viewSetup();
+    case 'people': return viewPeople();
     case 'testplan': return viewTestPlan();
     case 'lab': return viewLab();
     case 'catalog': return viewCatalog(seg[1]);

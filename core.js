@@ -157,7 +157,7 @@ const CORE = (() => {
         if (l && l.dirty && l.updated_at > s.updated_at) continue; // local edit is newer; it will be pushed next round
         if (l && !l.dirty && l.updated_at === s.updated_at && !!l.deleted === !!s.deleted) { if (s.synced_at > last) last = s.synced_at; continue; }
         apply.push({ id: s.id, tbl: s.tbl, site: s.site_id, parent: s.parent_id, data: s.data || {}, created_at: s.created_at, updated_at: s.updated_at,
-          created_by: s.created_by, updated_by: s.updated_by, deleted: s.deleted ? 1 : 0, dirty: 0 });
+          created_by: s.created_by, updated_by: s.updated_by, created_uid: s.created_uid || null, deleted: s.deleted ? 1 : 0, dirty: 0 });
         if (s.synced_at > last) last = s.synced_at;
       }
       await putMany(apply); pulled += apply.length;
@@ -167,6 +167,19 @@ const CORE = (() => {
     await setMeta('last_sync', new Date().toISOString());
     return { pushed, pulled, photos };
   }
+  /* people: the signed-in person's profile (name, role) and, for the PI, account management */
+  async function rest(path, opts = {}) {
+    const { url, key } = await cfg(); const tok = await token();
+    if (!tok) throw new Error('Not signed in');
+    const r = await fetch(url + path, { ...opts, headers: { apikey: key, Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json', ...(opts.headers || {}) } });
+    const txt = await r.text(); let j = null; try { j = txt ? JSON.parse(txt) : null; } catch (e) { }
+    if (!r.ok) throw new Error((j && (j.error || j.message || j.msg)) || `Request failed (${r.status})`);
+    return j;
+  }
+  async function myProfile() { const { sess } = await cfg(); if (!sess?.uid) return null; const j = await rest(`/rest/v1/profiles?id=eq.${sess.uid}&select=*`); return j && j[0] || null; }
+  async function setMyName(name) { const { sess } = await cfg(); return rest(`/rest/v1/profiles?id=eq.${sess.uid}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ name }) }); }
+  const listProfiles = () => rest('/rest/v1/profiles?select=*&order=name.asc');
+  const adminCall = body => rest('/functions/v1/admin-users', { method: 'POST', body: JSON.stringify(body) });
   /* private KNF site list (downloaded after sign-in, cached on the device) */
   async function fetchRegistry() {
     const { url, key, sess } = await cfg(); if (!url || !sess || sess.expired) return null;
@@ -176,6 +189,6 @@ const CORE = (() => {
     const j = await r.json(); if (!j[0]) return null;
     await setMeta('registry', j[0].payload); return j[0].payload;
   }
-  return { fetchRegistry, setMode, mode: () => MODE, db, allRecs, putRec, putMany, getMeta, setMeta, dirtyRecs, sync, signIn, signOut, cfg, getBlob, putBlob, delBlob, pendingPhotos, fetchPhoto };
+  return { myProfile, setMyName, listProfiles, adminCall, fetchRegistry, setMode, mode: () => MODE, db, allRecs, putRec, putMany, getMeta, setMeta, dirtyRecs, sync, signIn, signOut, cfg, getBlob, putBlob, delBlob, pendingPhotos, fetchPhoto };
 })();
 if (typeof self !== 'undefined') self.CORE = CORE;
