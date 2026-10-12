@@ -17,11 +17,16 @@ const LISTS = {
   role: ['PI / Co-PI', 'Project staff', 'Field director / crew chief', 'Student', 'USFS staff', 'Volunteer', 'Lab staff', 'Other'],
   excavation_method: ['Shovel', 'Flat shovel', 'Round shovel', 'Shovel/Trowel', 'Trowel', 'Surface', 'Auger/Core', 'Not excavated'],
   screen: ['1/4 in', '1/8 in', '1/16 in (water)', 'Not screened'],
-  soil_texture: ['Sand', 'Loamy sand', 'Sandy loam', 'Loam', 'Silt loam', 'Silt', 'Sandy clay loam', 'Clay loam',
-    'Silty clay loam', 'Sandy clay', 'Silty clay', 'Clay', 'Gravel/Gravelly', 'Fill/Disturbed'],
+  // USDA texture classes (with the fine-sand variants common on Kisatchie uplands), then terms used on past KNF forms
+  soil_texture: ['Sand', 'Fine sand', 'Loamy sand', 'Loamy fine sand', 'Sandy loam', 'Fine sandy loam', 'Loam', 'Silt loam', 'Silt',
+    'Sandy clay loam', 'Clay loam', 'Silty clay loam', 'Sandy clay', 'Silty clay', 'Clay',
+    'Silty sand', 'Sandy silt', 'Gravelly sandy loam', 'Gravel / gravelly', 'Fill / disturbed', 'Other (describe in notes)'],
+  munsell_hue: ['10R', '2.5YR', '5YR', '7.5YR', '10YR', '2.5Y', '5Y', 'GLEY1', 'GLEY2'],
+  munsell_value: ['2', '2.5', '3', '4', '5', '6', '7', '8'],
+  munsell_chroma: ['1', '2', '3', '4', '6', '8'],
   strata: ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'],
   ynu: ['Yes', 'No', 'Uncertain'],
-  feature_type: ['Stain', 'Pit', 'Posthole', 'Possible posthole', 'Hearth', 'Midden', 'Burned area', 'Tree burn/disturbance', 'Rodent burrow', 'Other'],
+  feature_type: ['Pit', 'Posthole / post mold', 'Possible posthole', 'Hearth', 'Stain (undefined)', 'Burned area', 'Rock / FCR concentration', 'Midden', 'Trench / ditch', 'Tree burn / root cast (natural?)', 'Rodent burrow / krotovina (natural?)', 'Possible human remains: stop and call the PI', 'Other'],
   sample_type: ['Radiocarbon (AMS)', 'OSL', 'Flotation', 'Soil/sediment', 'Pollen', 'Phytolith', 'Other'],
   sample_material: ['Charcoal', 'Wood', 'Nutshell', 'Seed', 'Bone', 'Pottery residue', 'Sediment', 'Other'],
   osl_collection: ['Core (tube)', 'Bag (dark sample)'],
@@ -152,19 +157,19 @@ const TABLES = {
       { k: 'excavation_unit', l: 'EU', t: 'text', req: 1, ph: 'A' },
       { k: 'levelno', l: 'Level no.', t: 'int', req: 1 },
       { k: 'levelid', l: 'Level ID', t: 'ro' },
+      { k: '_corners', l: 'Corner depths (cm below datum)', t: 'corners', w: 3 },
       { k: 'top_cm', l: 'Top (cmbs)', t: 'num', req: 1 }, // new
+      { k: 'excdepth', l: 'Thickness (cm)', t: 'num', help: 'Change it if this level is thicker or thinner; the bottom follows' },
       { k: 'bgscm', l: 'Bottom (cmbs)', t: 'num', req: 1 },
-      { k: 'excdepth', l: 'Thickness (cm)', t: 'ro' },
       { k: 'volume_l', l: 'Volume (L, from area × thickness)', t: 'ro' },
       { k: 'excavation_method', l: 'Method', t: 'select', o: 'excavation_method' },
       { k: 'screen', l: 'Screen', t: 'select', o: 'screen' }, // new
-      { k: 'munsell', l: 'Munsell', t: 'munsell', ph: '10YR 4/3' },
-      { k: 'munsell2', l: 'Munsell (mottle/2nd)', t: 'munsell', ph: '10YR 6/6' }, // new
-      { k: 'soil_texture', l: 'Soil texture', t: 'combo', o: 'soil_texture' },
-      { k: 'strata', l: 'Stratum', t: 'combo', o: 'strata' },
+      { k: 'soil_change', l: 'Soil change from the level above', t: 'bool', w: 3, help: 'Not ticked: the soil description is copied from the level above. Tick it to describe the new soil.' },
+      { k: 'munsell', l: 'Munsell', t: 'munsell', w: 2 },
+      { k: 'munsell2', l: 'Munsell (mottle / 2nd colour)', t: 'munsell', w: 2 }, // new
+      { k: 'soil_texture', l: 'Soil texture', t: 'select', o: 'soil_texture' },
       { k: 'artifacts', l: 'Artifacts recovered', t: 'bool' },
       { k: 'field_count', l: 'Field artifact count', t: 'int', show: r => !!r.artifacts, help: 'Count at the screen (lab counts are authoritative). In a survey area, more than 5 in one STP makes a new site.' }, // new
-      { k: 'soil_change', l: 'Soil change', t: 'bool' },
       { k: 'feature', l: 'Feature', t: 'bool' },
       { k: 'special_find', l: 'Special find', t: 'bool' },
       { k: 'special_find_desc', l: 'Special find: what it is, where and depth', t: 'area', w: 3, ph: 'e.g. Gary point, base intact, NE quad of A at 34 cmbs, in situ', show: r => !!r.special_find },
@@ -189,14 +194,15 @@ const TABLES = {
     title: r => `Feature ${r.featurnumbersite ?? '?'} · ${r.feature_type || ''}`,
     fields: [
       { k: 'featurnumbersite', l: 'Feature no. (site)', t: 'int', req: 1 },
-      { k: 'feature_type', l: 'Type', t: 'combo', o: 'feature_type' },
+      { k: 'feature_type', l: 'Type', t: 'select', o: 'feature_type' },
+      { k: 'feature_type_other', l: 'Other type: describe', t: 'text', w: 2, show: r => r.feature_type === 'Other' },
       { k: 'excavation_unit', l: 'EU', t: 'text' },
       { k: 'levelno', l: 'Level origin', t: 'int' },
       { k: 'depth_bgs', l: 'Top (cmbs)', t: 'num' },
       { k: 'bottom_bgs', l: 'Bottom (cmbs)', t: 'num' }, // new
       { k: 'length_cm', l: 'Length (cm)', t: 'num' }, // new
       { k: 'width_cm', l: 'Width (cm)', t: 'num' }, // new
-      { k: 'munsell', l: 'Fill Munsell', t: 'munsell' }, // new
+      { k: 'munsell', l: 'Fill Munsell', t: 'munsell', w: 2 }, // new
       { k: 'cultural', l: 'Cultural?', t: 'select', o: 'ynu' },
       { k: 'soil_sample_taken', l: 'Soil sample taken', t: 'bool' },
       { k: 'carbon_sample', l: 'Carbon sample taken', t: 'bool' },
@@ -443,10 +449,10 @@ TABLES.photos = {
   ],
 };
 const PHOTO_KINDS = {
-  excavations: ['Overview', 'Plan view', 'Profile', 'Other'],
+  excavations: ['Overview', 'Plan view', 'Profile', 'Field drawing', 'Other'],
   levels: ['Level floor', 'Profile', 'Special find', 'In situ find', 'Other'],
   boxes: ['Label', 'Contents', 'Other'],
-  features: ['Plan view', 'Profile/bisect', 'Other'],
+  features: ['Plan view (top down)', 'Bisect / profile', 'Field drawing', 'Overview', 'Other'],
   samples: ['In situ', 'Other'],
   lithic_tools: ['Obverse', 'Reverse', 'Edge/profile', 'Other'],
   prehistoric_ceramics: ['Exterior', 'Interior', 'Profile', 'Other'],
