@@ -1486,7 +1486,7 @@ async function viewSettings() {
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a><button class="btn sec" id="tmoff">Leave test mode</button></div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
     <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a></div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.17 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.18 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   $('#demo') && ($('#demo').onclick = loadDemo);
   $('#tmoff') && ($('#tmoff').onclick = () => switchMode(false));
   $('#tmon') && ($('#tmon').onclick = () => switchMode(true));
@@ -2407,6 +2407,7 @@ function viewHome() {
       <a class="mini" href="#/data">⟳ Sync${dc ? ` <span class="badge nogps">${dc} draft${dc > 1 ? 's' : ''}</span>` : ''}</a>
       <a class="mini" href="#/labels">⎙ Print labels</a>
       <a class="mini" href="#/settings">⚙ Settings</a>
+      ${isAdmin() ? '<a class="mini" href="#/people">👥 People &amp; logins</a>' : ''}
       ${TESTMODE ? '<a class="mini" href="#/testplan">🧪 Test checklist</a>' : ''}
     </div>
     <footer class="legal">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.</footer>`;
