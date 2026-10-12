@@ -6,7 +6,7 @@
 const LISTS = {
   district: ['Kisatchie RD', 'Caney RD', 'Winn RD', 'Catahoula RD', 'Evangeline Unit', 'Vernon Unit', 'Other'],
   _sites: [],
-  mappoint_kind: ['Unit corner', 'Feature', 'Other'],
+  mappoint_kind: ['Boundary', 'Site datum', 'Isolated find', 'Feature', 'Photo point', 'Landmark / road', 'Unit corner', 'Other'],
   _corners: [],
   record_kind: ['Previously recorded site', 'New site (temporary no.)', 'Isolated find', 'Other investigation'],
   custody_action: ['Collected in field', 'Transferred', 'Placed in box', 'Removed from box', 'Received at lab', 'Checked out for analysis', 'Returned to storage', 'Sent to specialist', 'Curated'],
@@ -362,11 +362,11 @@ TABLES.subunits = {
   ],
 };
 TABLES.mappoints = {
-  label: 'Map point', plural: 'Mapped points', parent: 'excavations', mode: 'field', legacy: null,
+  label: 'Point', plural: 'Points', parent: 'sites or excavations', mode: 'field', legacy: null,
   title: r => `${r.kind || 'Point'}${r.label ? ' ' + r.label : ''}`,
   fields: [
     { k: 'kind', l: 'What is it?', t: 'select', o: 'mappoint_kind', req: 1 },
-    { k: 'label', l: 'Label', t: 'text', ph: 'e.g. NE corner of B' },
+    { k: 'label', l: 'Label', t: 'text', ph: 'e.g. B1, IF-3, NE corner of B', help: 'Numbers count up automatically with “Finish & add next”' },
     { k: 'corner', l: 'Which corner (unit grid)', t: 'select', o: '_corners', show: r => r.kind === 'Unit corner' },
     { k: '_gps', l: 'Position', t: 'gps', w: 3 },
     { k: 'notes', l: 'Notes', t: 'text', w: 2 },

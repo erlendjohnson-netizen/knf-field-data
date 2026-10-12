@@ -35,6 +35,7 @@ Every location box has a **source** picker next to *Capture position*. The choic
 - **Phone/tablet built-in GPS:** no setup needed. Usually 3–10 m, so it's fine for finding STPs but too coarse for unit datums and corners.
 - **Other receiver:** any receiver that feeds Android's location (mock location).
 - **Typed in:** coordinates from any instrument can be typed into UTM E/N. They are labelled "typed in" with the chosen source, and the app works out lat/lon for the maps.
+- **Live readout:** every location box shows the current accuracy, updating every second. It is green when good for the chosen source, yellow while settling and red when poor or stale. *Capture position* averages the fixes over the set number of seconds.
 - **Unit datums** warn above ±1 m and **corner shots** above ±0.5 m, whatever the source.
 - **iPhone/iPad:** web apps can't connect to Bluetooth receivers. Use the phone's own GPS or type in coordinates.
 - **PPK:** every capture stores a UTC timestamp (`gps_time`) for matching to post-processed points later.
@@ -49,6 +50,9 @@ Add a PostgreSQL connection to the Supabase database (Project Settings → Datab
 - **Previously recorded sites:** choose the district, then pick the trinomial from the list (type to search). The app fills in the site name, parish, ID code and USGS quad.
 - **New sites (temporary number):** *📍 Fill parish, quad & district from my position* takes the quad from the 7.5' grid and the parish and district from the nearest recorded site, so check those near parish lines. If you are standing within 400 m of a recorded site, the app asks whether it is that site.
 - ID codes are parish digit + site number (NA 1, CL 2, WE 3, GR 4, WN 5, RA 6, VN 7). For example, 16NA41 is 1041.
+
+## Points and site map
+On a site page, **+ Take a point** records any GPS point: boundary, site datum, isolated find, feature, photo point, landmark or road. **Finish & add next** keeps the same kind and counts the label up (B1, B2, B3…). The **site map** draws STPs (filled = positive), units, points and a boundary outline with a scale bar, and works offline without a basemap. It also warns if the site's recorded location is more than 500 m from the points being taken. In QGIS the points are in `mappoints_pts`.
 
 ## Test mode
 Settings → *Switch to test mode* gives a practice copy of the app with a purple TEST MODE banner. Practice records use their own storage on the device and their own server table (`records_test`), so they never mix with project data. In test mode, *Load practice data* adds a practice site (KRD-T99) with a finished STP, an STP in progress, a test unit with subunits, bags and a box. The *Test checklist* lists everything to try.

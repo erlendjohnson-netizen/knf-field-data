@@ -113,6 +113,18 @@ header{gap:8px}
 .plan .datum circle{fill:#b3261e}.plan .datum path{stroke:#b3261e;stroke-width:.03}
 .plan .shot{fill:var(--ok)}.plan .shot.bad{fill:var(--bad)}.plan .narrow{fill:var(--ink)}.plan .nt{font:700 .18px system-ui;fill:var(--ink);text-anchor:middle}
 .piece.act{border:2px solid var(--acc2)}
+.gpslive{margin:8px 0 2px;padding:8px 10px;border-radius:8px;font-size:15px;border:2px solid var(--line);background:var(--card)}
+.gpslive .lv-tag{display:inline-block;margin-left:6px;font-size:12px;font-weight:600;padding:1px 8px;border-radius:99px;background:var(--chip)}
+.gpslive.good{border-color:#2e7d4f}.gpslive.good .lv-tag{background:#2e7d4f;color:#fff}
+.gpslive.fair{border-color:#e0a800}.gpslive.fair .lv-tag{background:#ffcc00;color:#0A0203}
+.gpslive.poor,.gpslive.stale{border-color:#b3261e}.gpslive.poor .lv-tag,.gpslive.stale .lv-tag{background:#b3261e;color:#fff}
+.sitemap{width:100%;max-height:420px;background:var(--inp);border-radius:8px;display:block}
+.sitemap .m-stp{fill:var(--card);stroke:var(--ink);stroke-width:.25%}.sitemap .m-stp.pos{fill:#CE181E;stroke:#610B0E}
+.sitemap .m-unit{fill:#0097A7;stroke:#0A0203;stroke-width:.2%}.sitemap .m-pt{fill:#ffcc00;stroke:#0A0203;stroke-width:.2%}
+.sitemap .m-bnd{fill:#610B0E}.sitemap .m-bndline{fill:rgba(206,24,30,.06);stroke:#610B0E;stroke-dasharray:1% .6%;stroke-width:.3%}
+.sitemap .m-reg circle{fill:none;stroke:#367075;stroke-width:.3%}.sitemap .m-reg path{stroke:#367075;stroke-width:.3%}
+.sitemap .m-lab{fill:var(--ink);font-family:system-ui,sans-serif}.sitemap .m-bar{stroke:var(--ink);stroke-width:.6%}.sitemap .m-n{fill:var(--ink)}
+.sitemap [data-go]{cursor:pointer}
 .photos{grid-column:1/-1;border-top:1px solid var(--line);margin-top:12px;padding-top:10px}
 .card>.photos{border:0;margin:0;padding:0}
 .thumbs{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
@@ -206,6 +218,7 @@ const TESTPLAN = [
   ['Setup', ['Add your name in Settings', 'Sign in (test mode needs its own sign-in)', 'Install the app on this device (Add to Home Screen / Install app)', 'Load practice data']],
   ['Sites', ['Open a Phase II site from the list', 'Create a new site with a temporary number (+ New site (temp. no.)) and check the KRD-T## / CRD-T## number', 'Rename a temporary site to a trinomial and check the temporary number is kept']],
   ['STP', ['Start an STP and capture GPS (with the Emlid on Android if available)', 'Check the accuracy warning appears when accuracy is poor', 'Start Level 1 by scanning a bag label', 'Try to Finish a level without a photo (must be blocked)', 'Save a level as unfinished and check the red banner and acknowledgement box', 'Try to start the next level while one is unfinished (must be blocked)', 'Finish the level from its page with “Finish now” after adding a photo', 'Close out an STP (final depth must match the deepest level)']],
+  ['GPS & points', ['Watch the live GPS readout on a location box (green = good for the chosen source)', 'Switch the GPS source (Emlid / Trimble / phone) and check the warning thresholds change', 'Type in coordinates from another instrument and check they show as “typed in”', 'On a site page, Take a point: walk a few boundary points with “Finish & add next” (B1, B2, B3…)', 'Check the site map shows STPs, units, points and the boundary outline', 'Tap a symbol on the site map to open it']],
   ['Test unit', ['Create a TU and capture the datum', 'Add subunit A and choose the datum corner', 'Add a 0.5 × 1 m subunit against A', 'Build an L-shaped subunit from two pieces', 'Try to overlap two subunits (must be blocked)', 'Start a level in a specific subunit and check the volume', 'Shoot a corner, choose which plan corner it is, and set the azimuth', 'Check close-out lists what is missing']],
   ['Bags & boxes', ['Print a sheet of bag labels and a sheet of box labels', 'Scan a bag with the app and with the phone’s own camera app', 'Hand over a bag and check the custody log', 'Register a box and scan bags into it', 'Remove a bag from a box', 'Scan an unassigned bag label and assign it to a level']],
   ['Lab', ['Scan a bag on the Lab screen and check it opens the right level', 'Enter a lithic tool with a named chert source on visual ID (warning)', 'Enter a hafted biface without a photo (must be blocked)', 'Enter ceramics, then a tabulation that disagrees with the catalogue (must be blocked)', 'Fix the tabulation and finish it', 'Open the site catalogue table']],
@@ -218,9 +231,12 @@ function viewTestPlan() {
   const total = TESTPLAN.reduce((a, [, xs]) => a + xs.length, 0), n = Object.values(done).filter(Boolean).length;
   $('#app').innerHTML = `<h2>Test checklist <span class="badge">${n} / ${total}</span></h2>
     <div class="help">Tick each item as you try it. Ticks are saved on this device only. Note anything odd and send it to Erlend.</div>
+    ${TESTMODE ? `<div class="card" style="margin-top:8px"><b>Practice data</b><div class="help">Adds a made-up practice site, KRD-T99 (Kisatchie RD), so there is something to test on: a finished STP, an STP with an unfinished level, a test unit with subunits A and B, bags, and a box. It exists only in test mode.</div><div class="btns"><button class="btn" id="tpdemo">Load practice data</button></div></div>`
+      : `<div class="check">You are not in test mode. Switch to test mode in Settings before testing, so practice records stay out of the project data.</div>`}
     ${TESTPLAN.map(([g, xs], gi) => `<h3>${esc(g)}</h3><div class="card">${xs.map((x, i) => { const k = gi + '.' + i; return `<label style="display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--line)"><input type="checkbox" data-k="${k}" ${done[k] ? 'checked' : ''} style="width:22px;height:22px;min-height:0;margin-top:1px;flex:none"><span>${esc(x)}</span></label>`; }).join('')}</div>`).join('')}
     <div class="btns"><button class="btn sec" id="tpreset">Clear all ticks</button></div>`;
   $('#app').querySelectorAll('[data-k]').forEach(c => c.onchange = () => { done[c.dataset.k] = c.checked; try { localStorage.setItem('knf-testplan', JSON.stringify(done)); } catch (e) { } viewTestPlan(); });
+  $('#tpdemo') && ($('#tpdemo').onclick = loadDemo);
   $('#tpreset').onclick = () => { try { localStorage.removeItem('knf-testplan'); } catch (e) { } viewTestPlan(); };
 }
 
@@ -399,12 +415,12 @@ let gpsWatch = null;
 function gpsCapture(box, d, onDone) {
   const out = $('.live', box), btn = $('.gpsbtn', box), src = $('.gpssrc', box)?.value || S.settings.gps_source;
   if (!navigator.geolocation) { out.textContent = 'This device/browser has no location access.'; return; }
-  if (gpsWatch != null) { navigator.geolocation.clearWatch(gpsWatch); gpsWatch = null; btn.textContent = 'Capture position'; out.textContent = 'Stopped.'; return; }
+  if (gpsWatch != null) { LIVE.subs.delete(gpsWatch); gpsWatch = null; btn.textContent = 'Capture position'; out.textContent = 'Stopped.'; return; }
   const secs = +S.settings.gps_secs || 10, fixes = [], t0 = Date.now();
   btn.textContent = 'Stop';
   out.textContent = 'Waiting for position…';
   const finish = () => {
-    navigator.geolocation.clearWatch(gpsWatch); gpsWatch = null; btn.textContent = 'Capture position';
+    LIVE.subs.delete(gpsWatch); gpsWatch = null; btn.textContent = 'Capture position';
     if (!fixes.length) { out.textContent = 'No position received. Check that location is on and the receiver is connected and streaming. ' + (srcInfo(src).hint || ''); return; }
     const best = fixes.filter(f => f.acc <= Math.min(...fixes.map(x => x.acc)) * 1.5);
     const lat = best.reduce((a, f) => a + f.lat, 0) / best.length, lon = best.reduce((a, f) => a + f.lon, 0) / best.length;
@@ -416,12 +432,16 @@ function gpsCapture(box, d, onDone) {
     out.textContent = `Averaged ${best.length} of ${fixes.length} fixes · best accuracy ±${acc.toFixed(2)} m`;
     onDone && onDone();
   };
-  gpsWatch = navigator.geolocation.watchPosition(p => {
-    fixes.push({ lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy, alt: p.coords.altitude, t: p.timestamp });
-    out.textContent = `${fixes.length} fixes · ±${p.coords.accuracy.toFixed(2)} m · ${Math.max(0, secs - Math.round((Date.now() - t0) / 1000))} s left`;
+  const onFix = (f, err) => {
+    if (err) { out.textContent = 'Location error: ' + err.message; LIVE.subs.delete(gpsWatch); gpsWatch = null; btn.textContent = 'Capture position'; return; }
+    fixes.push(f);
+    out.textContent = `${fixes.length} fixes · ±${f.acc.toFixed(2)} m · ${Math.max(0, secs - Math.round((Date.now() - t0) / 1000))} s left`;
     if (Date.now() - t0 >= secs * 1000) finish();
-  }, e => { out.textContent = 'Location error: ' + e.message; navigator.geolocation.clearWatch(gpsWatch); gpsWatch = null; btn.textContent = 'Capture position'; },
-    { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 });
+  };
+  gpsWatch = onFix; ensureLive(); LIVE.subs.add(onFix);
+  if (LIVE.last && Date.now() - LIVE.last.rt < 3000) fixes.push(LIVE.last);
+  // the browser only reports when the position changes; on a still receiver keep sampling the latest fix once a second
+  const sampler = setInterval(() => { if (gpsWatch !== onFix) return clearInterval(sampler); if (LIVE.last && Date.now() - LIVE.last.rt < 3000 && fixes[fixes.length - 1] !== LIVE.last) fixes.push(LIVE.last); }, 1000);
   // the browser only reports when the position changes, so end on a timer rather than on the next fix
   const tick = () => { if (gpsWatch == null) return; if (fixes.length && Date.now() - t0 >= secs * 1000) finish(); else if (Date.now() - t0 > (secs + 30) * 1000) finish(); else setTimeout(tick, 500); };
   setTimeout(tick, 500);
@@ -429,6 +449,76 @@ function gpsCapture(box, d, onDone) {
 function renderGps(box, d) {
   ['utme', 'utmn', 'utmzone', 'gps_acc_m'].forEach(k => { const i = box.querySelector(`[data-g=${k}]`); if (i) i.value = d[k] ?? ''; });
   $('.gpsinfo', box).innerHTML = d.lat != null ? `${d.lat}, ${d.lon} · ±${d.gps_acc_m ?? '?'} m · ${esc(d.gps_source || '')}${d.gps_entry === 'typed' ? ' (typed in)' : ''} · ${d.gps_time ? new Date(d.gps_time).toLocaleString() : ''}` : 'No position yet';
+}
+
+/* ================= live GPS readout ================= */
+let liveWatch = null;
+const LIVE = { last: null, subs: new Set(), err: null };
+function stopLiveGps() { if (liveWatch != null) { navigator.geolocation?.clearWatch(liveWatch); liveWatch = null; } LIVE.subs.clear(); LIVE.last = null; }
+function ensureLive() {
+  if (liveWatch != null || !navigator.geolocation) return;
+  liveWatch = navigator.geolocation.watchPosition(p => {
+    LIVE.err = null;
+    LIVE.last = { lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy, alt: p.coords.altitude, altAcc: p.coords.altitudeAccuracy, t: p.timestamp, rt: Date.now() };
+    LIVE.subs.forEach(f => f(LIVE.last));
+  }, e => { LIVE.err = e.message; LIVE.subs.forEach(f => f(null, e)); }, { enableHighAccuracy: true, maximumAge: 0, timeout: 60000 });
+}
+function startLiveGps(box) {
+  const el = $('.gpslive', box); if (!el || !navigator.geolocation) { if (el) el.textContent = 'No location on this device'; return; }
+  const draw = () => {
+    if (!document.body.contains(el)) { clearInterval(timer); return; }
+    const last = LIVE.last ? { acc: LIVE.last.acc, altAcc: LIVE.last.altAcc, t: LIVE.last.rt } : null;
+    if (LIVE.err && !last) { el.className = 'gpslive poor'; el.textContent = 'Live GPS: ' + LIVE.err; return; }
+    const src = srcInfo($('.gpssrc', box)?.value), warn = src.warn;
+    if (!last) { el.className = 'gpslive wait'; el.innerHTML = '<b>Live GPS</b> · waiting for a position…'; return; }
+    const age = Math.round((Date.now() - last.t) / 1000), a = last.acc;
+    const cls = age > 15 ? 'stale' : a <= warn ? 'good' : a <= warn * 3 ? 'fair' : 'poor';
+    const fmt = a < 1 ? (a * 100).toFixed(0) + ' cm' : a.toFixed(1) + ' m';
+    el.className = 'gpslive ' + cls;
+    el.innerHTML = `<b>Live GPS ±${fmt}</b> · ${age < 2 ? 'now' : age + ' s ago'}${last.altAcc != null ? ` · vertical ±${last.altAcc < 1 ? (last.altAcc * 100).toFixed(0) + ' cm' : last.altAcc.toFixed(1) + ' m'}` : ''}
+      <span class="lv-tag">${cls === 'good' ? 'good for ' + (warn <= 0.1 ? 'RTK work' : 'this source') : cls === 'fair' ? 'not settled yet' : cls === 'poor' ? 'poor: wait or check the receiver' : 'no recent update'}</span>`;
+  };
+  ensureLive(); LIVE.subs.add(draw);
+  const timer = setInterval(draw, 1000); draw();
+}
+
+/* ================= site map (offline, no basemap) ================= */
+function sitePointsUTM(siteId) {
+  const out = [], u = d => d.utme != null && d.utmn != null ? { e: +d.utme, n: +d.utmn } : d.lat != null ? (x => ({ e: x.e, n: x.n }))(toUTM(d.lat, d.lon)) : null;
+  for (const e of kids(siteId, 'excavations')) { const p = u(e.data); if (p) out.push({ ...p, kind: e.data.excavation_type, label: TABLES.excavations.title(e.data), id: e.id, pos: !!e.data.positive }); }
+  for (const m of live('mappoints').filter(m => m.site === siteId)) { const p = u(m.data); if (p) out.push({ ...p, kind: m.data.kind, label: m.data.label || m.data.kind, id: m.id }); }
+  const s = get(siteId), reg = s && REG.by.get(s.data.sitename);
+  if (reg && reg.e != null) {
+    const fld = out.length ? { e: out.reduce((a, p) => a + p.e, 0) / out.length, n: out.reduce((a, p) => a + p.n, 0) / out.length } : null;
+    const dist = fld ? Math.hypot(reg.e - fld.e, reg.n - fld.n) : 0;
+    if (!fld || dist < 500) out.push({ e: reg.e, n: reg.n, kind: 'Recorded location', label: 'Recorded site location' });
+    else out.farReg = Math.round(dist);
+  }
+  return out;
+}
+function siteMapSVG(siteId) {
+  const pts = sitePointsUTM(siteId); if (!pts.length) return '<div class="empty">Nothing with a position yet.</div>';
+  let x0 = Math.min(...pts.map(p => p.e)), x1 = Math.max(...pts.map(p => p.e)), y0 = Math.min(...pts.map(p => p.n)), y1 = Math.max(...pts.map(p => p.n));
+  const span = Math.max(x1 - x0, y1 - y0, 20), pad = span * 0.12, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, half = span / 2 + pad;
+  x0 = cx - half; x1 = cx + half; y0 = cy - half; y1 = cy + half;
+  const W = x1 - x0, Y = n => y1 - n, r = W / 90, fs = W / 38;
+  const bar = [5, 10, 20, 50, 100, 200, 500, 1000].find(b => b > W / 6) || 1000;
+  const sym = p => {
+    const x = p.e - x0, y = Y(p.n), link = p.id ? `data-go="${p.id}"` : '';
+    if (p.kind === 'STP') return `<circle ${link} cx="${x}" cy="${y}" r="${r}" class="m-stp${p.pos ? ' pos' : ''}"/>`;
+    if (p.kind === 'TP' || p.kind === 'Unit') return `<rect ${link} x="${x - r * 1.2}" y="${y - r * 1.2}" width="${r * 2.4}" height="${r * 2.4}" class="m-unit"/>`;
+    if (p.kind === 'Recorded location') return `<g class="m-reg"><circle cx="${x}" cy="${y}" r="${r * 2}"/><path d="M${x - r * 2.6} ${y}h${r * 5.2}M${x} ${y - r * 2.6}v${r * 5.2}"/></g>`;
+    if (p.kind === 'Boundary') return `<path ${link} d="M${x} ${y - r * 1.3}L${x + r * 1.3} ${y}L${x} ${y + r * 1.3}L${x - r * 1.3} ${y}Z" class="m-bnd"/>`;
+    return `<path ${link} d="M${x} ${y - r * 1.5}L${x + r * 1.3} ${y + r}L${x - r * 1.3} ${y + r}Z" class="m-pt"/>`;
+  };
+  const bnd = pts.filter(p => p.kind === 'Boundary');
+  return `<svg class="sitemap" viewBox="0 0 ${W} ${W}" preserveAspectRatio="xMidYMid meet">
+    ${bnd.length > 2 ? `<polygon points="${bnd.map(p => `${p.e - x0},${Y(p.n)}`).join(' ')}" class="m-bndline"/>` : ''}
+    ${pts.map(sym).join('')}
+    ${pts.filter(p => p.kind !== 'Recorded location').map(p => `<text x="${p.e - x0 + r * 1.6}" y="${Y(p.n) - r * 0.6}" style="font-size:${fs}px" class="m-lab">${esc(p.label)}</text>`).join('')}
+    <g transform="translate(${W * 0.05} ${W * 0.94})"><path d="M0 0h${bar}" class="m-bar"/><text x="${bar / 2}" y="${-fs * 0.4}" style="font-size:${fs}px" class="m-lab" text-anchor="middle">${bar} m</text></g>
+    <g transform="translate(${W * 0.93} ${W * 0.09})"><path d="M0 ${-fs * 1.4}L${fs * 0.5} ${fs * 0.2}L0 ${-fs * 0.2}L${-fs * 0.5} ${fs * 0.2}Z" class="m-n"/><text y="${fs * 1.2}" style="font-size:${fs}px" text-anchor="middle" class="m-lab">N</text></g>
+  </svg>${pts.farReg ? `<div class="check">The recorded location of this site is ${(pts.farReg / 1000).toFixed(1)} km from the points taken here. Check you are at the right site.</div>` : ''}<div class="help">● STP (filled = positive) · ■ unit · ▲ point · ◆ boundary · ⊕ recorded site location. UTM 15N grid north. Tap a symbol to open it.</div>`;
 }
 
 /* ================= forms ================= */
@@ -442,6 +532,7 @@ function fieldHTML(f, v, d) {
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="flex:1">Location</b>
         <select class="gpssrc" style="width:auto;max-width:100%;min-height:36px;padding:4px 8px" aria-label="GPS source">${GPS_SOURCES.map(g => `<option ${g.k === (d.gps_source && d.gps_entry !== 'typed' ? srcInfo(d.gps_source).k : srcInfo(S.settings.gps_source).k) ? 'selected' : ''}>${esc(g.k)}</option>`).join('')}</select>
         <button type="button" class="btn sm gpsbtn">Capture position</button></div>
+      <div class="gpslive wait">Live GPS · starting…</div>
       <div class="help gpshint"></div>
       <div class="live"></div><div class="gpsinfo help"></div><div class="msg w gpswarn" style="font-size:13px;color:var(--warn)"></div>
       <div class="grid" style="margin-top:8px">
@@ -863,7 +954,7 @@ function formView(rec, isNew, opts = {}) {
   d = compute(rec.tbl, d, ctx());
   setTitle((isNew ? 'New ' : '') + def.label);
   const lists = [...new Set(fields.filter(f => f.t === 'combo').map(f => f.o))].map(o => `<datalist id="l_${o}">${LISTS[o].map(x => `<option value="${esc(x)}">`).join('')}</datalist>`).join('');
-  const hasNext = ['levels', 'lithic_tools', 'prehistoric_ceramics', 'exotic_lithics', 'ground_stone', 'historic_artifacts'].includes(rec.tbl);
+  const hasNext = ['levels', 'mappoints', 'lithic_tools', 'prehistoric_ceramics', 'exotic_lithics', 'ground_stone', 'historic_artifacts'].includes(rec.tbl);
   const isExc = rec.tbl === 'excavations';
   $('#app').innerHTML = `${parent ? crumbs(parent) : rec.tbl === 'sites' ? '<div class="crumbs"><a href="#/sites">Sites</a></div>' : ''}
     <h2>${isNew ? 'New ' + esc(def.label.toLowerCase()) : esc(def.title(d))} ${statusBadge(rec)}</h2>
@@ -885,6 +976,7 @@ function formView(rec, isNew, opts = {}) {
   const gbox = $('[data-gps]', form);
   if (gbox) {
     renderGps(gbox, d); $('.gpsbtn', gbox).onclick = () => gpsCapture(gbox, d, () => refresh());
+    startLiveGps(gbox);
     const sel = $('.gpssrc', gbox), hint = () => { $('.gpshint', gbox).textContent = srcInfo(sel.value).hint; };
     hint();
     sel.onchange = async () => { hint(); S.settings.gps_source = sel.value; await CORE.setMeta('settings', S.settings); if (d.gps_entry === 'typed') d.gps_source = sel.value; refresh(); };
@@ -1044,6 +1136,7 @@ function excRow(e) {
 function viewSite(id) {
   const s = get(id); if (!s) return notFound();
   setTitle(s.data.sitename);
+  setTimeout(() => { const m = $('#app .sitemap'); if (m) m.addEventListener('click', ev => { const g = ev.target.closest('[data-go]'); if (g) location.hash = '#/rec/' + g.dataset.go; }); }, 0);
   const ex = kids(id, 'excavations').sort((a, b) => (TYPE_CODE[a.data.excavation_type] || '9').localeCompare(TYPE_CODE[b.data.excavation_type] || '9') || (a.data.seq - b.data.seq));
   const feats = live('features').filter(r => r.site === id), samps = live('samples').filter(r => r.site === id), bags = live('bags').filter(r => r.site === id);
   const pos = ex.filter(e => e.data.positive).length;
@@ -1053,6 +1146,9 @@ function viewSite(id) {
     <div class="btns"><a class="btn" href="#/new/excavations/${id}?STP">+ STP</a><a class="btn sec" href="#/new/excavations/${id}?TP">+ Test unit</a>
       <a class="btn sec" href="#/edit/${id}">Edit site</a><a class="btn sec" href="#/catalog/${id}">Catalog</a></div>
     <h3>Excavations</h3><div class="list">${ex.map(excRow).join('') || '<div class="empty">None yet</div>'}</div>
+    <h3>Site map <span class="sp"></span><a class="btn sm" href="#/new/mappoints/${id}">+ Take a point</a></h3>
+    <div class="card">${siteMapSVG(id)}</div>
+    ${kids(id, 'mappoints').length ? `<h3>Points</h3><div class="list">${kids(id, 'mappoints').sort((a, b) => a.created_at > b.created_at ? 1 : -1).map(m => rowHTML(m, `<small>${m.data.utme != null ? `${m.data.utme} E, ${m.data.utmn} N · ±${esc(m.data.gps_acc_m ?? '?')} m` : 'no position'}${m.data.notes ? ' · ' + esc(m.data.notes) : ''}</small>`)).join('')}</div>` : ''}
     <h3>Features</h3><div class="list">${feats.map(f => rowHTML(f, `<small>${esc(get(f.parent) ? TABLES.excavations.title(get(f.parent).data) : '')}</small>`)).join('') || '<div class="empty">None</div>'}</div>
     <h3>Samples</h3><div class="list">${samps.map(f => rowHTML(f, `<small>${esc(get(f.parent) ? TABLES.excavations.title(get(f.parent).data) : '')}${f.data.depth != null ? ' · ' + f.data.depth + ' cmbs' : ''}</small>`)).join('') || '<div class="empty">None</div>'}</div>`;
 }
@@ -1232,7 +1328,7 @@ async function viewSettings() {
     <div class="card">${TESTMODE ? `<p><b>You are in TEST MODE.</b> Everything here is practice data, stored separately from the project.</p>
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a><button class="btn sec" id="tmoff">Leave test mode</button></div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.6 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.7 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   $('#demo') && ($('#demo').onclick = loadDemo);
   $('#tmoff') && ($('#tmoff').onclick = () => switchMode(false));
   $('#tmon') && ($('#tmon').onclick = () => switchMode(true));
@@ -1859,7 +1955,7 @@ function render() {
   const tab = { sites: 'field', site: 'field', rec: 'field', edit: 'field', new: 'field', lab: 'lab', catalog: 'lab', scan: 'scan', boxes: 'scan', labels: 'scan', data: 'data' }[seg[0]] || (seg.length ? '' : 'home');
   document.querySelectorAll('#tabs a').forEach(a => a.classList.toggle('on', a.dataset.t === tab));
   if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; document.querySelectorAll('.modal').forEach(m => m.remove()); }
-  scrollTo(0, 0);
+  stopLiveGps(); scrollTo(0, 0);
   if (!seg.length) return viewHome();
   switch (seg[0]) {
     case 'sites': return viewSites();
@@ -1886,7 +1982,12 @@ function render() {
       const rec = mk(t, parent, {});
       rec.data = defaults(t, lv ? lv.id : parent);
       S._newType = null; S._newSU = null;
-      if (t === 'mappoints') { rec.data.kind = qs === 'corner' ? 'Unit corner' : 'Other'; }
+      if (t === 'mappoints') {
+        const p0 = get(parent), sibs = kids(parent, 'mappoints').sort((a, b) => a.created_at > b.created_at ? 1 : -1), last = sibs[sibs.length - 1];
+        rec.data.kind = qs === 'corner' ? 'Unit corner' : (last && p0?.tbl === 'sites' ? last.data.kind : (p0?.tbl === 'sites' ? 'Boundary' : 'Other'));
+        if (last && last.data.kind === rec.data.kind && last.data.label) { const m = String(last.data.label).match(/^(.*?)(\d+)$/); rec.data.label = m ? m[1] + (+m[2] + 1) : ''; }
+        else if (rec.data.kind === 'Boundary') rec.data.label = 'B1';
+      }
       if (t === 'levels' && qs && qs.startsWith('bag=')) rec.data.bag_qr = parseCode(qs.slice(4));
       if (t === 'boxes') { rec.data.qr = qs && qs.startsWith('qr=') ? parseCode(qs.slice(3)) : ''; rec.data.box_no = nextNum(live('boxes'), 'box_no'); }
       if (t === 'sites') { rec.data.record_kind = qs === 'temp' ? 'New site (temporary no.)' : 'Previously recorded site'; rec.data.project = 'KNF Phase II 2026-27'; }
