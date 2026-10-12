@@ -94,7 +94,10 @@ header{gap:8px}
 .bigscan{font-size:20px;min-height:72px;width:100%}
 .code{font-family:ui-monospace,Consolas,monospace;font-weight:700;letter-spacing:.06em}
 .hist{font-size:14px}.hist div{padding:6px 0;border-bottom:1px solid var(--line)}
-.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn[disabled]{opacity:.45;cursor:not-allowed}.btn.dim{opacity:.55}
+.need{border-left:4px solid #ffcc00;padding-left:6px;border-radius:4px}.need .msg.n{color:#8a6d00;font-weight:600}
+.flash{animation:flash 1.2s ease 2}@keyframes flash{50%{background:#fff3b0}}
+.misslist li{margin:3px 0}.misslist a{color:var(--ink);text-decoration:underline}
 /* printable label sheets */
 .sheet{background:#fff;color:#000;width:8.5in;height:11in;position:relative;margin:0 auto 16px;box-shadow:0 1px 6px rgba(0,0,0,.2);overflow:hidden}
 .lbl{position:absolute;display:flex;align-items:center;gap:.06in;padding:.05in .08in;overflow:hidden;font-family:Arial,sans-serif}
@@ -689,7 +692,7 @@ function catalogueCheck(l, tabData) {
 const TEMP_RE = /^[A-Z]{2,3}-T\d{2,}$/;
 /* required fields that are visible for this record */
 function requiredMissing(rec, d) {
-  return TABLES[rec.tbl].fields.filter(f => f.req && !f.virtual && f.t !== 'ro' && !(f.show && !f.show(d)) && blank(d[f.k])).map(f => f.l);
+  return TABLES[rec.tbl].fields.filter(f => f.req && !f.virtual && f.t !== 'ro' && !(f.show && !f.show(d)) && blank(d[f.k])).map(f => (LABELKEY[f.l] = f.k, f.l));
 }
 /* excavations: header = what must be right before the excavation can be uploaded as "open" */
 function excHeaderMissing(d) {
@@ -698,10 +701,11 @@ function excHeaderMissing(d) {
   if (blank(d.crew)) m.push('Excavators');
   return m;
 }
+const LABELKEY = { 'Location (GPS capture or UTM)': '_gps', 'Excavators': 'crew' }; // missing-item label → field key, so the form can point at it
 const BAG_MISS = 'Bag label for the artifacts (scanned when you press Finish)';
 const onlyBag = miss => miss.length > 0 && miss.every(x => x === BAG_MISS);
 function completeness(rec, d) {
-  const t = rec.tbl, m = t === 'excavations' ? excHeaderMissing(d) : requiredMissing(rec, d), need = (k, label) => { if (blank(d[k]) && !m.includes(label)) m.push(label); };
+  const t = rec.tbl, m = t === 'excavations' ? excHeaderMissing(d) : requiredMissing(rec, d), need = (k, label) => { LABELKEY[label] = k; if (blank(d[k]) && !m.includes(label)) m.push(label); };
   const hasPhoto = kinds => photosOf(rec.id).some(p => !kinds || kinds.includes(p.data.kind));
   if (t === 'excavations') {
     need('depthcm', 'Final depth');
@@ -955,6 +959,33 @@ function defaults(tbl, parentId) {
 }
 
 /* ---- render a form for a record (new or existing) ---- */
+/* point at what is missing: yellow edge on the fields, and a list when Finish is pressed too early */
+function markNeeded(form, miss) {
+  form.querySelectorAll('.f.need').forEach(el => { el.classList.remove('need'); const m = $('.msg.n', el); if (m) { m.textContent = ''; m.className = 'msg'; } });
+  for (const x of miss) {
+    const k = LABELKEY[x], el = k && (k === '_gps' ? form.querySelector('[data-gps]')?.closest('.f') || form.querySelector('[data-gps]') : form.querySelector(`.f[data-k="${k}"]`));
+    if (!el || el.classList.contains('err')) continue;
+    el.classList.add('need'); const m = $('.msg', el); if (m && !m.textContent) { m.textContent = 'Needed to finish'; m.className = 'msg n'; }
+  }
+}
+function missingTarget(form, x) {
+  const k = LABELKEY[x];
+  if (k) return k === '_gps' ? form.querySelector('[data-gps]') : form.querySelector(`.f[data-k="${k}"]`);
+  if (/photo/i.test(x)) return form.querySelector('[data-photos]');
+  return null;
+}
+function showMissing(form, miss, errs = {}) {
+  const errItems = Object.entries(errs).map(([k, m]) => { const f = form.querySelector(`.f[data-k="${k}"] label`); return { t: `${f ? f.textContent.replace(/\s*\*$/, '') + ': ' : ''}${m}`, k }; });
+  const items = [...errItems.map(e => ({ t: e.t, el: form.querySelector(`.f[data-k="${e.k}"]`), err: 1 })), ...miss.map(x => ({ t: x, el: missingTarget(form, x) }))];
+  const m = document.createElement('div'); m.className = 'modal';
+  m.innerHTML = `<div class="card unfinbox" style="max-width:480px"><b class="t">Not finished yet: ${items.length} thing${items.length > 1 ? 's' : ''} to fix</b>
+    <ul class="misslist" style="padding-left:18px;margin:6px 0">${items.map((it, i) => `<li>${it.err ? '❌ ' : ''}${it.el ? `<a href="#" data-i="${i}">${esc(it.t)}</a>` : esc(it.t)}</li>`).join('')}</ul>
+    ${items.some(it => !it.el) ? '<div class="help">Items without a link are done on the record’s page (e.g. levels, corner shots or photos), not on this form.</div>' : ''}
+    <div class="btns" style="justify-content:flex-end"><button class="btn" data-i="0">Show me</button></div></div>`;
+  const go = it => { m.remove(); if (!it?.el) { $('#chk')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; } it.el.scrollIntoView({ behavior: 'smooth', block: 'center' }); it.el.classList.remove('flash'); void it.el.offsetWidth; it.el.classList.add('flash'); it.el.querySelector('input,select,textarea')?.focus({ preventScroll: true }); };
+  m.addEventListener('click', e => { if (e.target === m) return m.remove(); const i = e.target.dataset.i; if (i == null) return; e.preventDefault(); go(items[+i] || items[0]); });
+  document.body.append(m);
+}
 function formView(rec, isNew, opts = {}) {
   const def = TABLES[rec.tbl], parent = rec.parent ? get(rec.parent) : null;
   let d = { ...rec.data };
@@ -1018,13 +1049,15 @@ function formView(rec, isNew, opts = {}) {
     $('#chk').innerHTML = (bagNext ? '<div class="check bagnext">🏷 <b>Artifacts recorded:</b> when you press Finish, the app asks you to scan the bag label for this level.</div>' : '') + (miss.length ? `<div class="check"><b>${isExc && st === 'open' ? 'Before close-out' : 'Still needed before this can be finished'}:</b><ul style="margin:4px 0 0;padding-left:18px">${miss.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : '<div class="check okc">Everything is filled in ✓</div>')
       + (errs ? `<div class="check" style="border-color:var(--bad)"><b>${errs} field${errs > 1 ? 's have' : ' has'} an error</b> (see highlighted fields)</div>` : '');
     const fin = $('#fin'), canFin = !errs && (st === 'complete' || (isExc && st === 'open'));
-    fin.disabled = !canFin; if ($('#saveNext')) $('#saveNext').disabled = !canFin;
+    fin.classList.toggle('dim', !canFin); if ($('#saveNext')) $('#saveNext').classList.toggle('dim', !canFin);
+    S.formMiss = { miss: isExc && st === 'open' ? [] : miss, close: isExc && st === 'open' ? miss : [], errs: v.errs };
     fin.textContent = isExc ? (st === 'complete' ? 'Close out ✓' : 'Save & upload (open)') : bagNext ? 'Finish → scan bag ✓' : 'Finish ✓';
     if ($('#saveNext')) $('#saveNext').textContent = bagNext ? 'Finish → scan bag & add next' : 'Finish & add next';
     const sfb = $('#sfphoto', form); if (sfb) sfb.classList.toggle('hidden', !cur.special_find);
     $('#finhelp').textContent = canFin ? (isExc && st === 'open' ? 'The excavation uploads as open; close it out when all checks pass.' : 'Finished records upload automatically.')
-      : 'Not finished yet. You can “Save unfinished” to continue later, but it is NOT sent to the project until it is finished.';
-    showMsgs(form, v, true);
+      : `Can’t finish yet: ${errs ? errs + ' field error' + (errs > 1 ? 's' : '') + (miss.length ? ' and ' : '') : ''}${miss.length ? miss.length + ' item' + (miss.length > 1 ? 's' : '') + ' missing' : ''}. Tap Finish to see what’s missing. “Save unfinished” keeps it on this device only.`;
+    if (canFin && isExc && st === 'open' && miss.length) $('#finhelp').textContent += ` To close it out, still needed: ${miss.join('; ')}.`;
+    showMsgs(form, v, true); markNeeded(form, miss);
   };
   bindPhotos($('[data-photos]', form), rec, () => refresh());
   if (rec.tbl === 'sites') {
@@ -1084,14 +1117,14 @@ function formView(rec, isNew, opts = {}) {
     let nd = current();
     const v = validate(rec.tbl, nd, rec);
     showMsgs(form, v);
-    if (Object.keys(v.errs).length) { toast('Fix the highlighted fields first'); return; }
+    if (Object.keys(v.errs).length) { showMissing(form, completeness(rec, nd).filter(x => x !== BAG_MISS), v.errs); return; }
     let miss = completeness(rec, nd), st = statusFor(rec, nd, miss), extraBags = [];
     if (mode === 'finish' && rec.tbl === 'levels' && onlyBag(miss)) {
       const bags = await bagPrompt(rec, nd); if (!bags) return;
       nd.bag_qr = bags[0].code; nd._bag_contents = bags[0].contents; extraBags = bags.slice(1);
       miss = completeness(rec, nd); st = statusFor(rec, nd, miss);
     }
-    if (mode === 'finish' && !(st === 'complete' || (isExc && st === 'open'))) { toast('Not finished yet: see the list above'); return; }
+    if (mode === 'finish' && !(st === 'complete' || (isExc && st === 'open'))) { showMissing(form, miss, v.errs); return; }
     nd._status = mode === 'draft' && st !== 'draft' && !isExc ? 'draft' : st;
     if (mode === 'draft' && isExc && st !== 'draft') nd._status = 'draft';
     nd._missing = miss;
@@ -1129,7 +1162,7 @@ function formView(rec, isNew, opts = {}) {
     const n = [...S.recs.values()].filter(r => r.parent === rec.id && !r.deleted).length;
     if (await ask(`Delete this ${def.label.toLowerCase()}${n ? ` and everything under it (${n}+ records)` : ''}?`, 'Delete')) { S.formDirty = false; await softDelete(rec); toast('Deleted'); location.hash = parent ? hashFor(parent) : homeFor(rec.tbl); }
   });
-  form.onkeydown = e => { if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); doSave($('#fin').disabled ? 'draft' : 'finish'); } };
+  form.onkeydown = e => { if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); doSave($('#fin').classList.contains('dim') ? 'draft' : 'finish'); } };
   const first = form.querySelector('input:not([type=checkbox]),select'); if (first && !('ontouchstart' in window)) first.focus();
 }
 const homeFor = t => t === 'boxes' || t === 'custody' ? '#/scan' : '#/sites';
@@ -1357,7 +1390,7 @@ async function viewSettings() {
     <div class="card">${TESTMODE ? `<p><b>You are in TEST MODE.</b> Everything here is practice data, stored separately from the project.</p>
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a><button class="btn sec" id="tmoff">Leave test mode</button></div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.8 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.8.1 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   $('#demo') && ($('#demo').onclick = loadDemo);
   $('#tmoff') && ($('#tmoff').onclick = () => switchMode(false));
   $('#tmon') && ($('#tmon').onclick = () => switchMode(true));
