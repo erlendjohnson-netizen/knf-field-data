@@ -21,7 +21,7 @@ const LISTS = {
   sample_type: ['Radiocarbon (AMS)', 'OSL', 'Flotation', 'Soil/sediment', 'Pollen', 'Phytolith', 'Other'],
   sample_material: ['Charcoal', 'Wood', 'Nutshell', 'Seed', 'Bone', 'Pottery residue', 'Sediment', 'Other'],
   osl_collection: ['Core (tube)', 'Bag (dark sample)'],
-  bag_contents: ['Prehistoric artifacts', 'Historic artifacts', 'Mixed artifacts', 'Lithics', 'Ceramics', 'FCR', 'Bone', 'Charcoal', 'Sample', 'Other'],
+  bag_contents: ['Prehistoric artifacts', 'Special find', 'Historic artifacts', 'Mixed artifacts', 'Lithics', 'Ceramics', 'FCR', 'Bone', 'Charcoal', 'Sample', 'Other'],
   // lithics
   tool_type: ['Biface (Hafted)', 'Biface (Unhafted)', 'Biface Fragment', 'Biface Preform', 'Scraper', 'Drill',
     'Bifacial Flake Tool', 'Unifacial Flake Tool', 'Blade', 'Core', 'Hammerstone', 'Special', 'Unknown'],
@@ -140,7 +140,7 @@ const TABLES = {
     label: 'Level', plural: 'Levels', parent: 'excavations', mode: 'field', legacy: 'levels',
     title: r => `EU ${r.excavation_unit || 'A'} · Level ${r.levelno ?? '?'} (${r.top_cm ?? '?'}–${r.bgscm ?? '?'} cm)`,
     fields: [
-      { k: 'bag_qr', l: 'Bag label: scan to start the level', t: 'qr', w: 3, virtual: 1, newOnly: 1 },
+      { k: 'bag_qr', l: 'Bag label (scanned before starting)', t: 'qr', w: 3, virtual: 1, newOnly: 1, show: r => !!r.bag_qr },
       { k: 'excavation_unit', l: 'EU', t: 'text', req: 1, ph: 'A' },
       { k: 'levelno', l: 'Level no.', t: 'int', req: 1 },
       { k: 'levelid', l: 'Level ID', t: 'ro' },
@@ -159,6 +159,7 @@ const TABLES = {
       { k: 'soil_change', l: 'Soil change', t: 'bool' },
       { k: 'feature', l: 'Feature', t: 'bool' },
       { k: 'special_find', l: 'Special find', t: 'bool' },
+      { k: 'special_find_desc', l: 'Special find: what it is, where and depth', t: 'area', w: 3, ph: 'e.g. Gary point, base intact, NE quad of A at 34 cmbs, in situ', show: r => !!r.special_find },
       { k: 'terminal_level', l: 'Terminal level', t: 'bool' },
       { k: 'notes', l: 'Notes', t: 'area', w: 3 },
     ],
@@ -413,7 +414,7 @@ TABLES.photos = {
 };
 const PHOTO_KINDS = {
   excavations: ['Overview', 'Plan view', 'Profile', 'Other'],
-  levels: ['Level floor', 'Profile', 'In situ find', 'Other'],
+  levels: ['Level floor', 'Profile', 'Special find', 'In situ find', 'Other'],
   boxes: ['Label', 'Contents', 'Other'],
   features: ['Plan view', 'Profile/bisect', 'Other'],
   samples: ['In situ', 'Other'],

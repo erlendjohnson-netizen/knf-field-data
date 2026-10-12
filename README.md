@@ -67,7 +67,8 @@ Settings → *Switch to test mode* gives a practice copy of the app with a purpl
 
 ## Labels, scanning and custody
 - **Print labels:** go to Home → *Print labels*. Bag labels (B-XXXXXX) fit Avery 5160-size sheets (use weatherproof stock); box labels (X-XXXXXX) fit 4×2 in. Each code is random and unique, so anyone can print a batch without coordinating. Print from the hosted app: the QR then holds the app's address, and a phone's own camera opens that bag's page directly.
-- **Field:** when starting a level, scan the bag label (top of the new-level form). A level with artifacts can't be finished until it has a bag.
+- **Field:** tick *Artifacts recovered* on the level form. When you press **Finish**, a pop-up asks you to scan the bag label (it opens the camera straight away; typing the code or a USB scanner also works). The pop-up shows the site, excavation, EU, level and depths to write on the bag as a backup. *Scan another bag* adds more bags to the same level (for example a special find). The level is finished only once at least one bag is scanned; *Back to the form* leaves it unfinished. A label already used on another bag is refused.
+- **Special finds:** ticking *Special find* adds a description box (what it is, where and depth) and a *Photo of the special find* button. The level can't be finished without both.
 - **Custody:** scanning a bag shows where it came from, who holds it, which box it is in, and its full custody log. You can hand it over, put it in a box, or mark it received at the lab or checked out for analysis. Scanning a box lists its contents, and *Add bags* scans bags into it one after another.
 - **Lab:** *Scan bag* on the Lab screen jumps straight to that level's lab forms and logs the check-out. A USB barcode scanner on a PC also works: it types into the code box.
 - Custody is an append-only log, so two devices offline can never overwrite each other's custody entries.

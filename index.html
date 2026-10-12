@@ -67,6 +67,12 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--acc);outline-off
 .modal .card{max-width:440px;width:100%}
 .check{font-size:13px;border-left:3px solid var(--warn);padding:6px 10px;background:var(--card);border-radius:6px;margin:6px 0}
 .check.okc{border-color:var(--ok)}
+.check.bagnext{border-color:var(--teal,#0097A7);background:rgba(0,151,167,.08)}
+.bagprompt b.t{font-size:18px;display:block;color:#CE181E}
+.baglevel{border:2px dashed #CE181E;border-radius:10px;padding:8px 10px;margin:8px 0;font-size:15px}
+.baglevel small{display:block;color:var(--mut,#666);font-size:12px}
+.bagrow{display:flex;gap:8px;align-items:center;margin:6px 0}.bagrow b{white-space:nowrap;color:var(--ok)}.bagrow select{flex:1;min-height:36px}
+.btn.big{width:100%;min-height:56px;font-size:18px}
 table.cat{border-collapse:collapse;width:100%;font-size:14px;background:var(--card)}table.cat th,table.cat td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left}
 .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
 .hidden{display:none!important}
@@ -217,7 +223,7 @@ async function loadDemo() {
 const TESTPLAN = [
   ['Setup', ['Add your name in Settings', 'Sign in (test mode needs its own sign-in)', 'Install the app on this device (Add to Home Screen / Install app)', 'Load practice data']],
   ['Sites', ['Open a Phase II site from the list', 'Create a new site with a temporary number (+ New site (temp. no.)) and check the KRD-T## / CRD-T## number', 'Rename a temporary site to a trinomial and check the temporary number is kept']],
-  ['STP', ['Start an STP and capture GPS (with the Emlid on Android if available)', 'Check the accuracy warning appears when accuracy is poor', 'Start Level 1 by scanning a bag label', 'Try to Finish a level without a photo (must be blocked)', 'Save a level as unfinished and check the red banner and acknowledgement box', 'Try to start the next level while one is unfinished (must be blocked)', 'Finish the level from its page with “Finish now” after adding a photo', 'Close out an STP (final depth must match the deepest level)']],
+  ['STP', ['Start an STP and capture GPS (with the Emlid on Android if available)', 'Check the accuracy warning appears when accuracy is poor', 'Record a level with “Artifacts recovered” ticked, press Finish, and scan the bag label in the pop-up', 'Tick “Special find”: check it needs a description and a special-find photo, and scan a second bag for it', 'Press “Back to the form” in the bag pop-up and check the level is NOT finished', 'Try to scan a bag label that is already used (must be refused)', 'Try to Finish a level without a photo (must be blocked)', 'Save a level as unfinished and check the red banner and acknowledgement box', 'Try to start the next level while one is unfinished (must be blocked)', 'Finish the level from its page with “Finish now” after adding a photo', 'Close out an STP (final depth must match the deepest level)']],
   ['GPS & points', ['Watch the live GPS readout on a location box (green = good for the chosen source)', 'Switch the GPS source (Emlid / Trimble / phone) and check the warning thresholds change', 'Type in coordinates from another instrument and check they show as “typed in”', 'On a site page, Take a point: walk a few boundary points with “Finish & add next” (B1, B2, B3…)', 'Check the site map shows STPs, units, points and the boundary outline', 'Tap a symbol on the site map to open it']],
   ['Test unit', ['Create a TU and capture the datum', 'Add subunit A and choose the datum corner', 'Add a 0.5 × 1 m subunit against A', 'Build an L-shaped subunit from two pieces', 'Try to overlap two subunits (must be blocked)', 'Start a level in a specific subunit and check the volume', 'Shoot a corner, choose which plan corner it is, and set the azimuth', 'Check close-out lists what is missing']],
   ['Bags & boxes', ['Print a sheet of bag labels and a sheet of box labels', 'Scan a bag with the app and with the phone’s own camera app', 'Hand over a bag and check the custody log', 'Register a box and scan bags into it', 'Remove a bag from a box', 'Scan an unassigned bag label and assign it to a level']],
@@ -692,6 +698,8 @@ function excHeaderMissing(d) {
   if (blank(d.crew)) m.push('Excavators');
   return m;
 }
+const BAG_MISS = 'Bag label for the artifacts (scanned when you press Finish)';
+const onlyBag = miss => miss.length > 0 && miss.every(x => x === BAG_MISS);
 function completeness(rec, d) {
   const t = rec.tbl, m = t === 'excavations' ? excHeaderMissing(d) : requiredMissing(rec, d), need = (k, label) => { if (blank(d[k]) && !m.includes(label)) m.push(label); };
   const hasPhoto = kinds => photosOf(rec.id).some(p => !kinds || kinds.includes(p.data.kind));
@@ -738,8 +746,9 @@ function completeness(rec, d) {
   }
   if (t === 'levels') {
     if (d.excavation_method !== 'Not excavated') { need('munsell', 'Munsell'); need('soil_texture', 'Soil texture'); need('excavation_method', 'Method'); need('screen', 'Screen'); }
-    if (d.artifacts && !kids(rec.id, 'bags').length && blank(d.bag_qr)) m.push('Bag label (scan it) for the artifacts');
+    if (d.special_find) { need('special_find_desc', 'Special find description'); if (!hasPhoto(['Special find', 'In situ find'])) m.push('Photo of the special find'); }
     if (!hasPhoto()) m.push('Photo of the level (floor or profile)');
+    if (d.artifacts && !kids(rec.id, 'bags').length && blank(d.bag_qr)) m.push(BAG_MISS);
   }
   if (t === 'bags') need('contents', 'Contents');
   if (t === 'mappoints') { if (d.lat == null && blank(d.utme)) m.push('GPS position'); if (d.kind === 'Unit corner') need('corner', 'Which corner'); }
@@ -783,7 +792,13 @@ function confirmUnfinished(what, miss) {
 /* finish a draft from its page once everything is in (e.g. after adding the photo) */
 async function finishNow(rec) {
   const d = compute(rec.tbl, rec.data, { site: rec.tbl === 'sites' ? rec : get(rec.site), parentRec: get(rec.parent) });
-  const v = validate(rec.tbl, d, rec), miss = completeness(rec, d), st = statusFor(rec, d, miss);
+  const v = validate(rec.tbl, d, rec);
+  let miss = completeness(rec, d), st = statusFor(rec, d, miss);
+  if (!Object.keys(v.errs).length && rec.tbl === 'levels' && onlyBag(miss)) {
+    const bags = await bagPrompt(rec, d); if (!bags) return;
+    for (const b of bags) await createBag(rec, b.code, b.contents);
+    miss = completeness(rec, d); st = statusFor(rec, d, miss);
+  }
   if (Object.keys(v.errs).length || st === 'draft') { location.hash = '#/edit/' + rec.id; toast('Fill in the missing items, then press Finish'); return; }
   rec.data = { ...d, _status: st, _missing: miss }; await save(rec); toast(st === 'open' ? 'Saved: excavation open' : 'Finished ✓'); render();
 }
@@ -973,6 +988,11 @@ function formView(rec, isNew, opts = {}) {
     <div class="help" id="finhelp"></div></form>
     ${!isNew ? `<div class="help">Created ${esc(new Date(rec.created_at).toLocaleString())} by ${esc(rec.created_by || '?')} · last edit ${esc(new Date(rec.updated_at).toLocaleString())} by ${esc(rec.updated_by || '?')}</div>` : ''}`;
   const form = $('#frm');
+  const sfd = form.querySelector('.f[data-k="special_find_desc"]');
+  if (sfd) {
+    sfd.insertAdjacentHTML('afterend', `<div class="f w3${d.special_find ? '' : ' hidden'}" id="sfphoto"><button type="button" class="btn sec">📷 Photo of the special find</button><div class="help">Required: a close-up of the find (in situ if possible) with a scale and north arrow.</div></div>`);
+    $('#sfphoto button', form).onclick = () => { const k = $('.pkind', form); if (k) k.value = 'Special find'; $('.pcam', form)?.click(); };
+  }
   const gbox = $('[data-gps]', form);
   if (gbox) {
     renderGps(gbox, d); $('.gpsbtn', gbox).onclick = () => gpsCapture(gbox, d, () => refresh());
@@ -994,12 +1014,14 @@ function formView(rec, isNew, opts = {}) {
       if (f.t === 'ro') { const el = $('#f_' + f.k, form); if (el) el.textContent = cur[f.k] === '' || cur[f.k] == null ? '—' : cur[f.k]; }
       if (f.show) form.querySelector(`.f[data-k="${f.k}"]`)?.classList.toggle('hidden', !f.show(cur));
     });
-    const v = validate(rec.tbl, cur, rec), errs = Object.keys(v.errs).length, miss = completeness(rec, cur), st = statusFor(rec, cur, miss);
-    $('#chk').innerHTML = (miss.length ? `<div class="check"><b>${isExc && st === 'open' ? 'Before close-out' : 'Still needed before this can be finished'}:</b><ul style="margin:4px 0 0;padding-left:18px">${miss.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : '<div class="check okc">Everything is filled in ✓</div>')
+    const v = validate(rec.tbl, cur, rec), errs = Object.keys(v.errs).length, missAll = completeness(rec, cur), bagNext = missAll.includes(BAG_MISS), miss = missAll.filter(x => x !== BAG_MISS), st = statusFor(rec, cur, miss);
+    $('#chk').innerHTML = (bagNext ? '<div class="check bagnext">🏷 <b>Artifacts recorded:</b> when you press Finish, the app asks you to scan the bag label for this level.</div>' : '') + (miss.length ? `<div class="check"><b>${isExc && st === 'open' ? 'Before close-out' : 'Still needed before this can be finished'}:</b><ul style="margin:4px 0 0;padding-left:18px">${miss.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : '<div class="check okc">Everything is filled in ✓</div>')
       + (errs ? `<div class="check" style="border-color:var(--bad)"><b>${errs} field${errs > 1 ? 's have' : ' has'} an error</b> (see highlighted fields)</div>` : '');
     const fin = $('#fin'), canFin = !errs && (st === 'complete' || (isExc && st === 'open'));
     fin.disabled = !canFin; if ($('#saveNext')) $('#saveNext').disabled = !canFin;
-    fin.textContent = isExc ? (st === 'complete' ? 'Close out ✓' : 'Save & upload (open)') : 'Finish ✓';
+    fin.textContent = isExc ? (st === 'complete' ? 'Close out ✓' : 'Save & upload (open)') : bagNext ? 'Finish → scan bag ✓' : 'Finish ✓';
+    if ($('#saveNext')) $('#saveNext').textContent = bagNext ? 'Finish → scan bag & add next' : 'Finish & add next';
+    const sfb = $('#sfphoto', form); if (sfb) sfb.classList.toggle('hidden', !cur.special_find);
     $('#finhelp').textContent = canFin ? (isExc && st === 'open' ? 'The excavation uploads as open; close it out when all checks pass.' : 'Finished records upload automatically.')
       : 'Not finished yet. You can “Save unfinished” to continue later, but it is NOT sent to the project until it is finished.';
     showMsgs(form, v, true);
@@ -1063,12 +1085,17 @@ function formView(rec, isNew, opts = {}) {
     const v = validate(rec.tbl, nd, rec);
     showMsgs(form, v);
     if (Object.keys(v.errs).length) { toast('Fix the highlighted fields first'); return; }
-    const miss = completeness(rec, nd), st = statusFor(rec, nd, miss);
+    let miss = completeness(rec, nd), st = statusFor(rec, nd, miss), extraBags = [];
+    if (mode === 'finish' && rec.tbl === 'levels' && onlyBag(miss)) {
+      const bags = await bagPrompt(rec, nd); if (!bags) return;
+      nd.bag_qr = bags[0].code; nd._bag_contents = bags[0].contents; extraBags = bags.slice(1);
+      miss = completeness(rec, nd); st = statusFor(rec, nd, miss);
+    }
     if (mode === 'finish' && !(st === 'complete' || (isExc && st === 'open'))) { toast('Not finished yet: see the list above'); return; }
     nd._status = mode === 'draft' && st !== 'draft' && !isExc ? 'draft' : st;
     if (mode === 'draft' && isExc && st !== 'draft') nd._status = 'draft';
     nd._missing = miss;
-    const bagCode = nd.bag_qr; fields.filter(f => f.virtual).forEach(f => delete nd[f.k]);
+    const bagCode = nd.bag_qr, bagContents = nd._bag_contents; delete nd._bag_contents; fields.filter(f => f.virtual).forEach(f => delete nd[f.k]);
     if (isNew && rec.tbl === 'sites') {
       if (nd.record_kind !== 'New site (temporary no.)' && nd.record_kind !== 'Isolated find' && nd.record_kind !== 'Other investigation') {
         const old = rec.id; rec.id = rec.site = await siteUUID(nd.sitename);
@@ -1076,7 +1103,8 @@ function formView(rec, isNew, opts = {}) {
       }
     }
     rec.data = nd; await save(rec);
-    if (rec.tbl === 'levels' && bagCode) await createBag(rec, parseCode(bagCode));
+    if (rec.tbl === 'levels' && bagCode && !live('bags').some(b => b.data.qr === parseCode(bagCode))) await createBag(rec, parseCode(bagCode), bagContents);
+    for (const b of extraBags) await createBag(rec, b.code, b.contents);
     if (rec.tbl === 'bags' && isNew && nd.qr) await custodyEvent(nd.qr, 'bag', 'Collected in field', { location: get(rec.site)?.data.sitename || '' });
     if (rec.tbl === 'boxes' && isNew) await custodyEvent(nd.qr, 'box', 'Transferred', { location: nd.location, notes: 'Box registered' });
     S.formDirty = false;
@@ -1216,6 +1244,7 @@ function viewLevel(l) {
   $('#app').innerHTML = `${crumbs(l)}<h2>${esc(TABLES.levels.title(d))} ${statusBadge(l)}</h2>${unfinishedBox(l)}
     <div class="card kv"><div><span>Level ID</span><br>${esc(d.levelid || '—')}</div><div><span>Soil</span><br>${esc(d.munsell || '—')} ${esc(d.soil_texture || '')}</div>
       <div><span>Method / screen</span><br>${esc(d.excavation_method || '—')} · ${esc(d.screen || '—')}</div><div><span>Artifacts (field)</span><br>${d.artifacts ? 'Yes' : 'No'}${d.field_count != null ? ' · ' + d.field_count : ''}</div>
+      ${d.special_find ? `<div style="grid-column:1/-1"><span>Special find</span><br>${esc(d.special_find_desc || '—')}</div>` : ''}
       ${d.notes ? `<div style="grid-column:1/-1"><span>Notes</span><br>${esc(d.notes)}</div>` : ''}</div>
     <div class="btns"><a class="btn sec" href="#/edit/${l.id}">Edit level</a><a class="btn" href="#/new/bags/${l.id}">+ Bag</a>
       <a class="btn sec" href="#/new/features/${l.parent}?lv=${l.id}">+ Feature</a><a class="btn sec" href="#/new/samples/${l.parent}?lv=${l.id}">+ Sample</a>
@@ -1328,7 +1357,7 @@ async function viewSettings() {
     <div class="card">${TESTMODE ? `<p><b>You are in TEST MODE.</b> Everything here is practice data, stored separately from the project.</p>
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a><button class="btn sec" id="tmoff">Leave test mode</button></div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.7 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.8 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   $('#demo') && ($('#demo').onclick = loadDemo);
   $('#tmoff') && ($('#tmoff').onclick = () => switchMode(false));
   $('#tmon') && ($('#tmon').onclick = () => switchMode(true));
@@ -1642,9 +1671,9 @@ async function custodyEvent(code, kind, action, extra = {}) {
   const r = mk('custody', null, { item_qr: code, item_kind: kind, action, to_person: me(), from_person: '', location: '', time: now(), ...extra, _status: 'complete', _missing: [] });
   await save(r); return r;
 }
-async function createBag(level, code) {
+async function createBag(level, code, contents) {
   const b = mk('bags', level.id, {});
-  b.data = { qr: code, bag_no: nextNum(live('bags').filter(r => r.site === level.site), 'bag_no'), contents: 'Prehistoric artifacts', date: today(), _status: 'complete', _missing: [] };
+  b.data = { qr: code, bag_no: nextNum(live('bags').filter(r => r.site === level.site), 'bag_no'), contents: contents || 'Prehistoric artifacts', date: today(), _status: 'complete', _missing: [] };
   await save(b);
   await custodyEvent(code, 'bag', 'Collected in field', { location: get(level.site)?.data.sitename || '' });
   return b;
@@ -1664,6 +1693,42 @@ function qrSVG(text, size) {
 }
 const appBase = () => location.protocol.startsWith('http') ? location.href.split('#')[0] : '';
 const labelText = code => appBase() ? `${appBase()}#/scan/${code}` : code;
+
+/* After Finish on a level with artifacts: scan the bag label(s) and link them to the level */
+function bagPrompt(level, d) {
+  return new Promise(resolve => {
+    const lid = d.levelid || '', exc = get(level.parent), site = get(level.site);
+    const bags = [], opts = c => LISTS.bag_contents.map(x => `<option ${x === c ? 'selected' : ''}>${esc(x)}</option>`).join('');
+    const m = document.createElement('div'); m.className = 'modal';
+    m.innerHTML = `<div class="card bagprompt" style="max-width:480px"><b class="t">🏷 Artifacts recorded: bag this level</b>
+      <p style="margin:6px 0">Scan the QR label on the bag. The bag is then linked to this level and its custody starts.</p>
+      <div class="baglevel"><small>Write on the bag as a backup</small><b>${esc(site?.data.sitename || '')} · ${esc(exc?.data.excavation_name || exc?.data.excavationid || '')}</b><br>EU ${esc(d.excavation_unit || 'A')} · Level ${esc(d.levelno ?? '?')} · ${esc(d.top_cm ?? '?')}–${esc(d.bgscm ?? '?')} cmbs${lid ? ` · ID ${esc(lid)}` : ''}</div>
+      <div id="bplist"></div><div class="help" id="bpmsg"></div>
+      <div class="btns"><button class="btn big" id="bpscan">📷 Scan bag label</button></div>
+      <div class="btns" style="justify-content:flex-end"><button class="btn sec" id="bpx">Back to the form</button><button class="btn" id="bpok" disabled>Finish level ✓</button></div></div>`;
+    document.body.append(m);
+    const draw = () => {
+      $('#bplist', m).innerHTML = bags.map((b, i) => `<div class="bagrow"><b>✓ ${esc(b.code)}</b><select data-i="${i}">${opts(b.contents)}</select><button class="btn sm sec" data-rm="${i}">✕</button></div>`).join('');
+      $('#bpscan', m).textContent = bags.length ? '📷 Scan another bag (e.g. special find)' : '📷 Scan bag label';
+      $('#bpscan', m).classList.toggle('sec', !!bags.length);
+      $('#bpok', m).disabled = !bags.length;
+    };
+    const scan = async () => {
+      const code = await openScanner('Scan the bag label for this level'); if (!code) return;
+      const msg = $('#bpmsg', m); msg.textContent = '';
+      if (!code.startsWith('B-')) { msg.textContent = `${code} is a box label, not a bag label.`; return; }
+      const used = live('bags').find(b => b.data.qr === code);
+      if (used || bags.some(b => b.code === code)) { msg.textContent = `${code} is already on ${used ? 'another bag (' + (get(used.parent) ? TABLES.levels.title(get(used.parent).data) : 'another level') + ')' : 'this list'}. Use a new label.`; return; }
+      bags.push({ code, contents: bags.length && d.special_find ? 'Special find' : 'Prehistoric artifacts' }); draw();
+    };
+    m.addEventListener('change', e => { const i = e.target.dataset.i; if (i != null) bags[+i].contents = e.target.value; });
+    m.addEventListener('click', e => { const i = e.target.dataset.rm; if (i != null) { bags.splice(+i, 1); draw(); } });
+    $('#bpscan', m).onclick = scan;
+    $('#bpx', m).onclick = () => { m.remove(); toast('Level NOT finished: it still needs its bag label'); resolve(null); };
+    $('#bpok', m).onclick = () => { m.remove(); resolve(bags); };
+    draw(); scan(); // go straight to the camera
+  });
+}
 
 let scanStream = null;
 function openScanner(title = 'Scan label') {
