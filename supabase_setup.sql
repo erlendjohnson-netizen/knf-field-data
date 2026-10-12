@@ -41,7 +41,7 @@ create trigger records_stamp before insert or update on public.records for each 
 create table if not exists public.records_history (
   hist_id bigserial primary key, id uuid, tbl text, data jsonb, deleted boolean, updated_at timestamptz, updated_by text,
   synced_by uuid, saved_at timestamptz default now());
-create or replace function public.records_log() returns trigger language plpgsql as $$
+create or replace function public.records_log() returns trigger language plpgsql security definer set search_path = public as $$
 begin
   insert into public.records_history (id, tbl, data, deleted, updated_at, updated_by, synced_by)
   values (new.id, new.tbl, new.data, new.deleted, new.updated_at, new.updated_by, new.synced_by);
