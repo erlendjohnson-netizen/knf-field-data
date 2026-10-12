@@ -81,8 +81,12 @@ header{gap:8px}
 .home{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:8px 0 14px}
 @media (max-width:520px){.home{grid-template-columns:1fr}}
 .tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:190px;border-radius:18px;text-decoration:none;color:#fff;font-size:28px;font-weight:800;letter-spacing:.02em;padding:18px;text-align:center}
-.tile svg{width:76px;height:76px}.tile small{font-size:14px;font-weight:500;opacity:.9;letter-spacing:0}
+.tile span{display:flex;flex-direction:column;align-items:center;gap:4px}.tile svg{width:76px;height:76px}.tile small{font-size:14px;font-weight:500;opacity:.9;letter-spacing:0}
 .tile.field{background:#CE181E}.tile.lab{background:#610B0E}
+.tile.bagchk{background:#0A0203;grid-column:1/-1;order:3;min-height:110px;flex-direction:row;font-size:24px}.tile.bagchk svg{width:56px;height:56px}.tile.bagchk span{display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+.dcstats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0}.dcstats div{background:var(--card);border-radius:10px;padding:8px;text-align:center;font-size:13px;border:1px solid var(--line,#ddd)}.dcstats b{display:block;font-size:26px}.dcstats .ok b{color:var(--ok)}.dcstats .bad{border:2px solid var(--bad)}.dcstats .bad b{color:var(--bad)}.dcstats .warn b{color:#b8860b}
+.dcgroup ul{margin:4px 0 0;padding-left:18px}ul.card.dcgroup{padding-left:30px}.dcgroup li{margin:3px 0}.dcsite{display:flex;gap:8px;align-items:center;padding:8px 0;font-size:16px}.dcsite input{width:22px;height:22px;min-height:0}
+@media print{.noprint,#tabs,header,.formbar,#draftbar,#testbar{display:none!important}}
 @media (max-width:520px){.tile{min-height:150px;flex-direction:row;justify-content:flex-start;font-size:26px}.tile svg{width:60px;height:60px}.tile span{display:flex;flex-direction:column;align-items:flex-start;gap:2px}}
 .minis{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
 .mini{display:flex;align-items:center;gap:8px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);text-decoration:none;font-weight:600}
@@ -167,7 +171,7 @@ try { TESTMODE = localStorage.getItem('knf-mode') === 'test'; } catch (e) { }
 CORE.setMode(TESTMODE ? 'test' : 'live');
 async function switchMode(test) {
   if (!test && draftCount() && !(await ask('Leaving test mode. Your practice records stay in test mode; nothing is copied to the project.', 'Leave test mode'))) return;
-  if (test && !(await ask('Switch to TEST MODE?\n\nPractice data is kept completely separate from project data: its own storage on this device and its own table on the server. You will need to sign in again inside test mode.', 'Switch to test mode'))) return;
+  if (test && !(await ask('Switch to TEST MODE?\n\nPractice data is kept completely separate from project data: its own storage on this device and its own table on the server. You stay signed in; practice records upload to the test table.', 'Switch to test mode'))) return;
   try { localStorage.setItem('knf-mode', test ? 'test' : 'live'); } catch (e) { toast('This browser blocks storage; test mode cannot be saved'); return; }
   S.formDirty = false; location.hash = '#/'; location.reload();
 }
@@ -230,6 +234,7 @@ const TESTPLAN = [
   ['GPS & points', ['Watch the live GPS readout on a location box (green = good for the chosen source)', 'Switch the GPS source (Emlid / Trimble / phone) and check the warning thresholds change', 'Type in coordinates from another instrument and check they show as “typed in”', 'On a site page, Take a point: walk a few boundary points with “Finish & add next” (B1, B2, B3…)', 'Check the site map shows STPs, units, points and the boundary outline', 'Tap a symbol on the site map to open it']],
   ['Test unit', ['Create a TU and capture the datum', 'Add subunit A and choose the datum corner', 'Add a 0.5 × 1 m subunit against A', 'Build an L-shaped subunit from two pieces', 'Try to overlap two subunits (must be blocked)', 'Start a level in a specific subunit and check the volume', 'Shoot a corner, choose which plan corner it is, and set the azimuth', 'Check close-out lists what is missing']],
   ['Bags & boxes', ['Print a sheet of bag labels and a sheet of box labels', 'Scan a bag with the app and with the phone’s own camera app', 'Hand over a bag and check the custody log', 'Register a box and scan bags into it', 'Remove a bag from a box', 'Scan an unassigned bag label and assign it to a level']],
+  ['End-of-day bag check', ['Sync every test device first', 'Home → Bag check: start, scan a box label, then scan most (not all) of the day’s bags', 'Scan a bag label that was never used (must show as extra)', 'Finish and read the report: missing bags grouped by who bagged them', 'Copy the report as text and paste it into a message', 'Box a missing bag later and reopen the report (shows “found since”)']],
   ['Lab', ['Scan a bag on the Lab screen and check it opens the right level', 'Enter a lithic tool with a named chert source on visual ID (warning)', 'Enter a hafted biface without a photo (must be blocked)', 'Enter ceramics, then a tabulation that disagrees with the catalogue (must be blocked)', 'Fix the tabulation and finish it', 'Open the site catalogue table']],
   ['Offline & sync', ['Turn on airplane mode, enter a level with photo, turn it off, and check it uploads by itself', 'Edit the same record on two devices and check the newest edit wins', 'Check a second device sees the first device’s records and photos', 'Check drafts do NOT appear on the second device', 'Two devices offline use the same STP number: check the duplicate warning on the Sync page']],
   ['Export', ['Download the CSV zip and open it in Excel / QGIS', 'Make a JSON backup and restore it on another device']],
@@ -1218,6 +1223,7 @@ function viewRec(id) {
   if (r.tbl === 'excavations') return viewExc(r);
   if (r.tbl === 'levels') return viewLevel(r);
   if (r.tbl === 'subunits') return subunitEditor(r, false);
+  if (r.tbl === 'daychecks') return viewDayReport(r);
   return formView(r, false);
 }
 function viewExc(e) {
@@ -1390,7 +1396,7 @@ async function viewSettings() {
     <div class="card">${TESTMODE ? `<p><b>You are in TEST MODE.</b> Everything here is practice data, stored separately from the project.</p>
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a><button class="btn sec" id="tmoff">Leave test mode</button></div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.8.1 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.9 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   $('#demo') && ($('#demo').onclick = loadDemo);
   $('#tmoff') && ($('#tmoff').onclick = () => switchMode(false));
   $('#tmon') && ($('#tmon').onclick = () => switchMode(true));
@@ -1809,12 +1815,164 @@ function openScanner(title = 'Scan label') {
   });
 }
 
+/* ================= End-of-day bag check =================
+   The field director scans the box, then every bag going into it. The app compares that with the bags
+   it expects (every bag at the chosen sites that is not yet in a box or at the lab) and reports missing
+   bags (with who collected them) and extra labels. Each scan is also a custody event (Placed in box). */
+const LAB_ACTIONS = ['Received at lab', 'Checked out for analysis', 'Returned to storage', 'Sent to specialist', 'Curated'];
+function bagInfo(b) {
+  const lv = get(b.parent), ex = lv && get(lv.parent), site = get(b.site);
+  return {
+    code: b.data.qr, site: site?.data.sitename || '?', exc: ex ? (ex.data.excavation_name || ex.data.excavationid || '') : '',
+    level: lv ? `EU ${lv.data.excavation_unit || 'A'} L${lv.data.levelno ?? '?'}` : '', depth: lv ? `${lv.data.top_cm ?? '?'}–${lv.data.bgscm ?? '?'} cm` : '',
+    contents: b.data.contents || '', date: b.data.date || (b.created_at || '').slice(0, 10), by: b.created_by || '?', crew: ex?.data.crew || '',
+  };
+}
+const bagWhere = i => `${i.site} · ${i.exc} · ${i.level}${i.depth ? ' (' + i.depth + ')' : ''}`;
+function outstanding(b) { const st = itemState(b.data.qr); return !st.box && !LAB_ACTIONS.includes(st.last?.data.action); }
+function dcExpected(dc) {
+  const set = new Set(dc.expected);
+  live('bags').forEach(b => { if (dc.sites.includes(b.site) && outstanding(b)) set.add(b.data.qr); });
+  return [...set];
+}
+function dcClassify(dc, code) {
+  const b = live('bags').find(x => x.data.qr === code);
+  if (!b) return { ok: false, why: 'Label not linked to any level on this device: its level may not have synced yet, or the label was never scanned at Finish' };
+  if (!dc.sites.includes(b.site)) return { ok: false, why: `Bag from another site (${bagWhere(bagInfo(b))})`, b };
+  return { ok: true, b };
+}
+function dcSummary(dc) {
+  const exp = dcExpected(dc), got = new Set(dc.scanned.map(s => s.code));
+  const missing = exp.filter(c => !got.has(c)).map(c => bagInfo(live('bags').find(b => b.data.qr === c)));
+  const extras = dc.scanned.map(s => ({ ...s, ...dcClassify(dc, s.code) })).filter(s => !s.ok).map(s => ({ code: s.code, box: s.box, why: s.why }));
+  return { exp, missing, extras, okN: dc.scanned.length - extras.length };
+}
+const saveDC = () => CORE.setMeta('daycheck', S.dc || null);
+function groupBy(list, k) { const g = {}; list.forEach(x => (g[x[k]] ||= []).push(x)); return g; }
+async function dcScanBox() {
+  const bx = await openScanner('Scan the BOX label the bags go into'); if (!bx) return false;
+  if (!bx.startsWith('X-')) { toast('That is a bag label. Scan the box label (X-…) first'); return false; }
+  return dcSetBox(bx);
+}
+async function dcSetBox(bx) {
+  if (!live('boxes').find(r => r.data.qr === bx)) {
+    const r = mk('boxes', null, { qr: bx, box_no: String(nextNum(live('boxes'), 'box_no')), location: 'Field (end-of-day check)', _status: 'complete', _missing: [] });
+    await save(r); await custodyEvent(bx, 'box', 'Transferred', { location: r.data.location, notes: 'Box registered at end-of-day check' });
+    toast(`New box registered: ${bx}`);
+  }
+  S.dc.box = bx; if (!S.dc.boxes.includes(bx)) S.dc.boxes.push(bx); await saveDC(); return true;
+}
+async function dcScanBags() {
+  if (!S.dc.box && !(await dcScanBox())) return;
+  for (;;) {
+    const s = dcSummary(S.dc);
+    const code = await openScanner(`Box ${S.dc.box} · ${s.okN} of ${s.exp.length} bags scanned · Cancel when done`); if (!code) break;
+    if (code.startsWith('X-')) { await dcSetBox(code); toast(`Now filling box ${code}`); continue; }
+    if (S.dc.scanned.some(x => x.code === code)) { toast(`${code} was already scanned`); continue; }
+    const c = dcClassify(S.dc, code), st = itemState(code);
+    await custodyEvent(code, 'bag', 'Placed in box', { from_person: st.holder, box_qr: S.dc.box, location: 'Box ' + S.dc.box, notes: 'End-of-day bag check' });
+    S.dc.scanned.push({ code, box: S.dc.box, time: now() }); await saveDC();
+    navigator.vibrate?.(c.ok ? 60 : [60, 80, 60]);
+    toast(c.ok ? `✓ ${code} · ${bagWhere(bagInfo(c.b))}` : `⚠ EXTRA ${code}: ${c.b ? 'from another site' : 'not linked to a level'}`);
+  }
+  viewDayCheck();
+}
+function missingHTML(missing) {
+  if (!missing.length) return '<div class="check okc">No bags missing ✓</div>';
+  return Object.entries(groupBy(missing, 'by')).map(([who, l]) => `<div class="card dcgroup"><b>${esc(who)}</b> · ${l.length} bag${l.length > 1 ? 's' : ''}
+    <ul>${l.map(i => `<li><b>${esc(i.code)}</b> · ${esc(bagWhere(i))} · ${esc(i.contents)} · bagged ${esc(i.date)}${i.crew ? ` <span class="help">(crew: ${esc(i.crew)})</span>` : ''}</li>`).join('')}</ul></div>`).join('');
+}
+function extrasHTML(extras) {
+  if (!extras.length) return '<div class="check okc">No extra labels ✓</div>';
+  return `<ul class="card dcgroup">${extras.map(x => `<li><b>${esc(x.code)}</b> (box ${esc(x.box)}): ${esc(x.why)}</li>`).join('')}</ul>`;
+}
+async function viewDayCheck() {
+  setTitle('End-of-day bag check');
+  if (S.dc === undefined) S.dc = (await CORE.getMeta('daycheck')) || null;
+  const pend = pending(), last = S.lastSync ? new Date(S.lastSync).toLocaleString() : 'never';
+  const syncNote = `<div class="check">Before you start, have <b>every crew phone and tablet sync</b> (the pill at the top turns green). Bags on a device that hasn’t synced show up here as <b>extra</b>, and their levels can’t be checked. This device: last sync ${esc(last)}${pend ? `, <b>${pend} record${pend > 1 ? 's' : ''} waiting to upload</b>` : ''}. <button class="btn sm" id="dcsync">⟳ Sync now</button></div>`;
+  if (!S.dc) {
+    const bags = live('bags').filter(outstanding), bySite = groupBy(bags.map(b => ({ site: b.site, b })), 'site');
+    const past = live('daychecks').sort((a, b) => (a.data.date < b.data.date ? 1 : -1)).slice(0, 15);
+    $('#app').innerHTML = `<h2>End-of-day bag check</h2>
+      <div class="help">Scan the box, then every bag going into it. The app checks the bags against everything bagged at the chosen sites that isn’t in a box yet, and makes a report of missing bags (and whose they are) and any extra labels.</div>
+      ${syncNote}
+      <div class="card"><b>Sites to check</b> <span class="help">(bags not yet in a box or at the lab)</span>
+        ${Object.keys(bySite).length ? Object.entries(bySite).map(([sid, l]) => `<label class="dcsite"><input type="checkbox" value="${sid}" checked> <b>${esc(get(sid)?.data.sitename || '?')}</b> · ${l.length} bag${l.length > 1 ? 's' : ''} expected</label>`).join('') : '<div class="empty">No bags waiting to be boxed on this device. Sync first, or there is nothing to check.</div>'}
+        <div class="btns"><button class="btn big" id="dcstart">▣ Start: scan the box</button></div></div>
+      <h3>Past checks</h3><div class="list">${past.map(r => rowHTML(r, `<small>${esc(r.data.checked_by || '')} · ${r.data.scanned_n ?? 0} scanned · ${r.data.missing_n ?? 0} missing · ${r.data.extra_n ?? 0} extra</small>`)).join('') || '<div class="empty">None yet</div>'}</div>`;
+    $('#dcstart').onclick = async () => {
+      const sites = [...document.querySelectorAll('.dcsite input:checked')].map(i => i.value);
+      if (!sites.length && !(await ask('No sites chosen. Every bag scanned will count as extra. Start anyway?', 'Start'))) return;
+      S.dc = { date: today(), started: now(), by: me(), sites, expected: [], scanned: [], boxes: [], box: null };
+      S.dc.expected = dcExpected(S.dc); await saveDC();
+      if (await dcScanBox()) await dcScanBags(); else viewDayCheck();
+    };
+  } else {
+    const s = dcSummary(S.dc);
+    $('#app').innerHTML = `<h2>End-of-day bag check <span class="badge">in progress</span></h2>
+      <div class="dcstats"><div><b>${s.exp.length}</b>expected</div><div class="ok"><b>${s.okN}</b>scanned</div><div class="${s.missing.length ? 'bad' : 'ok'}"><b>${s.missing.length}</b>missing</div><div class="${s.extras.length ? 'warn' : ''}"><b>${s.extras.length}</b>extra</div></div>
+      <div class="card">Current box: <b>${esc(S.dc.box || 'none')}</b>${S.dc.boxes.length > 1 ? ` <span class="help">(boxes so far: ${esc(S.dc.boxes.join(', '))})</span>` : ''} <button class="btn sm sec" id="dcbox">Change box</button>
+        <div class="btns"><button class="btn big" id="dcscan">📷 Scan bags</button></div>
+        <div class="help">The camera stays open for the next bag after each scan. Press Cancel when the pile is done. Scanning a box label switches boxes.</div></div>
+      ${syncNote}
+      <h3>Not scanned yet (${s.missing.length})</h3>${missingHTML(s.missing)}
+      <h3>Extra labels (${s.extras.length})</h3>${extrasHTML(s.extras)}
+      <h3>Scanned (${S.dc.scanned.length})</h3><div class="card dcgroup"><ul>${[...S.dc.scanned].reverse().map(x => { const c = dcClassify(S.dc, x.code); return `<li>${c.ok ? '✓' : '⚠'} <b>${esc(x.code)}</b> → box ${esc(x.box)}${c.ok ? ' · ' + esc(bagWhere(bagInfo(c.b))) : ' · extra'}</li>`; }).join('') || '<li class="help">Nothing yet</li>'}</ul></div>
+      <div class="formbar"><button class="btn" id="dcfin">Finish check &amp; make report</button><button class="btn sec" id="dcx">Abandon check</button></div>`;
+    $('#dcscan').onclick = dcScanBags;
+    $('#dcbox').onclick = async () => { await dcScanBox(); viewDayCheck(); };
+    $('#dcx').onclick = async () => { if (!(await ask('Abandon this check? Bags already scanned stay recorded in their boxes, but no report is made.', 'Abandon', 'Keep going'))) return; S.dc = null; await saveDC(); viewDayCheck(); };
+    $('#dcfin').onclick = async () => {
+      const s2 = dcSummary(S.dc);
+      if (s2.missing.length && !(await ask(`${s2.missing.length} bag${s2.missing.length > 1 ? 's are' : ' is'} missing. Finish anyway?\n\nThey are listed in the report with who bagged them, and they stay on the expected list for the next check until they are found.`, 'Finish with missing bags', 'Keep scanning'))) return;
+      const r = mk('daychecks', null, {});
+      r.data = { date: S.dc.date, checked_by: S.dc.by, started: S.dc.started, finished: now(), sites: S.dc.sites.map(id => get(id)?.data.sitename || '?').join(', '), site_ids: S.dc.sites, boxes: S.dc.boxes.join(', '),
+        expected_n: s2.exp.length, scanned_n: s2.okN, missing_n: s2.missing.length, extra_n: s2.extras.length,
+        expected: s2.exp, scanned: S.dc.scanned, missing: s2.missing, extras: s2.extras, notes: '', _status: 'complete', _missing: [] };
+      await save(r); S.dc = null; await saveDC(); runSync(); location.hash = '#/rec/' + r.id;
+    };
+  }
+  const sb = $('#dcsync'); if (sb) sb.onclick = async () => { await runSync(true); viewDayCheck(); };
+}
+function dcReportText(d) {
+  const L = [`KNF end-of-day bag check · ${d.date} · checked by ${d.checked_by}`, `Sites: ${d.sites || '—'} · Boxes: ${d.boxes || '—'}`, `${d.expected_n} expected · ${d.scanned_n} scanned · ${d.missing_n} missing · ${d.extra_n} extra`];
+  if (d.missing?.length) { L.push('', 'MISSING:'); Object.entries(groupBy(d.missing, 'by')).forEach(([w, l]) => { L.push(`${w}:`); l.forEach(i => L.push(`  ${i.code} · ${bagWhere(i)} · ${i.contents} · bagged ${i.date}`)); }); }
+  if (d.extras?.length) { L.push('', 'EXTRA LABELS:'); d.extras.forEach(x => L.push(`  ${x.code} (box ${x.box}): ${x.why}`)); }
+  if (d.notes) L.push('', 'Notes: ' + d.notes);
+  return L.join('\n');
+}
+function viewDayReport(r) {
+  const d = r.data; setTitle(TABLES.daychecks.title(d));
+  // recheck: what has happened to the missing bags and extra labels since
+  const now2 = (d.missing || []).map(i => { const st = itemState(i.code); return { ...i, found: st.box ? `now in box ${st.box}` : LAB_ACTIONS.includes(st.last?.data.action) ? st.last.data.action.toLowerCase() : '' }; });
+  const ext2 = (d.extras || []).map(x => { const b = live('bags').find(y => y.data.qr === x.code); return { ...x, now: b ? `now linked: ${bagWhere(bagInfo(b))}` : '' }; });
+  const scannedByBox = groupBy(d.scanned || [], 'box');
+  $('#app').innerHTML = `<div class="crumbs"><a href="#/daycheck">Bag checks</a></div>
+    <h2>End-of-day bag check · ${esc(d.date)}</h2>
+    <div class="help">Checked by <b>${esc(d.checked_by)}</b> · ${esc(new Date(d.started || r.created_at).toLocaleTimeString())}–${esc(new Date(d.finished || r.created_at).toLocaleTimeString())} · sites ${esc(d.sites || '—')} · boxes ${esc(d.boxes || '—')}</div>
+    <div class="dcstats"><div><b>${d.expected_n}</b>expected</div><div class="ok"><b>${d.scanned_n}</b>scanned</div><div class="${d.missing_n ? 'bad' : 'ok'}"><b>${d.missing_n}</b>missing</div><div class="${d.extra_n ? 'warn' : ''}"><b>${d.extra_n}</b>extra</div></div>
+    <h3>Missing bags, by who bagged them</h3>
+    ${now2.length ? Object.entries(groupBy(now2, 'by')).map(([w, l]) => `<div class="card dcgroup"><b>${esc(w)}</b> · ${l.length} bag${l.length > 1 ? 's' : ''}<ul>${l.map(i => `<li><b>${esc(i.code)}</b> · ${esc(bagWhere(i))} · ${esc(i.contents)} · bagged ${esc(i.date)}${i.crew ? ` <span class="help">(crew: ${esc(i.crew)})</span>` : ''}${i.found ? ` <span class="badge pos">found since: ${esc(i.found)}</span>` : ''}</li>`).join('')}</ul></div>`).join('') : '<div class="check okc">No bags missing ✓</div>'}
+    <h3>Extra labels</h3>
+    ${ext2.length ? `<ul class="card dcgroup">${ext2.map(x => `<li><b>${esc(x.code)}</b> (box ${esc(x.box)}): ${esc(x.why)}${x.now ? ` <span class="badge pos">${esc(x.now)}</span>` : ''}</li>`).join('')}</ul>` : '<div class="check okc">No extra labels ✓</div>'}
+    <h3>Scanned, by box</h3>
+    ${Object.entries(scannedByBox).map(([bx, l]) => `<div class="card dcgroup"><b>Box ${esc(bx)}</b> · ${l.length} bag${l.length > 1 ? 's' : ''}<ul>${l.map(x => { const b = live('bags').find(y => y.data.qr === x.code); return `<li>${esc(x.code)}${b ? ' · ' + esc(bagWhere(bagInfo(b))) : ' · (not linked)'}</li>`; }).join('')}</ul></div>`).join('') || '<div class="empty">Nothing scanned</div>'}
+    <div class="card"><div class="f"><label for="dcnotes">Notes (what was done about missing bags)</label><textarea id="dcnotes" rows="3">${esc(d.notes || '')}</textarea></div><div class="btns"><button class="btn sm" id="dcsave">Save notes</button></div></div>
+    <div class="btns noprint"><button class="btn" id="dcprint">⎙ Print / save as PDF</button><button class="btn sec" id="dccopy">Copy as text</button>${navigator.share ? '<button class="btn sec" id="dcshare">Share…</button>' : ''}<a class="btn sec" href="#/daycheck">New check</a></div>`;
+  $('#dcprint').onclick = () => window.print();
+  $('#dccopy').onclick = async () => { try { await navigator.clipboard.writeText(dcReportText(d)); toast('Report copied'); } catch (e) { toast('Copy not allowed here'); } };
+  if ($('#dcshare')) $('#dcshare').onclick = () => navigator.share({ title: `Bag check ${d.date}`, text: dcReportText(d) }).catch(() => { });
+  $('#dcsave').onclick = async () => { r.data = { ...r.data, notes: $('#dcnotes').value.trim() }; await save(r); toast('Notes saved'); };
+}
+
 function viewHome() {
   setTitle('KNF Field Data');
   const dc = draftCount();
   $('#app').innerHTML = `
     <div class="home">
       <a class="tile field" href="#/sites"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><span>Field<small>Sites · excavations · levels · bags</small></span></a>
+      <a class="tile bagchk" href="#/daycheck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/><path d="M15.5 16.5l1.5 1.5 3-3" stroke-width="2"/></svg><span>Bag check<small>End of day · box the bags · missing-bag report</small></span></a>
       <a class="tile lab" href="#/lab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/><path d="M7.5 14h9"/></svg><span>Lab<small>Analysis · catalogue · tabulation</small></span></a>
     </div>
     <div class="minis">
@@ -2050,7 +2208,7 @@ function render() {
   const h = location.hash || '#/';
   const [path, qs] = h.slice(1).split('?');
   const seg = path.split('/').filter(Boolean);
-  const tab = { sites: 'field', site: 'field', rec: 'field', edit: 'field', new: 'field', lab: 'lab', catalog: 'lab', scan: 'scan', boxes: 'scan', labels: 'scan', data: 'data' }[seg[0]] || (seg.length ? '' : 'home');
+  const tab = { sites: 'field', site: 'field', rec: 'field', edit: 'field', new: 'field', lab: 'lab', catalog: 'lab', scan: 'scan', boxes: 'scan', labels: 'scan', daycheck: 'scan', data: 'data' }[seg[0]] || (seg.length ? '' : 'home');
   document.querySelectorAll('#tabs a').forEach(a => a.classList.toggle('on', a.dataset.t === tab));
   if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; document.querySelectorAll('.modal').forEach(m => m.remove()); }
   stopLiveGps(); scrollTo(0, 0);
@@ -2092,6 +2250,7 @@ function render() {
       return formView(rec, true);
     }
     case 'drafts': return viewDrafts();
+    case 'daycheck': return viewDayCheck();
     case 'testplan': return viewTestPlan();
     case 'lab': return viewLab();
     case 'catalog': return viewCatalog(seg[1]);

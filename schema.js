@@ -397,6 +397,19 @@ TABLES.custody = {
     { k: 'time', l: 'Time', t: 'text' }, { k: 'notes', l: 'Notes', t: 'text', w: 2 },
   ],
 };
+/* End-of-day bag check: the field director scans every bag into a box; the record keeps who checked,
+   which bags were expected, scanned, missing (and whose they are) and any extra labels. */
+TABLES.daychecks = {
+  label: 'Bag check', plural: 'End-of-day bag checks', parent: null, mode: 'custody', legacy: null,
+  title: r => `Bag check ${r.date || ''}${r.missing_n ? ' · ' + r.missing_n + ' missing' : ''}`,
+  fields: [
+    { k: 'date', l: 'Date', t: 'date', req: 1 }, { k: 'checked_by', l: 'Checked by', t: 'text', req: 1 },
+    { k: 'sites', l: 'Sites', t: 'text' }, { k: 'boxes', l: 'Boxes', t: 'text' },
+    { k: 'expected_n', l: 'Bags expected', t: 'int' }, { k: 'scanned_n', l: 'Bags scanned', t: 'int' },
+    { k: 'missing_n', l: 'Bags missing', t: 'int' }, { k: 'extra_n', l: 'Extra labels', t: 'int' },
+    { k: 'notes', l: 'Notes', t: 'area', w: 3 },
+  ],
+};
 const DISTRICT_CODE = { 'Kisatchie RD': ['KRD', 1], 'Caney RD': ['CRD', 2], 'Vernon Unit': ['VU', 3], 'Evangeline Unit': ['EVU', 4], 'Catahoula RD': ['CAT', 5], 'Winn RD': ['WRD', 6], 'Other': ['OTH', 9] };
 const PARISH = { NA: 'Natchitoches', CL: 'Claiborne', WE: 'Webster', GR: 'Grant', WN: 'Winn', RA: 'Rapides', VN: 'Vernon' };
 const PARISH_DIGIT = { NA: '1', CL: '2', WE: '3', GR: '4', WN: '5', RA: '6', VN: '7' };

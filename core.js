@@ -3,15 +3,16 @@ const CORE = (() => {
   const DB_VER = 2;
   // Test mode keeps practice data in its own local database and its own server table, never mixed with project data.
   let MODE = 'live';
+  const DEFAULT_URL = 'https://xmvzhxlqagstuvqvcyhc.supabase.co', DEFAULT_KEY = 'sb_publishable_SUcJNMK83_q6eTAVWLr-Rw_cVItt_6b';
   const setMode = m => { MODE = m === 'test' ? 'test' : 'live'; };
   const dbName = () => MODE === 'test' ? 'knf-field-data-TEST' : 'knf-field-data';
   const TBL = () => MODE === 'test' ? 'records_test' : 'records';
   const pathFor = p => (MODE === 'test' ? 'test/' : '') + p;
   const dbps = {};
-  function db() {
-    const n = dbName();
+  function db(name) {
+    const n = name || dbName();
     if (!dbps[n]) dbps[n] = new Promise((res, rej) => {
-      const q = indexedDB.open(dbName(), DB_VER);
+      const q = indexedDB.open(n, DB_VER);
       q.onupgradeneeded = () => {
         const d = q.result;
         if (!d.objectStoreNames.contains('rec')) {
@@ -27,8 +28,8 @@ const CORE = (() => {
     return dbps[n];
   }
   const req = r => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
-  async function tx(store, mode, fn) {
-    const d = await db();
+  async function tx(store, mode, fn, name) {
+    const d = await db(name);
     return new Promise((res, rej) => {
       const t = d.transaction(store, mode); let out;
       Promise.resolve(fn(t.objectStore(store))).then(v => out = v);
@@ -38,8 +39,11 @@ const CORE = (() => {
   const allRecs = () => tx('rec', 'readonly', s => req(s.getAll()));
   const putRec = r => tx('rec', 'readwrite', s => { s.put(r); });
   const putMany = rs => tx('rec', 'readwrite', s => { rs.forEach(r => s.put(r)); });
-  const getMeta = k => tx('meta', 'readonly', s => req(s.get(k)));
-  const setMeta = (k, v) => tx('meta', 'readwrite', s => { s.put(v, k); });
+  // sign-in and settings are shared by live and test mode (one account, one refresh token); everything else is per mode
+  const SHARED = new Set(['session', 'settings']);
+  const metaDb = k => SHARED.has(k) ? 'knf-field-data' : undefined;
+  const getMeta = k => tx('meta', 'readonly', s => req(s.get(k)), metaDb(k));
+  const setMeta = (k, v) => tx('meta', 'readwrite', s => { s.put(v, k); }, metaDb(k));
   async function dirtyRecs() { return (await allRecs()).filter(r => r.dirty); }
   const getBlob = id => tx('blobs', 'readonly', s => req(s.get(id)));
   const putBlob = (id, v) => tx('blobs', 'readwrite', s => { s.put(v, id); });
@@ -64,7 +68,7 @@ const CORE = (() => {
   async function cfg() {
     const c = (await getMeta('settings')) || {};
     const sess = await getMeta('session');
-    return { url: (c.sb_url || '').replace(/\/+$/, ''), key: c.sb_key || '', sess };
+    return { url: (c.sb_url || DEFAULT_URL).replace(/\/+$/, ''), key: c.sb_key || DEFAULT_KEY, sess };
   }
   async function signIn(email, password) {
     const { url, key } = await cfg();
