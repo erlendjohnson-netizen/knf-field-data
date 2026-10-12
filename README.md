@@ -103,3 +103,4 @@ Take a GPS point on the form: the UTM coordinates and accuracy show live. The pa
 - **Completeness:** each form shows a live "still needed" list. The *Finish* button stays disabled until the list is empty and no field is in error.
 - **Catalogue vs tabulation:** a mismatch keeps the tabulation in draft. The catalogue is treated as authoritative.
 - **History:** every change is kept in `records_history` on the server. Deletions are flagged, never erased.
+
