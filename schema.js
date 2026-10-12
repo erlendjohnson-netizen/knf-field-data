@@ -14,6 +14,7 @@ const LISTS = {
   excavation_type: ['STP', 'TP', 'Unit', 'Surface collection', 'Feature grouping'],
   su_size: ['Whole unit (one subunit)', '1 × 1 m', '0.5 × 1 m (E–W × N–S)', '1 × 0.5 m (E–W × N–S)', '0.5 × 0.5 m', '2 × 2 m'],
   datum_corner: ['SW corner', 'SE corner', 'NW corner', 'NE corner'],
+  role: ['PI / Co-PI', 'Project staff', 'Field director / crew chief', 'Student', 'USFS staff', 'Volunteer', 'Lab staff', 'Other'],
   excavation_method: ['Shovel', 'Flat shovel', 'Round shovel', 'Shovel/Trowel', 'Trowel', 'Surface', 'Auger/Core', 'Not excavated'],
   screen: ['1/4 in', '1/8 in', '1/16 in (water)', 'Not screened'],
   soil_texture: ['Sand', 'Loamy sand', 'Sandy loam', 'Loam', 'Silt loam', 'Silt', 'Sandy clay loam', 'Clay loam',
@@ -418,6 +419,12 @@ TABLES.daychecks = {
   ],
 };
 LISTS.quad = ['Unknown (find later)'];
+/* who uses the app: one record per account (or device), written at setup; lets the project see names and roles */
+TABLES.people = {
+  label: 'Person', plural: 'People', parent: null, mode: 'admin', legacy: null,
+  title: r => `${r.name || '?'}${r.role ? ' · ' + r.role : ''}`,
+  fields: [{ k: 'name', l: 'Name', t: 'text', req: 1 }, { k: 'role', l: 'Role', t: 'select', o: 'role', req: 1 }, { k: 'email', l: 'Email', t: 'text' }, { k: 'last_setup', l: 'Set up', t: 'text' }],
+};
 const DISTRICT_CODE = { 'Kisatchie RD': ['KRD', 1], 'Caney RD': ['CRD', 2], 'Vernon Unit': ['VU', 3], 'Evangeline Unit': ['EVU', 4], 'Catahoula RD': ['CAT', 5], 'Winn RD': ['WRD', 6], 'Other': ['OTH', 9] };
 const PARISH = { NA: 'Natchitoches', CL: 'Claiborne', WE: 'Webster', GR: 'Grant', WN: 'Winn', RA: 'Rapides', VN: 'Vernon' };
 /* Site ID codes are 6 digits: a 2-digit parish number + the 4-digit site number. Parishes are numbered 01–64 from the

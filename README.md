@@ -21,6 +21,15 @@ Original setup steps, for reference:
 4. Go to **Authentication → Users → Add user** and add each crew member and lab tech (email and password).
 5. Copy the **Project URL** and the **publishable/anon key** from Project Settings → API. Each person enters these once in the app under Settings.
 
+## Accounts, setup and access
+**Adding a person (Erlend):** supabase.com → the project → **Authentication → Users → Add user → Create new user**: their email and a starting password, with *Auto Confirm User* ticked. Public sign-up is off, so nobody can make their own account. Send them the app link and their login.
+
+**First time on a device:** the app opens on a setup screen and won't go further until the person enters their **name** (first and last) and **role** (PI / Co-PI, Project staff, Field director / crew chief, Student, USFS staff, Volunteer, Lab staff, Other), and signs in. They can skip signing in, but then nothing they record reaches the project until they sign in under Settings. Name and role can be changed in Settings; the *People using the app* list there shows everyone who has set up.
+
+**What a signed-in person can do:** every account currently has the same access: read the whole project, add and edit records and photos, and mark records deleted (nothing is ever erased; every change is kept in `records_history` with who made it). The role is recorded but does not limit anything yet. Without signing in, the app works on that device only. The app code is public on GitHub, but no data or site locations are: those need a login.
+
+**Removing someone:** delete or ban the user in Authentication → Users; their device stops syncing at once.
+
 ## 2. Hosting (free)
 Put the folder on GitHub Pages, the same way as your Garden Log app. Anyone on the crew then opens the link:
 - **Android / Windows (Chrome or Edge):** menu → *Install app*
