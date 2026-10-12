@@ -40,7 +40,7 @@ const CORE = (() => {
   const putRec = r => tx('rec', 'readwrite', s => { s.put(r); });
   const putMany = rs => tx('rec', 'readwrite', s => { rs.forEach(r => s.put(r)); });
   // sign-in and settings are shared by live and test mode (one account, one refresh token); everything else is per mode
-  const SHARED = new Set(['session', 'settings']);
+  const SHARED = new Set(['session', 'settings', 'testplan']);
   const metaDb = k => SHARED.has(k) ? 'knf-field-data' : undefined;
   const getMeta = k => tx('meta', 'readonly', s => req(s.get(k)), metaDb(k));
   const setMeta = (k, v) => tx('meta', 'readwrite', s => { s.put(v, k); }, metaDb(k));

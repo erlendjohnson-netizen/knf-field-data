@@ -16,7 +16,7 @@
 :root[data-theme=dark]{--bg:#151112;--card:#201a1b;--ink:#f1eaea;--mut:#b3a7a7;--line:#3a3031;--acc:#ff5a5f;--acc2:#e9a3a5;--ok:#6fcf97;--warn:#f2b34b;--bad:#ff8a80;--chip:#2a2f29;--inp:#111411}
 *{box-sizing:border-box}html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:calc(72px + env(safe-area-inset-bottom))}
-header{position:sticky;top:0;z-index:5;background:#CE181E;color:#fff;padding:calc(8px + env(safe-area-inset-top)) 16px 8px;display:flex;align-items:center;gap:10px}
+header{cursor:pointer;position:sticky;top:0;z-index:5;background:#CE181E;color:#fff;padding:calc(8px + env(safe-area-inset-top)) 16px 8px;display:flex;align-items:center;gap:10px}
 
 header h1{font-size:17px;margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pill{font-size:12px;padding:3px 9px;border-radius:99px;background:rgba(255,255,255,.18);white-space:nowrap;cursor:pointer;border:0;color:inherit}
@@ -147,7 +147,7 @@ header{gap:8px}
 </style>
 </head>
 <body>
-<header><h1 id="ttl">KNF Field Data</h1><button class="pill" id="syncpill" onclick="location.hash='#/data'">—</button>
+<header id="hdr" title="Home"><h1 id="ttl">KNF Field Data</h1><button class="pill" id="syncpill" onclick="location.hash='#/data'">—</button>
 <a class="hbtn" href="#/settings" aria-label="Settings" title="Settings"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></a></header>
 <nav class="tabs noprint" id="tabs">
   <a href="#/" data-t="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Home</a>
@@ -239,19 +239,28 @@ const TESTPLAN = [
   ['Offline & sync', ['Turn on airplane mode, enter a level with photo, turn it off, and check it uploads by itself', 'Edit the same record on two devices and check the newest edit wins', 'Check a second device sees the first device’s records and photos', 'Check drafts do NOT appear on the second device', 'Two devices offline use the same STP number: check the duplicate warning on the Sync page']],
   ['Export', ['Download the CSV zip and open it in Excel / QGIS', 'Make a JSON backup and restore it on another device']],
 ];
-function viewTestPlan() {
+/* ticks are keyed by the item's text (so adding items never shifts them) and kept in the app's own storage */
+async function viewTestPlan() {
   setTitle('Test checklist');
-  let done = {}; try { done = JSON.parse(localStorage.getItem('knf-testplan') || '{}'); } catch (e) { }
-  const total = TESTPLAN.reduce((a, [, xs]) => a + xs.length, 0), n = Object.values(done).filter(Boolean).length;
+  let done = (await CORE.getMeta('testplan')) || null;
+  if (!done) { try { done = JSON.parse(localStorage.getItem('knf-testplan2') || '{}'); } catch (e) { done = {}; } }
+  const keys = new Set(TESTPLAN.flatMap(([, xs]) => xs));
+  Object.keys(done).forEach(k => { if (!keys.has(k)) delete done[k]; });
+  const total = keys.size, n = Object.keys(done).length;
   $('#app').innerHTML = `<h2>Test checklist <span class="badge">${n} / ${total}</span></h2>
     <div class="help">Tick each item as you try it. Ticks are saved on this device only. Note anything odd and send it to Erlend.</div>
     ${TESTMODE ? `<div class="card" style="margin-top:8px"><b>Practice data</b><div class="help">Adds a made-up practice site, KRD-T99 (Kisatchie RD), so there is something to test on: a finished STP, an STP with an unfinished level, a test unit with subunits A and B, bags, and a box. It exists only in test mode.</div><div class="btns"><button class="btn" id="tpdemo">Load practice data</button></div></div>`
       : `<div class="check">You are not in test mode. Switch to test mode in Settings before testing, so practice records stay out of the project data.</div>`}
-    ${TESTPLAN.map(([g, xs], gi) => `<h3>${esc(g)}</h3><div class="card">${xs.map((x, i) => { const k = gi + '.' + i; return `<label style="display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--line)"><input type="checkbox" data-k="${k}" ${done[k] ? 'checked' : ''} style="width:22px;height:22px;min-height:0;margin-top:1px;flex:none"><span>${esc(x)}</span></label>`; }).join('')}</div>`).join('')}
+    ${TESTPLAN.map(([g, xs], gi) => `<h3>${esc(g)}</h3><div class="card">${xs.map(x => { const k = x; return `<label style="display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--line)"><input type="checkbox" data-k="${esc(k)}" ${done[k] ? 'checked' : ''} style="width:22px;height:22px;min-height:0;margin-top:1px;flex:none"><span>${esc(x)}</span></label>`; }).join('')}</div>`).join('')}
     <div class="btns"><button class="btn sec" id="tpreset">Clear all ticks</button></div>`;
-  $('#app').querySelectorAll('[data-k]').forEach(c => c.onchange = () => { done[c.dataset.k] = c.checked; try { localStorage.setItem('knf-testplan', JSON.stringify(done)); } catch (e) { } viewTestPlan(); });
+  const store = async () => { await CORE.setMeta('testplan', done); try { localStorage.setItem('knf-testplan2', JSON.stringify(done)); } catch (e) { } };
+  $('#app').querySelectorAll('[data-k]').forEach(c => c.onchange = async () => {
+    if (c.checked) done[c.dataset.k] = 1; else delete done[c.dataset.k];
+    await store();
+    const n2 = Object.keys(done).length; $('#app h2 .badge').textContent = `${n2} / ${total}`;
+  });
   $('#tpdemo') && ($('#tpdemo').onclick = loadDemo);
-  $('#tpreset').onclick = () => { try { localStorage.removeItem('knf-testplan'); } catch (e) { } viewTestPlan(); };
+  $('#tpreset').onclick = async () => { if (!(await ask('Clear all ticks on the checklist?', 'Clear'))) return; done = {}; await store(); viewTestPlan(); };
 }
 
 /* ================= state ================= */
@@ -1396,7 +1405,7 @@ async function viewSettings() {
     <div class="card">${TESTMODE ? `<p><b>You are in TEST MODE.</b> Everything here is practice data, stored separately from the project.</p>
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a><button class="btn sec" id="tmoff">Leave test mode</button></div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.9 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.9.1 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   $('#demo') && ($('#demo').onclick = loadDemo);
   $('#tmoff') && ($('#tmoff').onclick = () => switchMode(false));
   $('#tmon') && ($('#tmon').onclick = () => switchMode(true));
@@ -2276,6 +2285,7 @@ addEventListener('hashchange', async () => {
   if (S.guarding) return;
   guardHash = location.hash; render(); updateDraftBar();
 });
+$('#hdr').addEventListener('click', e => { if (e.target.closest('button,a,input,select')) return; if (location.hash !== '#/' && location.hash !== '') location.hash = '#/'; });
 addEventListener('beforeunload', e => { if (S.formDirty || draftCount()) { e.preventDefault(); e.returnValue = ''; } });
 
 (async function init() {
