@@ -74,8 +74,16 @@ Settings → *Switch to test mode* gives a practice copy of the app with a purpl
 - **Lab:** *Scan bag* on the Lab screen jumps straight to that level's lab forms and logs the check-out. A USB barcode scanner on a PC also works: it types into the code box.
 - Custody is an append-only log, so two devices offline can never overwrite each other's custody entries.
 
-## New sites and odd jobs
-*+ New site (temp. no.)* creates a temporary designation from the district (KRD-T01, CRD-T02 …) with an ID code of 8xxx. Use the *Kind* field for isolated finds or other investigations (for example a request from Matt), and note who asked and why. When the state assigns a trinomial, edit the site number. The temporary designation is kept on the record, and the ID code stays the same so excavation IDs don't change.
+## Sites, survey areas and odd jobs
+Everything you dig hangs under a **site or work area**. The kinds are:
+- **Previously recorded site:** pick the trinomial from the KNF list.
+- **New site:** gets a temporary designation from the district (KRD-T01, CRD-T02 …) and an ID code of 8xxx.
+- **Survey area:** survey STPs outside sites. Numbered KRD-S01 … with an ID code of 9xxx.
+- **Isolated find / Other investigation:** for example a request from Matt (note who asked).
+
+Take a GPS point on the form: the UTM coordinates and accuracy show live. The parish is filled in from Louisiana parish outlines (all 64 parishes), and the USGS quad from the 7.5' grid. Quads outside the KNF list are left as "Unknown (find later)", and the USGS cell code (e.g. 31093-D1) is stored so it can be looked up. When the state assigns a trinomial, edit the site number; the temporary designation and ID code are kept so excavation IDs don't change.
+
+**New site from survey:** when an STP in a survey area (or isolated find / other investigation) reaches more than 5 artifacts (field counts, which are required whenever *Artifacts recovered* is ticked), finishing the level brings up a pop-up. It offers to create a temporary site (KRD-T##) at that STP and lists the delineation targets 10 m N, E, S and W in UTM. The new site links back to the survey STP; its STPs are delineation STPs. Choosing *Not a new site* asks for a reason, which is kept on the STP.
 
 ## Finish rules
 - A record can only be **finished** (and uploaded) when every required item is filled in and nothing is in error. Until then it can be saved as a **draft**, which stays on that device only. The Sync page lists every draft.

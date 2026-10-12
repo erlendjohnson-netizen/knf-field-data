@@ -8,7 +8,8 @@ const LISTS = {
   _sites: [],
   mappoint_kind: ['Boundary', 'Site datum', 'Isolated find', 'Feature', 'Photo point', 'Landmark / road', 'Unit corner', 'Other'],
   _corners: [],
-  record_kind: ['Previously recorded site', 'New site (temporary no.)', 'Isolated find', 'Other investigation'],
+  record_kind: ['Previously recorded site', 'New site (temporary no.)', 'Survey area', 'Isolated find', 'Other investigation'],
+  parish: ['Acadia', 'Allen', 'Ascension', 'Assumption', 'Avoyelles', 'Beauregard', 'Bienville', 'Bossier', 'Caddo', 'Calcasieu', 'Caldwell', 'Cameron', 'Catahoula', 'Claiborne', 'Concordia', 'De Soto', 'East Baton Rouge', 'East Carroll', 'East Feliciana', 'Evangeline', 'Franklin', 'Grant', 'Iberia', 'Iberville', 'Jackson', 'Jefferson', 'Jefferson Davis', 'La Salle', 'Lafayette', 'Lafourche', 'Lincoln', 'Livingston', 'Madison', 'Morehouse', 'Natchitoches', 'Orleans', 'Ouachita', 'Plaquemines', 'Pointe Coupee', 'Rapides', 'Red River', 'Richland', 'Sabine', 'St. Bernard', 'St. Charles', 'St. Helena', 'St. James', 'St. John the Baptist', 'St. Landry', 'St. Martin', 'St. Mary', 'St. Tammany', 'Tangipahoa', 'Tensas', 'Terrebonne', 'Union', 'Vermilion', 'Vernon', 'Washington', 'Webster', 'West Baton Rouge', 'West Carroll', 'West Feliciana', 'Winn', 'Outside Louisiana'],
   custody_action: ['Collected in field', 'Transferred', 'Placed in box', 'Removed from box', 'Received at lab', 'Checked out for analysis', 'Returned to storage', 'Sent to specialist', 'Curated'],
   excavation_type: ['STP', 'TP', 'Unit', 'Surface collection', 'Feature grouping'],
   excavation_method: ['Shovel', 'Flat shovel', 'Round shovel', 'Shovel/Trowel', 'Trowel', 'Surface', 'Auger/Core', 'Not excavated'],
@@ -89,20 +90,20 @@ const LISTS = {
 /* parent: what a record hangs under. mode: field or lab (controls where it appears). */
 const TABLES = {
   sites: {
-    label: 'Site', plural: 'Sites', parent: null, mode: 'field', legacy: 'sites',
+    label: 'Site or work area', plural: 'Sites & work areas', parent: null, mode: 'field', legacy: 'sites',
     title: r => r.sitename || '(new site)',
     fields: [
       { k: 'record_kind', l: 'Kind', t: 'select', o: 'record_kind', req: 1 },
       { k: 'district', l: 'District', t: 'select', o: 'district', req: 1 },
-      { k: 'sitename', l: 'Site number / temporary designation', t: 'combo', o: '_sites', req: 1, ph: '16NA41 or KRD-T01', help: 'Pick from the KNF site list, or replace a temporary designation with the trinomial once it is assigned' },
-      { k: 'site_name', l: 'Site name', t: 'text' },
-      { k: 'temp_name', l: 'Temporary designation (kept)', t: 'ro' },
-      { k: 'requested_by', l: 'Requested by', t: 'text', ph: 'e.g. Matt Helmer', show: r => r.record_kind && r.record_kind !== 'Previously recorded site' },
-      { k: 'purpose', l: 'Purpose / task', t: 'text', w: 2, show: r => r.record_kind && r.record_kind !== 'Previously recorded site' },
-      { k: 'site_code', l: 'ID code (4 digits)', t: 'text', req: 1, ph: '1041', help: 'Used to build excavation IDs (code + type + seq). Must be unique across the project.' },
-      { k: 'project', l: 'Project', t: 'text', ph: 'KNF Phase II 2026-27' },
-      { k: 'parish', l: 'Parish', t: 'text' },
-      { k: 'usgsquad', l: 'USGS quad', t: 'text' },
+      { k: 'sitename', l: 'Site number / designation', t: 'combo', o: '_sites', req: 1, ph: '16NA41, KRD-T01 or KRD-S01', help: 'Pick from the KNF site list. New sites (KRD-T01) and survey areas (KRD-S01) are numbered automatically; put in the trinomial once the state assigns it' },
+      { k: 'site_name', l: 'Name (optional)', t: 'text', ph: 'e.g. Bayou Toro ridge survey' },
+      { k: 'temp_name', l: 'Temporary designation (kept)', t: 'ro', show: r => !!r.temp_name },
+      { k: 'requested_by', l: 'Requested by', t: 'text', ph: 'e.g. Matt Helmer', show: r => r.record_kind === 'Other investigation' },
+      { k: '_gps', l: 'Location (site datum or centre)', t: 'gps', w: 3 },
+      { k: 'parish', l: 'Parish', t: 'select', o: 'parish', help: 'Filled in from the GPS position' },
+      { k: 'usgsquad', l: 'USGS quad', t: 'select', o: 'quad', help: 'Filled in from the GPS position; leave “Unknown” if it isn’t listed' },
+      { k: 'site_code', l: 'ID code (4 digits)', t: 'text', req: 1, ph: '1041', help: 'Filled in automatically. Used to build excavation IDs, so it must be unique.' },
+      { k: 'project', l: 'Project', t: 'ro' },
       { k: 'notes', l: 'Notes', t: 'area', w: 3 },
     ],
   },
@@ -155,7 +156,7 @@ const TABLES = {
       { k: 'soil_texture', l: 'Soil texture', t: 'combo', o: 'soil_texture' },
       { k: 'strata', l: 'Stratum', t: 'combo', o: 'strata' },
       { k: 'artifacts', l: 'Artifacts recovered', t: 'bool' },
-      { k: 'field_count', l: 'Field artifact count', t: 'int', help: 'Rough count at the screen; lab counts are authoritative' }, // new
+      { k: 'field_count', l: 'Field artifact count', t: 'int', show: r => !!r.artifacts, help: 'Count at the screen (lab counts are authoritative). In a survey area, more than 5 in one STP makes a new site.' }, // new
       { k: 'soil_change', l: 'Soil change', t: 'bool' },
       { k: 'feature', l: 'Feature', t: 'bool' },
       { k: 'special_find', l: 'Special find', t: 'bool' },
@@ -410,11 +411,14 @@ TABLES.daychecks = {
     { k: 'notes', l: 'Notes', t: 'area', w: 3 },
   ],
 };
+LISTS.quad = ['Unknown (find later)'];
 const DISTRICT_CODE = { 'Kisatchie RD': ['KRD', 1], 'Caney RD': ['CRD', 2], 'Vernon Unit': ['VU', 3], 'Evangeline Unit': ['EVU', 4], 'Catahoula RD': ['CAT', 5], 'Winn RD': ['WRD', 6], 'Other': ['OTH', 9] };
 const PARISH = { NA: 'Natchitoches', CL: 'Claiborne', WE: 'Webster', GR: 'Grant', WN: 'Winn', RA: 'Rapides', VN: 'Vernon' };
 const PARISH_DIGIT = { NA: '1', CL: '2', WE: '3', GR: '4', WN: '5', RA: '6', VN: '7' };
 /* USGS 7.5' quadrangles around KNF (bounds W, S, E, N in degrees, from the HTMC sheets in the project GIS) */
 const QUADS = {"Hurricane Branch": [-93.25, 30.875, -93.125, 31.0], "Sugrue": [-93.125, 30.875, -93.0, 31.0], "Arizona": [-93.0, 32.75, -92.875, 32.875], "Bernice": [-92.75, 32.75, -92.625, 32.875], "Blackburn": [-93.25, 32.75, -93.125, 32.875], "Colquitt": [-93.0, 32.875, -92.875, 33.0], "Haynesville East": [-93.125, 32.875, -93.0, 33.0], "Homer": [-93.125, 32.75, -93.0, 32.875], "Langston": [-93.25, 32.625, -93.125, 32.75], "Leton": [-93.375, 32.75, -93.25, 32.875], "Lillie": [-92.75, 32.875, -92.625, 33.0], "Minden North": [-93.375, 32.625, -93.25, 32.75], "Summerfield": [-92.875, 32.875, -92.75, 33.0], "Savage Creek": [-92.75, 31.625, -92.625, 31.75], "Williana": [-92.625, 31.625, -92.5, 31.75], "Bayou Livrogne": [-93.125, 31.375, -93.0, 31.5], "Bellwood": [-93.25, 31.5, -93.125, 31.625], "Flora": [-93.125, 31.5, -93.0, 31.625], "Gorum": [-93.0, 31.375, -92.875, 31.5], "Kisatchie": [-93.25, 31.375, -93.125, 31.5], "Kurthwood": [-93.25, 31.25, -93.125, 31.375], "Simpson North": [-93.125, 31.25, -93.0, 31.375], "Pitkin": [-93.0, 30.875, -92.875, 31.0]};
+
+LISTS.quad.push(...Object.keys(QUADS).sort());
 
 /* Photo records: metadata syncs like any record; the image goes to Supabase Storage (bucket "photos"). */
 TABLES.photos = {
