@@ -11,10 +11,16 @@ const cors = {
 };
 const reply = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
 
+// the project's secret key (new-style SUPABASE_SECRET_KEYS, or the legacy service-role key)
+function serverKey(): string {
+  try { const k = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') || '{}'); const v = k.default || Object.values(k)[0]; if (v) return String(v); } catch (_) { /* fall through */ }
+  return Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   try {
-    const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
+    const admin = createClient(Deno.env.get('SUPABASE_URL')!, serverKey(), { auth: { persistSession: false } });
     const jwt = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
     const { data: who, error: whoErr } = await admin.auth.getUser(jwt);
     if (whoErr || !who?.user) return reply({ error: 'Not signed in' }, 401);
