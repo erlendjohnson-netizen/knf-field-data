@@ -83,6 +83,12 @@ Everything you dig hangs under a **site or work area**. The kinds are:
 
 Take a GPS point on the form: the UTM coordinates and accuracy show live. The parish is filled in from Louisiana parish outlines (all 64 parishes), and the USGS quad from the 7.5' grid. Quads outside the KNF list are left as "Unknown (find later)", and the USGS cell code (e.g. 31093-D1) is stored so it can be looked up. When the state assigns a trinomial, edit the site number; the temporary designation and ID code are kept so excavation IDs don't change.
 
+**District** is also filled in from the GPS point, using the USFS ranger district boundaries (Calcasieu RD split into the Vernon and Evangeline units); anywhere else is "Other". Take the GPS point first on a new site or survey area: it fills the district, which then sets the KRD-T## / KRD-S## number.
+
+**Adding an STP or unit** asks only for the header: type, name, number, date, excavators and location (plus datum details for units). After saving, the app asks whether to open it and start Level 1. Depth, positive/negative, strata and the rest are filled in when it is closed out. The transect field only appears in survey areas.
+
+**Survey plans:** on a survey area, *Plan transects…* lays out parallel transects of planned (undug) STPs from a start point, bearing, transect spacing, STP interval and number per transect. *Import planned STPs (CSV)* takes points designed in ArcGIS/QGIS (columns transect, stp, easting, northing in UTM 15N). Planned STPs sync to every device, show as open circles on the map and are grouped by transect with progress. *Nearest planned STP* gives distance and grid bearing from your position. On a planned STP, *Dig it* records the actual position and starts it; *Can't dig…* closes it with a reason (slope, water, road …) at the planned point. Survey-area STP IDs use 3-digit numbers (up to 999).
+
 **New site from survey:** when an STP in a survey area (or isolated find / other investigation) reaches more than 5 artifacts (field counts, which are required whenever *Artifacts recovered* is ticked), finishing the level brings up a pop-up. It offers to create a temporary site (KRD-T##) at that STP and lists the delineation targets 10 m N, E, S and W in UTM. The new site links back to the survey STP; its STPs are delineation STPs. Choosing *Not a new site* asks for a reason, which is kept on the STP.
 
 ## Finish rules

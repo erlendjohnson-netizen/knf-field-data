@@ -1,6 +1,6 @@
 /* Service worker: offline app shell + background upload (Chrome/Edge on Android and Windows). */
-const VERSION = 'knf-v1.10.0';
-const SHELL = ['./', './index.html', './schema.js', './core.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './vendor/qrcode.js', './vendor/jsQR.js', './vendor/la_parishes.js'];
+const VERSION = 'knf-v1.11.0';
+const SHELL = ['./', './index.html', './schema.js', './core.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './vendor/qrcode.js', './vendor/jsQR.js', './vendor/la_parishes.js', './vendor/knf_districts.js'];
 importScripts('./core.js');
 
 self.addEventListener('install', e => {

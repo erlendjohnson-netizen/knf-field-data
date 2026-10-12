@@ -94,12 +94,12 @@ const TABLES = {
     title: r => r.sitename || '(new site)',
     fields: [
       { k: 'record_kind', l: 'Kind', t: 'select', o: 'record_kind', req: 1 },
+      { k: '_gps', l: 'Location (site datum or centre): take this first, it fills in the district, parish and quad', t: 'gps', w: 3 },
       { k: 'district', l: 'District', t: 'select', o: 'district', req: 1 },
       { k: 'sitename', l: 'Site number / designation', t: 'combo', o: '_sites', req: 1, ph: '16NA41, KRD-T01 or KRD-S01', help: 'Pick from the KNF site list. New sites (KRD-T01) and survey areas (KRD-S01) are numbered automatically; put in the trinomial once the state assigns it' },
       { k: 'site_name', l: 'Name (optional)', t: 'text', ph: 'e.g. Bayou Toro ridge survey' },
       { k: 'temp_name', l: 'Temporary designation (kept)', t: 'ro', show: r => !!r.temp_name },
       { k: 'requested_by', l: 'Requested by', t: 'text', ph: 'e.g. Matt Helmer', show: r => r.record_kind === 'Other investigation' },
-      { k: '_gps', l: 'Location (site datum or centre)', t: 'gps', w: 3 },
       { k: 'parish', l: 'Parish', t: 'select', o: 'parish', help: 'Filled in from the GPS position' },
       { k: 'usgsquad', l: 'USGS quad', t: 'select', o: 'quad', help: 'Filled in from the GPS position; leave “Unknown” if it isn’t listed' },
       { k: 'site_code', l: 'ID code (4 digits)', t: 'text', req: 1, ph: '1041', help: 'Filled in automatically. Used to build excavation IDs, so it must be unique.' },

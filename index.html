@@ -133,6 +133,7 @@ header{gap:8px}
 .gpslive.fair{border-color:#e0a800}.gpslive.fair .lv-tag{background:#ffcc00;color:#0A0203}
 .gpslive.poor,.gpslive.stale{border-color:#b3261e}.gpslive.poor .lv-tag,.gpslive.stale .lv-tag{background:#b3261e;color:#fff}
 .sitemap{width:100%;max-height:420px;background:var(--inp);border-radius:8px;display:block}
+.sitemap .m-plan{fill:none;stroke:#33507a;stroke-width:.35%}.plancard{border:2px dashed #33507a;margin:8px 0}.plancard b.t{display:block;font-size:17px;margin-bottom:4px}.badge.planned{background:#e8eef7;color:#33507a}details.tr{background:var(--card);border:1px solid var(--line);border-radius:10px;margin:6px 0;padding:6px 10px}details.tr summary{cursor:pointer;padding:6px 0}
 .sitemap .m-stp{fill:var(--card);stroke:var(--ink);stroke-width:.25%}.sitemap .m-stp.pos{fill:#CE181E;stroke:#610B0E}
 .sitemap .m-unit{fill:#0097A7;stroke:#0A0203;stroke-width:.2%}.sitemap .m-pt{fill:#ffcc00;stroke:#0A0203;stroke-width:.2%}
 .sitemap .m-bnd{fill:#610B0E}.sitemap .m-bndline{fill:rgba(206,24,30,.06);stroke:#610B0E;stroke-dasharray:1% .6%;stroke-width:.3%}
@@ -164,6 +165,7 @@ header{gap:8px}
 <script src="vendor/qrcode.js"></script>
 <script src="vendor/jsQR.js"></script>
 <script src="vendor/la_parishes.js"></script>
+<script src="vendor/knf_districts.js"></script>
 <script src="core.js"></script>
 <script>
 'use strict';
@@ -231,7 +233,7 @@ async function loadDemo() {
 }
 const TESTPLAN = [
   ['Setup', ['Add your name in Settings', 'Sign in (test mode needs its own sign-in)', 'Install the app on this device (Add to Home Screen / Install app)', 'Load practice data']],
-  ['Sites', ['Open a Phase II site from the list', 'Create a new site with a temporary number (+ New site (temp. no.)) and check the KRD-T## / CRD-T## number', 'Rename a temporary site to a trinomial and check the temporary number is kept', 'Create a survey area (+ Survey area) and check it gets a KRD-S## number', 'Capture a GPS point on a new site or survey area and check parish and quad fill in', 'In a survey area, finish an STP level with more than 5 artifacts and create the new site from the pop-up', 'Open the new site and check the delineation targets and the link back to the survey STP']],
+  ['Sites', ['Open a Phase II site from the list', 'Create a new site with a temporary number (+ New site (temp. no.)) and check the KRD-T## / CRD-T## number', 'Rename a temporary site to a trinomial and check the temporary number is kept', 'Create a survey area (+ Survey area) and check it gets a KRD-S## number', 'Capture a GPS point on a new site or survey area and check parish and quad fill in', 'In a survey area, finish an STP level with more than 5 artifacts and create the new site from the pop-up', 'Open the new site and check the delineation targets and the link back to the survey STP', 'New site or survey area: capture GPS first and check district, parish and quad fill in', 'Survey area: Plan transects…, then open a planned STP, check How far is it?, and dig it', 'Mark a planned STP as Can’t dig with a reason', 'Import planned STPs from a CSV (transect, stp, easting, northing)', 'Add an STP: only the name, date, crew and location are asked; answer Yes to start Level 1']],
   ['STP', ['Start an STP and capture GPS (with the Emlid on Android if available)', 'Check the accuracy warning appears when accuracy is poor', 'Record a level with “Artifacts recovered” ticked, press Finish, and scan the bag label in the pop-up', 'Tick “Special find”: check it needs a description and a special-find photo, and scan a second bag for it', 'Press “Back to the form” in the bag pop-up and check the level is NOT finished', 'Try to scan a bag label that is already used (must be refused)', 'Try to Finish a level without a photo (must be blocked)', 'Save a level as unfinished and check the red banner and acknowledgement box', 'Try to start the next level while one is unfinished (must be blocked)', 'Finish the level from its page with “Finish now” after adding a photo', 'Close out an STP (final depth must match the deepest level)']],
   ['GPS & points', ['Watch the live GPS readout on a location box (green = good for the chosen source)', 'Switch the GPS source (Emlid / Trimble / phone) and check the warning thresholds change', 'Type in coordinates from another instrument and check they show as “typed in”', 'On a site page, Take a point: walk a few boundary points with “Finish & add next” (B1, B2, B3…)', 'Check the site map shows STPs, units, points and the boundary outline', 'Tap a symbol on the site map to open it']],
   ['Test unit', ['Create a TU and capture the datum', 'Add subunit A and choose the datum corner', 'Add a 0.5 × 1 m subunit against A', 'Build an L-shaped subunit from two pieces', 'Try to overlap two subunits (must be blocked)', 'Start a level in a specific subunit and check the volume', 'Shoot a corner, choose which plan corner it is, and set the azimuth', 'Check close-out lists what is missing']],
@@ -296,7 +298,7 @@ function compute(tbl, d, ctx) {
   d = { ...d };
   if (tbl === 'excavations') {
     const site = ctx.site;
-    d.excavationid = (site?.data.site_code && d.excavation_type && d.seq) ? site.data.site_code + (TYPE_CODE[d.excavation_type] || '09') + pad(d.seq, 2) : '';
+    d.excavationid = (site?.data.site_code && d.excavation_type && d.seq) ? site.data.site_code + (TYPE_CODE[d.excavation_type] || '09') + pad(d.seq, isSurvey(site) ? 3 : 2) : '';
   }
   if (tbl === 'levels') {
     const exc = ctx.parentRec;
@@ -405,7 +407,7 @@ function ask(msg, ok = 'OK', cancel = 'Cancel') {
 function crumbs(rec) {
   const chain = []; let r = rec;
   while (r) { chain.unshift(r); r = r.parent ? get(r.parent) : null; }
-  return `<div class="crumbs"><a href="#/sites">Sites</a>${chain.map(c => ` › <a href="#/${c.tbl === 'sites' ? 'site' : 'rec'}/${c.id}">${esc(TABLES[c.tbl].title(c.data))}</a>`).join('')}</div>`;
+  return `<div class="crumbs"><a href="#/sites">Sites &amp; areas</a>${chain.map(c => ` › <a href="#/${c.tbl === 'sites' ? 'site' : 'rec'}/${c.id}">${esc(TABLES[c.tbl].title(c.data))}</a>`).join('')}</div>`;
 }
 function setTitle(t) { $('#ttl').textContent = t; document.title = t + ' · KNF Field Data'; }
 function rowHTML(r, extra = '') {
@@ -510,7 +512,7 @@ function startLiveGps(box) {
 /* ================= site map (offline, no basemap) ================= */
 function sitePointsUTM(siteId) {
   const out = [], u = d => d.utme != null && d.utmn != null ? { e: +d.utme, n: +d.utmn } : d.lat != null ? (x => ({ e: x.e, n: x.n }))(toUTM(d.lat, d.lon)) : null;
-  for (const e of kids(siteId, 'excavations')) { const p = u(e.data); if (p) out.push({ ...p, kind: e.data.excavation_type, label: TABLES.excavations.title(e.data), id: e.id, pos: !!e.data.positive }); }
+  for (const e of kids(siteId, 'excavations')) { if (e.data.planned) { if (e.data.target_e != null) out.push({ e: +e.data.target_e, n: +e.data.target_n, kind: 'Planned', label: '', id: e.id }); continue; } const p = u(e.data); if (p) out.push({ ...p, kind: e.data.excavation_type, label: TABLES.excavations.title(e.data), id: e.id, pos: !!e.data.positive }); }
   for (const m of live('mappoints').filter(m => m.site === siteId)) { const p = u(m.data); if (p) out.push({ ...p, kind: m.data.kind, label: m.data.label || m.data.kind, id: m.id }); }
   const s = get(siteId), reg = s && REG.by.get(s.data.sitename);
   if (reg && reg.e != null) {
@@ -530,6 +532,7 @@ function siteMapSVG(siteId) {
   const bar = [5, 10, 20, 50, 100, 200, 500, 1000].find(b => b > W / 6) || 1000;
   const sym = p => {
     const x = p.e - x0, y = Y(p.n), link = p.id ? `data-go="${p.id}"` : '';
+    if (p.kind === 'Planned') return `<circle ${link} cx="${x}" cy="${y}" r="${r * 0.7}" class="m-plan"/>`;
     if (p.kind === 'STP') return `<circle ${link} cx="${x}" cy="${y}" r="${r}" class="m-stp${p.pos ? ' pos' : ''}"/>`;
     if (p.kind === 'TP' || p.kind === 'Unit') return `<rect ${link} x="${x - r * 1.2}" y="${y - r * 1.2}" width="${r * 2.4}" height="${r * 2.4}" class="m-unit"/>`;
     if (p.kind === 'Recorded location') return `<g class="m-reg"><circle cx="${x}" cy="${y}" r="${r * 2}"/><path d="M${x - r * 2.6} ${y}h${r * 5.2}M${x} ${y - r * 2.6}v${r * 5.2}"/></g>`;
@@ -543,7 +546,7 @@ function siteMapSVG(siteId) {
     ${pts.filter(p => p.kind !== 'Recorded location').map(p => `<text x="${p.e - x0 + r * 1.6}" y="${Y(p.n) - r * 0.6}" style="font-size:${fs}px" class="m-lab">${esc(p.label)}</text>`).join('')}
     <g transform="translate(${W * 0.05} ${W * 0.94})"><path d="M0 0h${bar}" class="m-bar"/><text x="${bar / 2}" y="${-fs * 0.4}" style="font-size:${fs}px" class="m-lab" text-anchor="middle">${bar} m</text></g>
     <g transform="translate(${W * 0.93} ${W * 0.09})"><path d="M0 ${-fs * 1.4}L${fs * 0.5} ${fs * 0.2}L0 ${-fs * 0.2}L${-fs * 0.5} ${fs * 0.2}Z" class="m-n"/><text y="${fs * 1.2}" style="font-size:${fs}px" text-anchor="middle" class="m-lab">N</text></g>
-  </svg>${pts.farReg ? `<div class="check">The recorded location of this site is ${(pts.farReg / 1000).toFixed(1)} km from the points taken here. Check you are at the right site.</div>` : ''}<div class="help">● STP (filled = positive) · ■ unit · ▲ point · ◆ boundary · ⊕ recorded site location. UTM 15N grid north. Tap a symbol to open it.</div>`;
+  </svg>${pts.farReg ? `<div class="check">The recorded location of this site is ${(pts.farReg / 1000).toFixed(1)} km from the points taken here. Check you are at the right site.</div>` : ''}<div class="help">● STP (filled = positive) · ○ planned STP · ■ unit · ▲ point · ◆ boundary · ⊕ recorded site location. UTM 15N grid north. Tap a symbol to open it.</div>`;
 }
 
 /* ================= forms ================= */
@@ -614,7 +617,7 @@ function validate(tbl, d, rec) {
     if (d.record_kind === 'Previously recorded site' && d.sitename && TEMP_RE.test(d.sitename)) errs.sitename = 'A previously recorded site needs its trinomial';
   }
   if (tbl === 'excavations') {
-    if (d.seq != null && (d.seq < 1 || d.seq > 99)) errs.seq = '1–99';
+    if (d.seq != null && (d.seq < 1 || d.seq > (isSurvey(get(rec.site)) ? 999 : 99))) errs.seq = isSurvey(get(rec.site)) ? '1–999' : '1–99';
     const s = kids(rec.parent, 'excavations').filter(r => r.data.excavation_type === d.excavation_type);
     if (sib('seq', s).length) errs.seq = `Already used for another ${d.excavation_type}`;
     if (sib('excavation_name', kids(rec.parent, 'excavations')).length) warns.excavation_name = 'Name already used at this site';
@@ -851,7 +854,7 @@ function statusFor(rec, d, miss) {
 }
 function statusBadge(r) {
   const st = r.data?._status;
-  return st === 'draft' ? '<span class="unfinlabel" title="Not finished: NOT sent to the project">UNFINISHED</span>' : st === 'open' ? '<span class="badge" title="Excavation in progress">open</span>' : '';
+  return st === 'draft' ? '<span class="unfinlabel" title="Not finished: NOT sent to the project">UNFINISHED</span>' : st === 'open' ? '<span class="badge" title="Excavation in progress">open</span>' : st === 'planned' ? '<span class="badge planned" title="Planned, not dug yet">planned</span>' : '';
 }
 /* drafts and anything under a draft never upload */
 function isDraftChain(r) { let x = r; for (let i = 0; x && i < 6; i++) { if (x.data?._status === 'draft') return true; x = x.parent ? S.recs.get(x.parent) : null; } return false; }
@@ -939,7 +942,7 @@ function defaults(tbl, parentId) {
     d.excavation_type = (S._newType) || last?.data.excavation_type || 'STP';
     d.seq = nextNum(kids(parentId, 'excavations').filter(r => r.data.excavation_type === d.excavation_type), 'seq');
     d.excavation_name = (d.excavation_type === 'STP' ? 'STP ' : d.excavation_type === 'TP' ? 'TU' : d.excavation_type === 'Unit' ? 'Unit ' : '') + d.seq;
-    d.transect = last?.data.transect || ''; d.date = today(); d.crew = last?.data.crew || me();
+    d.transect = isSurvey(get(siteId)) ? last?.data.transect || '' : ''; d.date = today(); d.crew = last?.data.crew || me();
     if (d.excavation_type === 'STP') { d.lengthcm = 30; d.widthcm = 30; d.number_of_eu = 1; }
     if (d.excavation_type === 'TP') { d.lengthcm = 100; d.widthcm = 100; d.number_of_eu = 1; }
   }
@@ -1008,6 +1011,14 @@ function formView(rec, isNew, opts = {}) {
   const def = TABLES[rec.tbl], parent = rec.parent ? get(rec.parent) : null;
   let d = { ...rec.data };
   let fields = def.fields.filter(f => !(f.newOnly && !isNew));
+  if (rec.tbl === 'excavations' && !isSurvey(get(rec.site)) && !rec.data.transect) fields = fields.filter(f => f.k !== 'transect');
+  const EXC_HEAD = ['excavation_type', 'excavation_name', 'seq', 'excavationid', 'transect', 'date', 'crew', '_gps', 'datum_desc', 'azimuth'];
+  const headOnly = rec.tbl === 'excavations' && (isNew || rec.data.planned);
+  if (headOnly) fields = fields.filter(f => EXC_HEAD.includes(f.k));
+  if (rec.tbl === 'excavations' && rec.data.planned) {
+    const lastCrew = kids(rec.parent, 'excavations').filter(x => !x.data.planned && x.data.crew).sort((a, b) => a.updated_at > b.updated_at ? 1 : -1).pop()?.data.crew;
+    d.date ||= today(); d.crew ||= lastCrew || me();
+  }
   if (rec.tbl === 'levels' && parent && isUnit(parent.data)) {
     LISTS._su = subsOf(parent.id).map(s => String(s.data.letter));
     fields = fields.map(f => f.k === 'excavation_unit' ? { ...f, l: 'Subunit', t: 'select', o: '_su', help: LISTS._su.length ? '' : 'Add a subunit on the unit page first' } : f);
@@ -1020,8 +1031,9 @@ function formView(rec, isNew, opts = {}) {
   const lists = [...new Set(fields.filter(f => f.t === 'combo').map(f => f.o))].map(o => `<datalist id="l_${o}">${LISTS[o].map(x => `<option value="${esc(x)}">`).join('')}</datalist>`).join('');
   const hasNext = ['levels', 'mappoints', 'lithic_tools', 'prehistoric_ceramics', 'exotic_lithics', 'ground_stone', 'historic_artifacts'].includes(rec.tbl);
   const isExc = rec.tbl === 'excavations';
-  $('#app').innerHTML = `${parent ? crumbs(parent) : rec.tbl === 'sites' ? '<div class="crumbs"><a href="#/sites">Sites</a></div>' : ''}
+  $('#app').innerHTML = `${parent ? crumbs(parent) : rec.tbl === 'sites' ? '<div class="crumbs"><a href="#/sites">Sites &amp; areas</a></div>' : ''}
     <h2>${isNew ? 'New ' + esc(def.label.toLowerCase()) : esc(def.title(d))} ${statusBadge(rec)}</h2>
+    ${rec.tbl === 'excavations' && rec.data.planned ? `<div class="check">Planned point: <b>${rec.data.target_e} E, ${rec.data.target_n} N</b>. Capture the position where you actually dig.</div>` : ''}
     <form id="frm" class="card" autocomplete="off" novalidate><div class="grid">${fields.map(f => fieldHTML(f, d[f.k], d)).join('')}</div>${lists}
     ${rec.tbl === 'sites' ? `<div id="sitemsg"></div>
       ${REG.list.length ? '' : '<div class="help">Sign in once so the app can download the KNF site list; it then works offline.</div>'}` : ''}
@@ -1088,8 +1100,8 @@ function formView(rec, isNew, opts = {}) {
       d.site_lat = d.lat; d.site_lon = d.lon; d.quad_code = info.quad_code;
       setSel('usgsquad', info.quad || 'Unknown (find later)');
       if (info.parish) setSel('parish', info.parish);
-      if (info.district && !$('#f_district').value) { $('#f_district').value = info.district; $('#f_district').dispatchEvent(new Event('change', { bubbles: true })); }
-      $('#sitemsg', form).innerHTML = `<div class="check okc">${info.parish ? `Parish: <b>${esc(info.parish)}</b>${info.parishNear ? ' (close to a parish line: check it)' : ''}. ` : 'Outside Louisiana’s parishes? Pick the parish. '}Quad: <b>${esc(info.quad || 'unknown')}</b>${info.quad ? '' : ` (USGS cell ${esc(info.quad_code)}; find it later)`}.${info.district ? '' : ' Not inside a KNF district: pick “Other” if this is off the forest.'}</div>`
+      const dEl = $('#f_district'); if (info.district && dEl.value !== info.district && (isNew || !dEl.value)) { dEl.value = info.district; dEl.dispatchEvent(new Event('change', { bubbles: true })); }
+      $('#sitemsg', form).innerHTML = `<div class="check okc">${info.parish ? `Parish: <b>${esc(info.parish)}</b>${info.parishNear ? ' (close to a parish line: check it)' : ''}. ` : 'Outside Louisiana’s parishes? Pick the parish. '}Quad: <b>${esc(info.quad || 'unknown')}</b>${info.quad ? '' : ` (USGS cell ${esc(info.quad_code)}; find it later)`}.District: <b>${esc(info.district)}</b>${info.district === 'Other' ? ' (outside the KNF ranger districts)' : ''}.</div>`
         + (info.near ? `<div class="check">You are ${info.dist} m from recorded site <b>${esc(info.near.t)}</b>${info.near.name ? ' (' + esc(info.near.name) + ')' : ''}. Is this that site? <button type="button" class="btn sm" id="usenear">Use ${esc(info.near.t)}</button></div>` : '');
       const u = $('#usenear', form); if (u) u.onclick = () => { $('#f_record_kind').value = 'Previously recorded site'; $('#f_sitename').value = info.near.t; $('#f_sitename').dispatchEvent(new Event('change', { bubbles: true })); };
       refresh();
@@ -1145,6 +1157,8 @@ function formView(rec, isNew, opts = {}) {
     nd._status = mode === 'draft' && st !== 'draft' && !isExc ? 'draft' : st;
     if (mode === 'draft' && isExc && st !== 'draft') nd._status = 'draft';
     nd._missing = miss;
+    const startedNow = rec.tbl === 'excavations' && (isNew || nd.planned) && nd._status !== 'draft';
+    if (rec.tbl === 'excavations' && nd.planned) { nd.planned = 0; nd.planned_dug = 1; }
     const bagCode = nd.bag_qr, bagContents = nd._bag_contents; delete nd._bag_contents; fields.filter(f => f.virtual).forEach(f => delete nd[f.k]);
     if (isNew && rec.tbl === 'sites') {
       if (nd.record_kind === 'Previously recorded site') {
@@ -1161,6 +1175,11 @@ function formView(rec, isNew, opts = {}) {
     toast(nd._status === 'draft' ? '⚠ Saved UNFINISHED: not sent to the project' : nd._status === 'open' ? 'Saved: excavation open' : 'Finished ✓');
     if (rec.tbl === 'levels' && nd._status === 'complete' && newSiteDue(get(rec.parent))) { const go = await newSitePrompt(get(rec.parent)); if (go) { location.hash = go; return; } }
     if (next) { const h = `#/new/${rec.tbl}/${rec.parent}`; if (location.hash === h) render(); else location.hash = h; }
+    else if (startedNow) {
+      const unit = isUnit(nd), nm = TABLES.excavations.title(nd);
+      const yes = await ask(unit ? `${nm} saved. Open it now to lay out subunit A?` : `${nm} saved. Open it now and start Level 1?`, unit ? 'Yes, open it' : 'Yes, start Level 1', 'No, back to the site');
+      location.hash = yes ? (unit ? '#/rec/' + rec.id : '#/new/levels/' + rec.id) : '#/site/' + rec.site;
+    }
     else location.hash = opts.back || backHash(rec);
   };
   form.onsubmit = e => { e.preventDefault(); doSave('finish'); };
@@ -1198,7 +1217,7 @@ function viewSites() {
   const q = (S.q || '').toLowerCase();
   const sites = live('sites').filter(s => !q || JSON.stringify(s.data).toLowerCase().includes(q)).sort((a, b) => (a.data.district || '').localeCompare(b.data.district || '') || a.data.sitename.localeCompare(b.data.sitename, undefined, { numeric: true }));
   const byD = {}; sites.forEach(s => (byD[s.data.district || 'Other'] ||= []).push(s));
-  $('#app').innerHTML = `<div class="btns"><input class="search" id="q" placeholder="Search sites" value="${esc(S.q || '')}" style="flex:1;min-width:180px;margin:0"><a class="btn" href="#/new/sites/">+ Recorded site</a><a class="btn sec" href="#/new/sites/?temp">+ New site</a><a class="btn sec" href="#/new/sites/?survey">+ Survey area</a></div>
+  $('#app').innerHTML = `<div class="btns"><input class="search" id="q" placeholder="Search sites &amp; areas" value="${esc(S.q || '')}" style="flex:1;min-width:180px;margin:0"><a class="btn" href="#/new/sites/">+ Recorded site</a><a class="btn sec" href="#/new/sites/?temp">+ New site</a><a class="btn sec" href="#/new/sites/?survey">+ Survey area</a></div>
     ${!sites.length ? `<div class="empty">No sites yet. ${live('sites').length ? '' : '<button class="btn sm sec" id="seed">Load the Phase II candidate sites</button>'}</div>` : ''}
     ${Object.entries(byD).map(([dn, ss]) => `<h3>${esc(dn)} <span class="badge">${ss.length}</span></h3><div class="list">${ss.map(s => {
       const ex = kids(s.id, 'excavations'); const pos = ex.filter(e => e.data.positive).length;
@@ -1208,12 +1227,14 @@ function viewSites() {
   $('#seed') && ($('#seed').onclick = async () => { const n = await seedPhase2(); toast(n ? `Loaded ${n} sites` : 'Sign in first so the app can download the KNF site list'); render(); });
 }
 function excRow(e) {
+  if (e.data.planned) return rowHTML(e, `<small>target ${e.data.target_e} E, ${e.data.target_n} N</small>`);
   const levels = kids(e.id, 'levels'), hasLoc = e.data.lat != null || e.data.utme != null;
   return rowHTML(e, `<small>${e.data.excavationid ? esc(e.data.excavationid) + ' · ' : ''}${levels.length} lv${e.data.depthcm != null ? ' · ' + e.data.depthcm + ' cmbs' : ''}${e.data.transect ? ' · T' + esc(e.data.transect) : ''}</small>`)
     .replace('<span aria-hidden', `${e.data.positive ? '<span class="badge pos">+</span>' : ''}<span class="badge ${hasLoc ? 'gps' : 'nogps'}">${hasLoc ? 'GPS' : 'no GPS'}</span><span aria-hidden`);
 }
 function viewSite(id) {
   const s = get(id); if (!s) return notFound();
+  setTimeout(() => { if (isSurvey(s)) bindSurveyCard(s); }, 0);
   setTitle(s.data.sitename);
   setTimeout(() => { const m = $('#app .sitemap'); if (m) m.addEventListener('click', ev => { const g = ev.target.closest('[data-go]'); if (g) location.hash = '#/rec/' + g.dataset.go; }); }, 0);
   const ex = kids(id, 'excavations').sort((a, b) => (TYPE_CODE[a.data.excavation_type] || '9').localeCompare(TYPE_CODE[b.data.excavation_type] || '9') || (a.data.seq - b.data.seq));
@@ -1225,9 +1246,12 @@ function viewSite(id) {
       <div><span>Excavations</span><br>${ex.length} (${pos} positive)</div><div><span>Bags · features · samples</span><br>${bags.length} · ${feats.length} · ${samps.length}</div></div>
     ${s.data.found_by_exc ? `<div class="card" style="margin-top:8px"><b>Found by</b> <a href="#/rec/${s.data.found_by_exc}">${esc(s.data.found_by || 'survey STP')}</a>${s.data.found_count ? ` · ${s.data.found_count} artifacts` : ''}
       <h3 style="margin-top:10px">Delineation from that STP</h3>${targetsHTML(get(s.data.found_by_exc)?.data || s.data)}</div>` : ''}
-    <div class="btns"><a class="btn" href="#/new/excavations/${id}?STP">+ ${s.data.found_by_exc ? 'Delineation ' : ''}STP</a><a class="btn sec" href="#/new/excavations/${id}?TP">+ Test unit</a>
+    ${isSurvey(s) ? surveyCardHTML(s) : ''}
+    <div class="btns"><a class="btn" href="#/new/excavations/${id}?STP">+ ${s.data.found_by_exc ? 'Delineation ' : isSurvey(s) ? 'Extra ' : ''}STP</a><a class="btn sec" href="#/new/excavations/${id}?TP">+ Test unit</a>
       <a class="btn sec" href="#/edit/${id}">Edit ${s.data.record_kind === 'Survey area' ? 'area' : 'site'}</a><a class="btn sec" href="#/catalog/${id}">Catalog</a></div>
-    <h3>Excavations</h3><div class="list">${ex.map(excRow).join('') || '<div class="empty">None yet</div>'}</div>
+    <h3>${isSurvey(s) ? 'STPs by transect' : 'Excavations'}</h3>${isSurvey(s) && ex.some(e => e.data.transect)
+      ? Object.entries(ex.reduce((g, e) => ((g[e.data.transect || '—'] ||= []).push(e), g), {})).sort((a, b) => (+a[0] || 1e9) - (+b[0] || 1e9)).map(([t, l]) => { const dn = l.filter(e => !e.data.planned).length; return `<details class="tr"${dn < l.length && dn ? ' open' : ''}><summary><b>Transect ${esc(t)}</b> · ${dn}/${l.length} done${l.some(e => e.data.positive) ? ` · <span class="badge pos">${l.filter(e => e.data.positive).length} +</span>` : ''}</summary><div class="list">${l.sort((a, b) => a.data.seq - b.data.seq).map(excRow).join('')}</div></details>`; }).join('')
+      : `<div class="list">${ex.map(excRow).join('') || '<div class="empty">None yet</div>'}</div>`}
     <h3>Site map <span class="sp"></span><a class="btn sm" href="#/new/mappoints/${id}">+ Take a point</a></h3>
     <div class="card">${siteMapSVG(id)}</div>
     ${kids(id, 'mappoints').length ? `<h3>Points</h3><div class="list">${kids(id, 'mappoints').sort((a, b) => a.created_at > b.created_at ? 1 : -1).map(m => rowHTML(m, `<small>${m.data.utme != null ? `${m.data.utme} E, ${m.data.utmn} N · ±${esc(m.data.gps_acc_m ?? '?')} m` : 'no position'}${m.data.notes ? ' · ' + esc(m.data.notes) : ''}</small>`)).join('')}</div>` : ''}
@@ -1247,8 +1271,10 @@ function viewExc(e) {
   const levels = kids(e.id, 'levels').sort((a, b) => (euIndex(a.data.excavation_unit) - euIndex(b.data.excavation_unit)) || (a.data.levelno - b.data.levelno));
   const feats = kids(e.id, 'features'), samps = kids(e.id, 'samples');
   const d = e.data;
-  $('#app').innerHTML = `${crumbs(e)}<h2>${esc(TABLES.excavations.title(d))} ${statusBadge(e)} ${d.positive ? '<span class="badge pos">positive</span>' : '<span class="badge">negative</span>'}</h2>
+  $('#app').innerHTML = `${crumbs(e)}<h2>${esc(TABLES.excavations.title(d))} ${statusBadge(e)} ${d.planned ? '' : d.positive ? '<span class="badge pos">positive</span>' : '<span class="badge">negative</span>'}</h2>
     ${unfinishedBox(e)}
+    ${d.planned ? `<div class="card plancard"><b class="t">Planned STP: not dug yet</b><div>Target: <b>${d.target_e} E, ${d.target_n} N</b> (zone ${d.target_zone || 15})${d.transect ? ' · transect ' + esc(d.transect) : ''}</div><div id="pdist" class="help"></div>
+      <div class="btns"><button class="btn sec" id="pfind">📍 How far is it?</button><a class="btn" href="#/edit/${e.id}">Dig it: record location &amp; start</a><button class="btn sec" id="pcant">Can’t dig…</button></div></div>` : ''}
     ${newSiteDue(e) ? `<div class="unfinbox"><b class="t">🆕 ${stpCount(e)} artifacts: this looks like a new site</b>More than 5 artifacts in a survey STP. <div class="btns"><button class="btn" id="nsdecide">Decide now</button></div></div>` : ''}
     ${d.new_site && get(d.new_site) ? `<div class="check okc">This STP found new site <a href="#/site/${d.new_site}"><b>${esc(get(d.new_site).data.sitename)}</b></a>.</div>` : d.site_decision && d.site_decision.startsWith('Not') ? `<div class="check">${esc(d.site_decision)}</div>` : ''}
     <div class="card kv">
@@ -1259,10 +1285,10 @@ function viewExc(e) {
       <div><span>Excavators</span><br>${esc(d.crew || '—')}</div>
       ${d.comments ? `<div style="grid-column:1/-1"><span>Comments</span><br>${esc(d.comments)}</div>` : ''}
     </div>
-    ${e.data._status === 'draft' ? '' : checklistHTML(e)}
+    ${e.data._status === 'draft' || d.planned ? '' : checklistHTML(e)}
     ${levels.some(l => l.data._status === 'draft') ? `<div class="unfinbox"><b class="t">⚠ ${levels.filter(l => l.data._status === 'draft').length} level(s) UNFINISHED</b>Finish ${levels.filter(l => l.data._status === 'draft').map(l => 'EU ' + esc(l.data.excavation_unit) + ' Lvl ' + esc(l.data.levelno)).join(', ')} before starting another level.</div>` : ''}
     <div class="card" style="margin-top:8px">${photoStripHTML(e)}</div>
-    <div class="btns">${isUnit(d) ? '' : `<a class="btn" href="#/new/levels/${e.id}">+ Next level</a>`}<a class="btn sec" href="#/edit/${e.id}">Edit / close out</a>
+    <div class="btns${d.planned ? ' hidden' : ''}">${isUnit(d) ? '' : `<a class="btn" href="#/new/levels/${e.id}">+ Next level</a>`}<a class="btn sec" href="#/edit/${e.id}">Edit / close out</a>
       <a class="btn sec" href="#/new/features/${e.id}">+ Feature</a><a class="btn sec" href="#/new/samples/${e.id}">+ Sample</a></div>
     ${unitSectionHTML(e)}
     <h3>Levels</h3><div class="list">${levels.map(l => {
@@ -1273,6 +1299,10 @@ function viewExc(e) {
     ${samps.length ? `<h3>Samples</h3><div class="list">${samps.map(f => rowHTML(f)).join('')}</div>` : ''}`;
   bindPhotos($('[data-photos]'), e, () => { const c = $('#cl'); if (c) c.outerHTML = checklistHTML(e); });
   bindFinish(e); bindUnitSection(e);
+  if (d.planned) {
+    $('#pcant').onclick = async () => { if (await cantDigModal(e)) { toast('Recorded as not dug'); viewExc(get(e.id)); } };
+    $('#pfind').onclick = () => navigator.geolocation?.getCurrentPosition(p => { const u = toUTM(p.coords.latitude, p.coords.longitude), dx = d.target_e - u.e, dy = d.target_n - u.n, b = (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360; $('#pdist').innerHTML = `<b>${Math.round(Math.hypot(dx, dy))} m ${bearingName(b)}</b> (${Math.round(b)}° grid) from you · your position ±${Math.round(p.coords.accuracy)} m`; }, er => toast(er.message), { enableHighAccuracy: true, timeout: 30000, maximumAge: 3000 });
+  }
   const nsd = $('#nsdecide'); if (nsd) nsd.onclick = async () => { const go = await newSitePrompt(e); if (go) location.hash = go; else viewExc(get(e.id)); };
 }
 function bindFinish(r) { const b = $('#finnow'); if (b) b.onclick = () => finishNow(r); }
@@ -1415,7 +1445,7 @@ async function viewSettings() {
     <div class="card">${TESTMODE ? `<p><b>You are in TEST MODE.</b> Everything here is practice data, stored separately from the project.</p>
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a><button class="btn sec" id="tmoff">Leave test mode</button></div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.10 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.11 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   $('#demo') && ($('#demo').onclick = loadDemo);
   $('#tmoff') && ($('#tmoff').onclick = () => switchMode(false));
   $('#tmon') && ($('#tmon').onclick = () => switchMode(true));
@@ -1481,6 +1511,11 @@ function regInfo(t) {
 /* parish from the census outlines (point in polygon); "near" when within ~500 m of another parish's outline */
 function inRing(x, y, r) { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) { const [xi, yi] = r[i], [xj, yj] = r[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; }
 function segDist(x, y, r) { let m = Infinity; const k = Math.cos(y * Math.PI / 180); for (let i = 0, j = r.length - 1; i < r.length; j = i++) { const ax = r[j][0] * k, ay = r[j][1], bx = r[i][0] * k, by = r[i][1], px = x * k, dx = bx - ax, dy = by - ay, t = Math.max(0, Math.min(1, ((px - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy || 1))); m = Math.min(m, Math.hypot(px - ax - t * dx, y - ay - t * dy)); } return m * 111000; }
+function districtAt(lat, lon) {
+  if (typeof KNF_DISTRICTS === 'undefined') return '';
+  for (const [d, rings] of Object.entries(KNF_DISTRICTS)) if (rings.some(r => inRing(lon, lat, r))) return d;
+  return '';
+}
 function parishAt(lat, lon) {
   if (typeof LA_PARISHES === 'undefined') return { parish: '', near: false };
   for (const [p, rings] of Object.entries(LA_PARISHES)) if (rings.some(r => inRing(lon, lat, r))) return { parish: p, near: rings.some(r => segDist(lon, lat, r) < 500) };
@@ -1495,7 +1530,7 @@ function infoAt(lat, lon) {
   const u = toUTM(lat, lon); let best = null, bd = Infinity;
   for (const r of REG.list) if (r.e != null) { const d = Math.hypot(r.e - u.e, r.n - u.n); if (d < bd) { bd = d; best = r; } }
   const pa = parishAt(lat, lon);
-  return { quad: quadAt(lat, lon), quad_code: quadCode(lat, lon), parish: pa.parish || (best && bd < 15000 ? best.parish : ''), parishNear: pa.near, district: best && bd < 8000 ? best.district : '', near: best && bd < 400 ? best : null, dist: Math.round(bd) };
+  return { quad: quadAt(lat, lon), quad_code: quadCode(lat, lon), parish: pa.parish || (best && bd < 15000 ? best.parish : ''), parishNear: pa.near, district: districtAt(lat, lon) || (best && bd < 3000 ? best.district : '') || 'Other', near: best && bd < 400 ? best : null, dist: Math.round(bd) };
 }
 
 function fillSiteList(form) {
@@ -1848,6 +1883,125 @@ function openScanner(title = 'Scan label') {
   });
 }
 
+/* ================= Survey plans: transects of planned (undug) STPs =================
+   A planned STP is an excavation record with planned = 1 and a target point (target_e/target_n, UTM).
+   It syncs so every device shares the plan. Digging it turns it into a normal STP; "can't dig" closes it
+   with a reason. */
+const isSurvey = s => s?.data.record_kind === 'Survey area';
+function surveyStats(siteId) {
+  const ex = kids(siteId, 'excavations').filter(e => e.data.excavation_type === 'STP');
+  const planned = ex.filter(e => e.data.planned), notdug = ex.filter(e => !e.data.planned && e.data.not_excavated_reason && !kids(e.id, 'levels').length);
+  const dug = ex.filter(e => !e.data.planned && !notdug.includes(e));
+  return { total: ex.length, planned: planned.length, dug: dug.length, pos: dug.filter(e => e.data.positive).length, notdug: notdug.length };
+}
+function nextSeq(siteId) { return nextNum(kids(siteId, 'excavations').filter(r => r.data.excavation_type === 'STP'), 'seq'); }
+async function addPlanned(site, rows) { // rows: [{transect, n, e, n_}]
+  let seq = nextSeq(site.id), made = 0;
+  for (const r of rows) {
+    const x = mk('excavations', site.id, {});
+    x.data = { excavation_type: 'STP', seq, excavation_name: `T${r.transect} STP ${r.stp}`, transect: String(r.transect), planned: 1, target_e: +(+r.e).toFixed(2), target_n: +(+r.n).toFixed(2), target_zone: r.zone || 15, lengthcm: 30, widthcm: 30, number_of_eu: 1, _status: 'planned', _missing: [] };
+    x.data = compute('excavations', x.data, { site, self: x }); x.data._status = 'planned';
+    await save(x); seq++; made++;
+  }
+  return made;
+}
+function planTransectsModal(site) {
+  return new Promise(resolve => {
+    const lastT = Math.max(0, ...kids(site.id, 'excavations').map(e => +e.data.transect || 0));
+    const m = document.createElement('div'); m.className = 'modal';
+    m.innerHTML = `<div class="card" style="max-width:520px"><b class="t">Plan transects</b>
+      <div class="help">Lays out parallel transects of planned STPs from a start point. The first transect starts at the start point and runs along the bearing; the next ones are offset to the side you pick.</div>
+      <div class="grid" style="margin-top:8px">
+        <div class="f"><label>Start UTM E</label><input id="pe" inputmode="decimal"></div><div class="f"><label>Start UTM N</label><input id="pn" inputmode="decimal"></div>
+        <div class="f"><label>&nbsp;</label><button type="button" class="btn sec sm" id="pme">📍 Use my position</button></div>
+        <div class="f"><label>Transect bearing (° grid)</label><input id="pb" inputmode="decimal" value="0"></div>
+        <div class="f"><label>Next transects to the</label><select id="ps"><option value="1">right (clockwise)</option><option value="-1">left</option></select></div>
+        <div class="f"><label>No. of transects</label><input id="pt" inputmode="numeric" value="5"></div>
+        <div class="f"><label>Transect spacing (m)</label><input id="pts" inputmode="decimal" value="30"></div>
+        <div class="f"><label>STP interval (m)</label><input id="pi" inputmode="decimal" value="30"></div>
+        <div class="f"><label>STPs per transect</label><input id="pk" inputmode="numeric" value="10"></div>
+        <div class="f"><label>First transect no.</label><input id="pf" inputmode="numeric" value="${lastT + 1}"></div>
+      </div><div class="check" id="pmsg">Fill in the start point.</div>
+      <div class="btns" style="justify-content:flex-end"><button class="btn sec" id="px">Cancel</button><button class="btn" id="pok" disabled>Create planned STPs</button></div></div>`;
+    document.body.append(m);
+    const v = id => num($('#' + id, m).value);
+    const build = () => {
+      const E = v('pe'), N = v('pn'), b = (v('pb') || 0) * Math.PI / 180, side = +$('#ps', m).value, T = v('pt'), TS = v('pts'), I = v('pi'), K = v('pk'), F = v('pf') || 1;
+      if (E == null || N == null || E < 100000 || N < 1000000 || !T || !TS || !I || !K) return null;
+      const ux = Math.sin(b), uy = Math.cos(b), px = Math.cos(b) * side, py = -Math.sin(b) * side, rows = [];
+      for (let t = 0; t < T; t++) for (let k = 0; k < K; k++) rows.push({ transect: F + t, stp: k + 1, e: E + ux * I * k + px * TS * t, n: N + uy * I * k + py * TS * t });
+      return rows;
+    };
+    const upd = () => { const r = build(); $('#pok', m).disabled = !r || r.length > 2000; $('#pmsg', m).textContent = r ? `${r.length} planned STPs on ${v('pt')} transects (T${v('pf')}–T${v('pf') + v('pt') - 1}), covering about ${Math.round((v('pk') - 1) * v('pi'))} × ${Math.round((v('pt') - 1) * v('pts'))} m.` : 'Fill in the start point (UTM 15N) and the layout.'; };
+    m.addEventListener('input', upd); m.addEventListener('change', upd);
+    $('#pme', m).onclick = () => navigator.geolocation?.getCurrentPosition(p => { const u = toUTM(p.coords.latitude, p.coords.longitude); $('#pe', m).value = u.e; $('#pn', m).value = u.n; upd(); toast(`Position ±${Math.round(p.coords.accuracy)} m`); }, e => toast(e.message), { enableHighAccuracy: true, timeout: 30000 });
+    $('#px', m).onclick = () => { m.remove(); resolve(0); };
+    $('#pok', m).onclick = async () => { const r = build(); m.remove(); resolve(await addPlanned(site, r)); };
+  });
+}
+function parseCSV(text) {
+  const lines = text.replace(/\r/g, '').split('\n').filter(l => l.trim()), sep = lines[0].includes('\t') ? '\t' : lines[0].includes(';') && !lines[0].includes(',') ? ';' : ',';
+  return lines.map(l => l.split(sep).map(c => c.trim().replace(/^"|"$/g, '')));
+}
+async function importPlanned(site, file) {
+  const rows = parseCSV(await file.text()); if (!rows.length) return toast('Empty file');
+  const h = rows[0].map(c => c.toLowerCase()), has = h.some(c => /[a-z]/.test(c));
+  const col = (...names) => h.findIndex(c => names.some(n => c === n || c.startsWith(n)));
+  const ci = has ? { t: col('transect', 'tran', 't'), s: col('stp', 'shovel', 'name', 'no', 'num', 'id'), e: col('easting', 'utme', 'east', 'e', 'x'), n: col('northing', 'utmn', 'north', 'n', 'y') } : { t: 0, s: 1, e: 2, n: 3 };
+  if (ci.e < 0 || ci.n < 0) return toast('Could not find easting/northing columns (UTM 15N)');
+  const out = [];
+  rows.slice(has ? 1 : 0).forEach((r, i) => { const e = num(r[ci.e]), n = num(r[ci.n]); if (e == null || n == null) return; out.push({ transect: ci.t >= 0 ? r[ci.t] || '?' : '1', stp: ci.s >= 0 ? String(r[ci.s]).replace(/^.*?(\d+)$/, '$1') : i + 1, e, n }); });
+  if (!out.length) return toast('No rows with coordinates');
+  if (out.some(r => r.e < 100000 || r.n < 1000000) && !(await ask('Some coordinates do not look like UTM 15N metres (easting ~400000–800000, northing ~3300000–3700000). Import anyway?', 'Import'))) return;
+  if (!(await ask(`Import ${out.length} planned STPs into ${site.data.sitename}?`, 'Import'))) return;
+  const n = await addPlanned(site, out); toast(`${n} planned STPs added`); render();
+}
+const bearingName = deg => ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(((deg % 360) + 360) % 360 / 45) % 8];
+function nearestPlanned(siteId) {
+  if (!navigator.geolocation) return toast('No location on this device');
+  toast('Getting your position…');
+  navigator.geolocation.getCurrentPosition(p => {
+    const u = toUTM(p.coords.latitude, p.coords.longitude);
+    const list = kids(siteId, 'excavations').filter(e => e.data.planned).map(e => { const dx = e.data.target_e - u.e, dy = e.data.target_n - u.n; return { e, d: Math.hypot(dx, dy), b: (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360 }; }).sort((a, b) => a.d - b.d).slice(0, 5);
+    const m = document.createElement('div'); m.className = 'modal';
+    m.innerHTML = `<div class="card" style="max-width:460px"><b class="t">Nearest planned STPs</b><div class="help">From your position (±${Math.round(p.coords.accuracy)} m). Grid bearings.</div>
+      <div class="list" style="margin-top:8px">${list.map(x => `<a class="row" href="#/rec/${x.e.id}"><span style="flex:1"><b>${esc(TABLES.excavations.title(x.e.data))}</b><br><small>${Math.round(x.d)} m ${bearingName(x.b)} (${Math.round(x.b)}°)</small></span></a>`).join('') || '<div class="empty">No planned STPs left</div>'}</div>
+      <div class="btns" style="justify-content:flex-end"><button class="btn sec" id="nx">Close</button></div></div>`;
+    m.onclick = e => { if (e.target === m || e.target.id === 'nx' || e.target.closest('a')) m.remove(); };
+    document.body.append(m);
+  }, e => toast(e.message), { enableHighAccuracy: true, timeout: 30000, maximumAge: 5000 });
+}
+function cantDigModal(exc) {
+  return new Promise(resolve => {
+    const m = document.createElement('div'); m.className = 'modal';
+    m.innerHTML = `<div class="card" style="max-width:460px"><b class="t">Can’t dig ${esc(TABLES.excavations.title(exc.data))}</b>
+      <div class="f"><label for="cdr">Why?</label><select id="cdr"><option></option><option>Slope over 20%</option><option>Standing water / inundated</option><option>Road or disturbed ground</option><option>Exposed bedrock / gravel</option><option>Inaccessible / dense vegetation</option><option>Other</option></select></div>
+      <div class="f"><label for="cdn">Note</label><input id="cdn" placeholder="optional"></div>
+      <div class="btns" style="justify-content:flex-end"><button class="btn sec" id="cdx">Cancel</button><button class="btn" id="cdok">Record as not dug</button></div></div>`;
+    document.body.append(m);
+    $('#cdx', m).onclick = () => { m.remove(); resolve(false); };
+    $('#cdok', m).onclick = async () => {
+      const r = $('#cdr', m).value, n = $('#cdn', m).value.trim(); if (!r) return toast('Pick a reason');
+      const d = exc.data, g = fromUTM(d.target_e, d.target_n, d.target_zone || 15);
+      exc.data = { ...d, planned: 0, not_excavated_reason: r + (n ? ': ' + n : ''), date: today(), crew: me(), utme: d.target_e, utmn: d.target_n, utmzone: d.target_zone || 15, lat: +g.lat.toFixed(8), lon: +g.lon.toFixed(8), gps_entry: 'planned point (not dug)', gps_source: 'Plan', depthcm: 0, positive: 0 };
+      const miss = completeness(exc, exc.data); exc.data._status = statusFor(exc, exc.data, miss); exc.data._missing = miss;
+      await save(exc); m.remove(); resolve(true);
+    };
+  });
+}
+function surveyCardHTML(s) {
+  const st = surveyStats(s.id);
+  return `<div class="card" style="margin-top:8px"><b>Survey plan</b>
+    <div class="dcstats"><div><b>${st.total}</b>STPs</div><div><b>${st.planned}</b>to dig</div><div class="ok"><b>${st.dug}</b>dug (${st.pos} +)</div><div><b>${st.notdug}</b>not dug</div></div>
+    <div class="btns">${st.planned ? '<button class="btn" id="svnear">📍 Nearest planned STP</button>' : ''}<button class="btn sec" id="svplan">Plan transects…</button><label class="btn sec">Import planned STPs (CSV)<input type="file" accept=".csv,.txt,text/csv" hidden id="svcsv"></label></div>
+    <div class="help">CSV columns: transect, STP, easting, northing (UTM 15N), e.g. exported from ArcGIS/QGIS.</div></div>`;
+}
+function bindSurveyCard(s) {
+  const a = $('#svnear'); if (a) a.onclick = () => nearestPlanned(s.id);
+  const b = $('#svplan'); if (b) b.onclick = async () => { const n = await planTransectsModal(s); if (n) { toast(`${n} planned STPs added`); render(); } };
+  const c = $('#svcsv'); if (c) c.onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) importPlanned(s, f); };
+}
+
 /* ================= Survey: more than 5 artifacts in one STP = new site =================
    Applies to STPs in survey areas, isolated finds and other work (not inside a recorded or new site). */
 const NEW_SITE_MIN = 6;
@@ -2052,7 +2206,7 @@ function viewHome() {
   const dc = draftCount();
   $('#app').innerHTML = `
     <div class="home">
-      <a class="tile field" href="#/sites"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><span>Field<small>Sites · excavations · levels · bags</small></span></a>
+      <a class="tile field" href="#/sites"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><span>Field<small>Sites &amp; survey areas · STPs · units · levels · bags</small></span></a>
       <a class="tile bagchk" href="#/daycheck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/><path d="M15.5 16.5l1.5 1.5 3-3" stroke-width="2"/></svg><span>Bag check<small>End of day · box the bags · missing-bag report</small></span></a>
       <a class="tile lab" href="#/lab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/><path d="M7.5 14h9"/></svg><span>Lab<small>Analysis · catalogue · tabulation</small></span></a>
     </div>
