@@ -41,6 +41,7 @@ Every location box has a **source** picker next to *Capture position*. The choic
 - **PPK:** every capture stores a UTC timestamp (`gps_time`) for matching to post-processed points later.
 
 ## 4. QGIS
+A ready-made project (KNF_Field_Data.qgs, with styled layers and USGS basemaps) is in the KNF_Field_Data_Local folder; see QGIS_READ_ME.txt there. To build your own:
 Add a PostgreSQL connection to the Supabase database (Project Settings → Database → connection string, *session pooler*). Use these layers:
 - `excavations_pts`: point layer
 - `excavations`, `levels`, `lithic_tools`, `prehistoric_ceramics`, etc.: **complete** records only, using the Access column names
@@ -64,6 +65,9 @@ Settings → *Switch to test mode* gives a practice copy of the app with a purpl
 - **Corner shots:** shoot at least one unit corner (two is better) with **+ Shoot a corner**, and choose which plan corner it is. The app calculates the unit's azimuth, sets it with one tap, and flags any corner more than 15 cm off the plan.
 - Close-out for a unit requires every subunit to have levels and a terminal level, the azimuth, at least one corner shot within tolerance, profile and plan photos, and a profile drawing number.
 - In QGIS, `subunits_utm15` gives real subunit polygons (UTM 15N) and `mappoints_pts` gives the corner shots.
+
+## Features
+Ticking **Feature** on a level means a feature form is needed: when the level is finished, the feature form opens next, already filled with the EU, level and top depth and linked to that level. The feature needs type, depth, size, cultural or not, a description and a photo. If it is skipped, the level page shows a reminder with a *Record the feature* button.
 
 ## Labels, scanning and custody
 - **Print labels:** go to Home → *Print labels*. Bag labels (B-XXXXXX) fit Avery 5160-size sheets (use weatherproof stock); box labels (X-XXXXXX) fit 4×2 in. Each code is random and unique, so anyone can print a batch without coordinating. Print from the hosted app: the QR then holds the app's address, and a phone's own camera opens that bag's page directly.

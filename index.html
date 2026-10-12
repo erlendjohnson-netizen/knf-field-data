@@ -234,7 +234,7 @@ async function loadDemo() {
 const TESTPLAN = [
   ['Setup', ['Add your name in Settings', 'Sign in (test mode needs its own sign-in)', 'Install the app on this device (Add to Home Screen / Install app)', 'Load practice data']],
   ['Sites', ['Open a Phase II site from the list', 'Create a new site with a temporary number (+ New site (temp. no.)) and check the KRD-T## / CRD-T## number', 'Rename a temporary site to a trinomial and check the temporary number is kept', 'Create a survey area (+ Survey area) and check it gets a KRD-S## number', 'Capture a GPS point on a new site or survey area and check parish and quad fill in', 'In a survey area, finish an STP level with more than 5 artifacts and create the new site from the pop-up', 'Open the new site and check the delineation targets and the link back to the survey STP', 'New site or survey area: capture GPS first and check district, parish and quad fill in', 'Survey area: Plan transects…, then open a planned STP, check How far is it?, and dig it', 'Mark a planned STP as Can’t dig with a reason', 'Import planned STPs from a CSV (transect, stp, easting, northing)', 'Add an STP: only the name, date, crew and location are asked; answer Yes to start Level 1']],
-  ['STP', ['Start an STP and capture GPS (with the Emlid on Android if available)', 'Check the accuracy warning appears when accuracy is poor', 'Record a level with “Artifacts recovered” ticked, press Finish, and scan the bag label in the pop-up', 'Tick “Special find”: check it needs a description and a special-find photo, and scan a second bag for it', 'Press “Back to the form” in the bag pop-up and check the level is NOT finished', 'Try to scan a bag label that is already used (must be refused)', 'Try to Finish a level without a photo (must be blocked)', 'Save a level as unfinished and check the red banner and acknowledgement box', 'Try to start the next level while one is unfinished (must be blocked)', 'Finish the level from its page with “Finish now” after adding a photo', 'Close out an STP (final depth must match the deepest level)']],
+  ['STP', ['Start an STP and capture GPS (with the Emlid on Android if available)', 'Check the accuracy warning appears when accuracy is poor', 'Record a level with “Artifacts recovered” ticked, press Finish, and scan the bag label in the pop-up', 'Tick “Special find”: check it needs a description and a special-find photo, and scan a second bag for it', 'Press “Back to the form” in the bag pop-up and check the level is NOT finished', 'Try to scan a bag label that is already used (must be refused)', 'Try to Finish a level without a photo (must be blocked)', 'Save a level as unfinished and check the red banner and acknowledgement box', 'Try to start the next level while one is unfinished (must be blocked)', 'Finish the level from its page with “Finish now” after adding a photo', 'Close out an STP (final depth must match the deepest level)', 'Tick Feature on a level, press Finish, and check the feature form opens linked to that level']],
   ['GPS & points', ['Watch the live GPS readout on a location box (green = good for the chosen source)', 'Switch the GPS source (Emlid / Trimble / phone) and check the warning thresholds change', 'Type in coordinates from another instrument and check they show as “typed in”', 'On a site page, Take a point: walk a few boundary points with “Finish & add next” (B1, B2, B3…)', 'Check the site map shows STPs, units, points and the boundary outline', 'Tap a symbol on the site map to open it']],
   ['Test unit', ['Create a TU and capture the datum', 'Add subunit A and choose the datum corner', 'Add a 0.5 × 1 m subunit against A', 'Build an L-shaped subunit from two pieces', 'Try to overlap two subunits (must be blocked)', 'Start a level in a specific subunit and check the volume', 'Shoot a corner, choose which plan corner it is, and set the azimuth', 'Check close-out lists what is missing']],
   ['Bags & boxes', ['Print a sheet of bag labels and a sheet of box labels', 'Scan a bag with the app and with the phone’s own camera app', 'Hand over a bag and check the custody log', 'Register a box and scan bags into it', 'Remove a bag from a box', 'Scan an unassigned bag label and assign it to a level']],
@@ -722,7 +722,10 @@ function excHeaderMissing(d) {
 }
 const LABELKEY = { 'Location (GPS capture or UTM)': '_gps', 'Excavators': 'crew' }; // missing-item label → field key, so the form can point at it
 const BAG_MISS = 'Bag label for the artifacts (scanned when you press Finish)';
+const FEAT_MISS = 'Feature form (opens when you press Finish)';
+const AFTER = [BAG_MISS, FEAT_MISS]; // asked for after Finish, so they don't block the button
 const onlyBag = miss => miss.length > 0 && miss.every(x => x === BAG_MISS);
+const featuresOfLevel = l => live('features').filter(f => f.data.level_id === l.id || (!f.data.level_id && f.parent === l.parent && String(f.data.levelno) === String(l.data.levelno) && String(f.data.excavation_unit || 'A').toUpperCase() === String(l.data.excavation_unit || 'A').toUpperCase()));
 function completeness(rec, d) {
   const t = rec.tbl, m = t === 'excavations' ? excHeaderMissing(d) : requiredMissing(rec, d), need = (k, label) => { LABELKEY[label] = k; if (blank(d[k]) && !m.includes(label)) m.push(label); };
   const hasPhoto = kinds => photosOf(rec.id).some(p => !kinds || kinds.includes(p.data.kind));
@@ -774,6 +777,7 @@ function completeness(rec, d) {
     if (d.special_find) { need('special_find_desc', 'Special find description'); if (!hasPhoto(['Special find', 'In situ find'])) m.push('Photo of the special find'); }
     if (!hasPhoto()) m.push('Photo of the level (floor or profile)');
     if (d.artifacts && !kids(rec.id, 'bags').length && blank(d.bag_qr)) m.push(BAG_MISS);
+    if (d.feature && !featuresOfLevel(rec).length) m.push(FEAT_MISS);
   }
   if (t === 'bags') need('contents', 'Contents');
   if (t === 'mappoints') { if (d.lat == null && blank(d.utme)) m.push('GPS position'); if (d.kind === 'Unit corner') need('corner', 'Which corner'); }
@@ -819,7 +823,7 @@ async function finishNow(rec) {
   const d = compute(rec.tbl, rec.data, { site: rec.tbl === 'sites' ? rec : get(rec.site), parentRec: get(rec.parent) });
   const v = validate(rec.tbl, d, rec);
   let miss = completeness(rec, d), st = statusFor(rec, d, miss);
-  if (!Object.keys(v.errs).length && rec.tbl === 'levels' && onlyBag(miss)) {
+  if (!Object.keys(v.errs).length && rec.tbl === 'levels' && miss.includes(BAG_MISS) && miss.every(x => AFTER.includes(x))) {
     const bags = await bagPrompt(rec, d); if (!bags) return;
     for (const b of bags) await createBag(rec, b.code, b.contents);
     miss = completeness(rec, d); st = statusFor(rec, d, miss);
@@ -974,7 +978,7 @@ function defaults(tbl, parentId) {
     if (tbl === 'lithic_tools') d.sourcing_basis = 'Visual (class only)';
   }
   if (p && (tbl === 'features' || tbl === 'samples')) {
-    if (p.tbl === 'levels') { d.excavation_unit = p.data.excavation_unit; d.levelno = p.data.levelno; d.depth = p.data.top_cm; d.depth_bgs = p.data.top_cm; }
+    if (p.tbl === 'levels') { d.level_id = p.id; d.excavation_unit = p.data.excavation_unit; d.levelno = p.data.levelno; d.depth = p.data.top_cm; d.depth_bgs = p.data.top_cm; }
   }
   return d;
 }
@@ -1076,8 +1080,8 @@ function formView(rec, isNew, opts = {}) {
       if (f.t === 'ro') { const el = $('#f_' + f.k, form); if (el) el.textContent = cur[f.k] === '' || cur[f.k] == null ? '—' : cur[f.k]; }
       if (f.show) form.querySelector(`.f[data-k="${f.k}"]`)?.classList.toggle('hidden', !f.show(cur));
     });
-    const v = validate(rec.tbl, cur, rec), errs = Object.keys(v.errs).length, missAll = completeness(rec, cur), bagNext = missAll.includes(BAG_MISS), miss = missAll.filter(x => x !== BAG_MISS), st = statusFor(rec, cur, miss);
-    $('#chk').innerHTML = (bagNext ? '<div class="check bagnext">🏷 <b>Artifacts recorded:</b> when you press Finish, the app asks you to scan the bag label for this level.</div>' : '') + (miss.length ? `<div class="check"><b>${isExc && st === 'open' ? 'Before close-out' : 'Still needed before this can be finished'}:</b><ul style="margin:4px 0 0;padding-left:18px">${miss.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : '<div class="check okc">Everything is filled in ✓</div>')
+    const v = validate(rec.tbl, cur, rec), errs = Object.keys(v.errs).length, missAll = completeness(rec, cur), bagNext = missAll.includes(BAG_MISS), featNext = missAll.includes(FEAT_MISS), miss = missAll.filter(x => !AFTER.includes(x)), st = statusFor(rec, cur, miss);
+    $('#chk').innerHTML = (bagNext ? '<div class="check bagnext">🏷 <b>Artifacts recorded:</b> when you press Finish, the app asks you to scan the bag label for this level.</div>' : '') + (featNext ? '<div class="check bagnext">🕳 <b>Feature ticked:</b> when you press Finish, the feature form opens next.</div>' : '') + (miss.length ? `<div class="check"><b>${isExc && st === 'open' ? 'Before close-out' : 'Still needed before this can be finished'}:</b><ul style="margin:4px 0 0;padding-left:18px">${miss.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : '<div class="check okc">Everything is filled in ✓</div>')
       + (errs ? `<div class="check" style="border-color:var(--bad)"><b>${errs} field${errs > 1 ? 's have' : ' has'} an error</b> (see highlighted fields)</div>` : '');
     const fin = $('#fin'), canFin = !errs && (st === 'complete' || (isExc && st === 'open'));
     fin.classList.toggle('dim', !canFin); if ($('#saveNext')) $('#saveNext').classList.toggle('dim', !canFin);
@@ -1147,13 +1151,15 @@ function formView(rec, isNew, opts = {}) {
     let nd = current();
     const v = validate(rec.tbl, nd, rec);
     showMsgs(form, v);
-    if (Object.keys(v.errs).length) { showMissing(form, completeness(rec, nd).filter(x => x !== BAG_MISS), v.errs); return; }
+    if (Object.keys(v.errs).length) { showMissing(form, completeness(rec, nd).filter(x => !AFTER.includes(x)), v.errs); return; }
     let miss = completeness(rec, nd), st = statusFor(rec, nd, miss), extraBags = [];
-    if (mode === 'finish' && rec.tbl === 'levels' && onlyBag(miss)) {
+    if (mode === 'finish' && rec.tbl === 'levels' && miss.includes(BAG_MISS) && miss.every(x => AFTER.includes(x))) {
       const bags = await bagPrompt(rec, nd); if (!bags) return;
       nd.bag_qr = bags[0].code; nd._bag_contents = bags[0].contents; extraBags = bags.slice(1);
       miss = completeness(rec, nd); st = statusFor(rec, nd, miss);
     }
+    const featAfter = rec.tbl === 'levels' && miss.includes(FEAT_MISS);
+    if (featAfter && mode === 'finish') { miss = miss.filter(x => x !== FEAT_MISS); st = statusFor(rec, nd, miss); }
     if (mode === 'finish' && !(st === 'complete' || (isExc && st === 'open'))) { showMissing(form, miss, v.errs); return; }
     nd._status = mode === 'draft' && st !== 'draft' && !isExc ? 'draft' : st;
     if (mode === 'draft' && isExc && st !== 'draft') nd._status = 'draft';
@@ -1175,6 +1181,7 @@ function formView(rec, isNew, opts = {}) {
     S.formDirty = false;
     toast(nd._status === 'draft' ? '⚠ Saved UNFINISHED: not sent to the project' : nd._status === 'open' ? 'Saved: excavation open' : 'Finished ✓');
     if (rec.tbl === 'levels' && nd._status === 'complete' && newSiteDue(get(rec.parent))) { const go = await newSitePrompt(get(rec.parent)); if (go) { location.hash = go; return; } }
+    if (featAfter && mode === 'finish') { toast('Level finished ✓ Now record the feature'); location.hash = `#/new/features/${rec.parent}?lv=${rec.id}`; return; }
     if (next) { const h = `#/new/${rec.tbl}/${rec.parent}`; if (location.hash === h) render(); else location.hash = h; }
     else if (startedNow) {
       const unit = isUnit(nd), nm = TABLES.excavations.title(nd);
@@ -1335,6 +1342,8 @@ function viewLevel(l) {
       <div><span>Method / screen</span><br>${esc(d.excavation_method || '—')} · ${esc(d.screen || '—')}</div><div><span>Artifacts (field)</span><br>${d.artifacts ? 'Yes' : 'No'}${d.field_count != null ? ' · ' + d.field_count : ''}</div>
       ${d.special_find ? `<div style="grid-column:1/-1"><span>Special find</span><br>${esc(d.special_find_desc || '—')}</div>` : ''}
       ${d.notes ? `<div style="grid-column:1/-1"><span>Notes</span><br>${esc(d.notes)}</div>` : ''}</div>
+    ${d.feature && !featuresOfLevel(l).length ? `<div class="unfinbox"><b class="t">🕳 Feature ticked, but no feature form yet</b><div class="btns"><a class="btn" href="#/new/features/${l.parent}?lv=${l.id}">Record the feature</a></div></div>` : ''}
+    ${featuresOfLevel(l).length ? `<h3>Features</h3><div class="list">${featuresOfLevel(l).map(f => rowHTML(f)).join('')}</div>` : ''}
     <div class="btns"><a class="btn sec" href="#/edit/${l.id}">Edit level</a><a class="btn" href="#/new/bags/${l.id}">+ Bag</a>
       <a class="btn sec" href="#/new/features/${l.parent}?lv=${l.id}">+ Feature</a><a class="btn sec" href="#/new/samples/${l.parent}?lv=${l.id}">+ Sample</a>
       <a class="btn sec" href="#/new/levels/${l.parent}">+ Next level</a></div>
@@ -1447,7 +1456,7 @@ async function viewSettings() {
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a><button class="btn sec" id="tmoff">Leave test mode</button></div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
     <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a></div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.13 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.14 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   $('#demo') && ($('#demo').onclick = loadDemo);
   $('#tmoff') && ($('#tmoff').onclick = () => switchMode(false));
   $('#tmon') && ($('#tmon').onclick = () => switchMode(true));
