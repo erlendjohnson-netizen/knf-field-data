@@ -1446,7 +1446,8 @@ async function viewSettings() {
     <div class="card">${TESTMODE ? `<p><b>You are in TEST MODE.</b> Everything here is practice data, stored separately from the project.</p>
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a><button class="btn sec" id="tmoff">Leave test mode</button></div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.12 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a></div>
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.13 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   $('#demo') && ($('#demo').onclick = loadDemo);
   $('#tmoff') && ($('#tmoff').onclick = () => switchMode(false));
   $('#tmon') && ($('#tmon').onclick = () => switchMode(true));
@@ -1514,17 +1515,19 @@ async function migrateCodes() {
   if (migrating) return 0; migrating = true; let n = 0;
   try {
     for (const s of live('sites')) {
-      if (!/^\d{4}$/.test(s.data.site_code || '')) continue;
-      const c = codeFor(s); if (!c || c === s.data.site_code) continue;
-      s.data = { ...s.data, old_code: s.data.site_code, site_code: c }; await save(s); n++;
+      const c = codeFor(s), cur = s.data.site_code || ''; if (!c || c === cur) continue;
+      const m = String(s.data.sitename || '').match(/^16([A-Z]{2,3})(\d+)$/), pn = m && (PARISH[m[1]] || s.data.parish);
+      const v1 = m && PARISH_NO_V1[pn] ? pad(PARISH_NO_V1[pn], 2) + pad(+m[2], 4) : '';
+      if (!/^\d{4}$/.test(cur) && cur !== v1) continue; // only codes made by the old schemes, never one typed on purpose
+      s.data = { ...s.data, old_code: s.data.old_code || cur, site_code: c }; await save(s); n++;
     }
     if (n) {
       for (const tbl of ['excavations', 'levels']) for (const r of live(tbl)) {
         const k = tbl === 'excavations' ? 'excavationid' : 'levelid', site = get(r.site);
         const c = compute(tbl, r.data, { site, parentRec: get(r.parent), self: r })[k];
-        if (c && c !== r.data[k]) { r.data = { ...r.data, ['old_' + k]: r.data[k], [k]: c }; await save(r); }
+        if (c && c !== r.data[k]) { r.data = { ...r.data, ['old_' + k]: r.data['old_' + k] || r.data[k], [k]: c }; await save(r); }
       }
-      toast(`Updated ${n} site ID code${n > 1 ? 's' : ''} to the 6-digit format`);
+      toast(`Updated ${n} site ID code${n > 1 ? 's' : ''} to the current parish numbering`);
     }
   } finally { migrating = false; }
   return n;
@@ -2230,6 +2233,14 @@ function viewDayReport(r) {
   $('#dcsave').onclick = async () => { r.data = { ...r.data, notes: $('#dcnotes').value.trim() }; await save(r); toast('Notes saved'); };
 }
 
+function viewParishKey() {
+  setTitle('Parish numbers');
+  const rows = Object.entries(PARISH_NO).sort((a, b) => a[1] - b[1]);
+  const abbr = Object.fromEntries(Object.entries(PARISH).map(([a, p]) => [p, a]));
+  $('#app').innerHTML = `<h2>Parish numbers for ID codes</h2>
+    <div class="help">ID code = 2-digit parish number + 4-digit site number, e.g. 16NA41 → <b>${pad(PARISH_NO.Natchitoches, 2)}0041</b>. Parishes are numbered from the southeast (01) to the northwest (64). New sites use 80xxxx and survey areas 90xxxx.</div>
+    <div class="card" style="margin-top:8px"><table class="tgt" style="width:100%">${rows.map(([p, n]) => `<tr${abbr[p] ? ' style="font-weight:700"' : ''}><td>${pad(n, 2)}</td><td>${esc(p)}</td><td>${abbr[p] ? '16' + abbr[p] : ''}</td></tr>`).join('')}</table></div>`;
+}
 function viewHome() {
   setTitle('KNF Field Data');
   const dc = draftCount();
@@ -2515,6 +2526,7 @@ function render() {
     }
     case 'drafts': return viewDrafts();
     case 'daycheck': return viewDayCheck();
+    case 'parishes': return viewParishKey();
     case 'testplan': return viewTestPlan();
     case 'lab': return viewLab();
     case 'catalog': return viewCatalog(seg[1]);

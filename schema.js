@@ -102,7 +102,7 @@ const TABLES = {
       { k: 'requested_by', l: 'Requested by', t: 'text', ph: 'e.g. Matt Helmer', show: r => r.record_kind === 'Other investigation' },
       { k: 'parish', l: 'Parish', t: 'select', o: 'parish', help: 'Filled in from the GPS position' },
       { k: 'usgsquad', l: 'USGS quad', t: 'select', o: 'quad', help: 'Filled in from the GPS position; leave “Unknown” if it isn’t listed' },
-      { k: 'site_code', l: 'ID code (6 digits)', t: 'text', req: 1, ph: '350041', help: 'Filled in automatically: parish no. + site no. (16NA41 → 350041). Used to build excavation IDs, so it must be unique.' },
+      { k: 'site_code', l: 'ID code (6 digits)', t: 'text', req: 1, ph: '530041', help: 'Filled in automatically: parish no. + site no. (16NA41 → 530041). Used to build excavation IDs, so it must be unique.' },
       { k: 'project', l: 'Project', t: 'ro' },
       { k: 'notes', l: 'Notes', t: 'area', w: 3 },
     ],
@@ -414,10 +414,13 @@ TABLES.daychecks = {
 LISTS.quad = ['Unknown (find later)'];
 const DISTRICT_CODE = { 'Kisatchie RD': ['KRD', 1], 'Caney RD': ['CRD', 2], 'Vernon Unit': ['VU', 3], 'Evangeline Unit': ['EVU', 4], 'Catahoula RD': ['CAT', 5], 'Winn RD': ['WRD', 6], 'Other': ['OTH', 9] };
 const PARISH = { NA: 'Natchitoches', CL: 'Claiborne', WE: 'Webster', GR: 'Grant', WN: 'Winn', RA: 'Rapides', VN: 'Vernon' };
-/* Site ID codes are 6 digits: the 2-digit Louisiana parish number (01 Acadia … 64 Winn, alphabetical, as used by the state)
-   + the 4-digit site number, so 16NA41 → 350041 and 16VN2025 → 582025. Codes starting 80 are new sites (80 + district digit + no.)
+/* Site ID codes are 6 digits: a 2-digit parish number + the 4-digit site number. Parishes are numbered 01–64 from the
+   southeast (01 Plaquemines) to the northwest (64 Caddo), by the centre of each parish along a SE→NW line,
+   so 16NA41 → 530041 and 16VN2025 → 462025. Codes starting 80 are new sites (80 + district digit + no.)
    and 90 survey areas, which no parish number can reach. */
-const PARISH_NO = { Acadia: 1, Allen: 2, Ascension: 3, Assumption: 4, Avoyelles: 5, Beauregard: 6, Bienville: 7, Bossier: 8, Caddo: 9, Calcasieu: 10, Caldwell: 11, Cameron: 12, Catahoula: 13, Claiborne: 14, Concordia: 15, 'De Soto': 16, 'East Baton Rouge': 17, 'East Carroll': 18, 'East Feliciana': 19, Evangeline: 20, Franklin: 21, Grant: 22, Iberia: 23, Iberville: 24, Jackson: 25, Jefferson: 26, 'Jefferson Davis': 27, Lafayette: 28, Lafourche: 29, 'La Salle': 30, Lincoln: 31, Livingston: 32, Madison: 33, Morehouse: 34, Natchitoches: 35, Orleans: 36, Ouachita: 37, Plaquemines: 38, 'Pointe Coupee': 39, Rapides: 40, 'Red River': 41, Richland: 42, Sabine: 43, 'St. Bernard': 44, 'St. Charles': 45, 'St. Helena': 46, 'St. James': 47, 'St. John the Baptist': 48, 'St. Landry': 49, 'St. Martin': 50, 'St. Mary': 51, 'St. Tammany': 52, Tangipahoa: 53, Tensas: 54, Terrebonne: 55, Union: 56, Vermilion: 57, Vernon: 58, Washington: 59, Webster: 60, 'West Baton Rouge': 61, 'West Carroll': 62, 'West Feliciana': 63, Winn: 64 };
+const PARISH_NO = { Plaquemines: 1, 'St. Bernard': 2, Lafourche: 3, Jefferson: 4, Orleans: 5, Terrebonne: 6, 'St. Charles': 7, 'St. Tammany': 8, 'St. John the Baptist': 9, 'St. James': 10, Assumption: 11, Washington: 12, 'St. Mary': 13, Ascension: 14, Tangipahoa: 15, Livingston: 16, Iberville: 17, Iberia: 18, 'St. Helena': 19, 'East Baton Rouge': 20, 'West Baton Rouge': 21, 'St. Martin': 22, 'East Feliciana': 23, Vermilion: 24, Lafayette: 25, 'Pointe Coupee': 26, 'West Feliciana': 27, 'St. Landry': 28, Acadia: 29, Cameron: 30, 'Jefferson Davis': 31, Evangeline: 32, Avoyelles: 33, Concordia: 34, Allen: 35, Calcasieu: 36, Tensas: 37, Catahoula: 38, Rapides: 39, Madison: 40, Beauregard: 41, 'La Salle': 42, Franklin: 43, Grant: 44, 'East Carroll': 45, Vernon: 46, Caldwell: 47, Richland: 48, 'West Carroll': 49, Winn: 50, Ouachita: 51, Morehouse: 52, Natchitoches: 53, Jackson: 54, Sabine: 55, Union: 56, Lincoln: 57, Bienville: 58, 'Red River': 59, 'De Soto': 60, Claiborne: 61, Webster: 62, Bossier: 63, Caddo: 64 };
+/* the first 6-digit numbering (alphabetical, v1.12), kept only so codes made with it are upgraded */
+const PARISH_NO_V1 = Object.fromEntries(Object.keys(PARISH_NO).sort((a, b) => a.replace(/\s/g, '').localeCompare(b.replace(/\s/g, ''))).map((p, i) => [p, i + 1]));
 /* USGS 7.5' quadrangles around KNF (bounds W, S, E, N in degrees, from the HTMC sheets in the project GIS) */
 const QUADS = {"Hurricane Branch": [-93.25, 30.875, -93.125, 31.0], "Sugrue": [-93.125, 30.875, -93.0, 31.0], "Arizona": [-93.0, 32.75, -92.875, 32.875], "Bernice": [-92.75, 32.75, -92.625, 32.875], "Blackburn": [-93.25, 32.75, -93.125, 32.875], "Colquitt": [-93.0, 32.875, -92.875, 33.0], "Haynesville East": [-93.125, 32.875, -93.0, 33.0], "Homer": [-93.125, 32.75, -93.0, 32.875], "Langston": [-93.25, 32.625, -93.125, 32.75], "Leton": [-93.375, 32.75, -93.25, 32.875], "Lillie": [-92.75, 32.875, -92.625, 33.0], "Minden North": [-93.375, 32.625, -93.25, 32.75], "Summerfield": [-92.875, 32.875, -92.75, 33.0], "Savage Creek": [-92.75, 31.625, -92.625, 31.75], "Williana": [-92.625, 31.625, -92.5, 31.75], "Bayou Livrogne": [-93.125, 31.375, -93.0, 31.5], "Bellwood": [-93.25, 31.5, -93.125, 31.625], "Flora": [-93.125, 31.5, -93.0, 31.625], "Gorum": [-93.0, 31.375, -92.875, 31.5], "Kisatchie": [-93.25, 31.375, -93.125, 31.5], "Kurthwood": [-93.25, 31.25, -93.125, 31.375], "Simpson North": [-93.125, 31.25, -93.0, 31.375], "Pitkin": [-93.0, 30.875, -92.875, 31.0]};
 
@@ -450,4 +453,4 @@ const TYPE_CODE = { 'STP': '01', 'TP': '02', 'Unit': '03', 'Surface collection':
    it is kept in the private Supabase table site_registry and downloaded after sign-in. */
 const SEED_SITES = [];
 
-if (typeof module !== 'undefined') module.exports = { LISTS, TABLES, TYPE_CODE, SEED_SITES, PHOTO_KINDS, DISTRICT_CODE, isUnit, PARISH, QUADS, PARISH_NO };
+if (typeof module !== 'undefined') module.exports = { LISTS, TABLES, TYPE_CODE, SEED_SITES, PHOTO_KINDS, DISTRICT_CODE, isUnit, PARISH, QUADS, PARISH_NO, PARISH_NO_V1 };
