@@ -28,10 +28,16 @@ Put the folder on GitHub Pages, the same way as your Garden Log app. Anyone on t
 
 The public code holds no site numbers or locations. The KNF site list (about 6,000 trinomials with district, parish, recorded locations for Caney, Kisatchie and Grant/Winn sites, and the Phase II candidates) is stored privately in Supabase (`site_registry`) and downloads to each device after sign-in, then works offline. A copy is kept in the KNF_Field_Data_PRIVATE folder; never upload that folder to GitHub.
 
-## 3. Emlid Reach RX2 → app
-- **Android:** pair the RX2 over Bluetooth. In Developer options, set *Select mock location app* to **Emlid Flow** (or Lefebure NTRIP Client). Get an RTK fix in Flow, then press **Capture position** in the app. The app averages fixes for the number of seconds set in Settings and warns when accuracy is worse than the threshold.
-- **iPhone/iPad:** web apps can't connect to Bluetooth receivers. Type in the coordinates shown in Emlid Flow, or use Android tablets for GPS.
-- **PPK:** every capture stores a UTC timestamp (`gps_time`) for matching to post-processed Emlid Studio points later.
+## 3. GPS sources
+Every location box has a **source** picker next to *Capture position*. The choice is remembered per device and stored with each position, and accuracy warnings follow it.
+- **Emlid Reach RX2 (RTK):** Android. Pair over Bluetooth, set **Emlid Flow** (or Lefebure NTRIP Client) as the *mock location app* in Developer options, and get an RTK fix. Warns above ±0.1 m.
+- **Trimble TDC600 (RTX):** the TDC600 is an Android handheld, so open the app on the TDC600 itself. In Developer options set **Trimble Mobile Manager** as the mock location app, and turn off battery optimization for it. Warns above ±1 m.
+- **Phone/tablet built-in GPS:** no setup needed. Usually 3–10 m, so it's fine for finding STPs but too coarse for unit datums and corners.
+- **Other receiver:** any receiver that feeds Android's location (mock location).
+- **Typed in:** coordinates from any instrument can be typed into UTM E/N. They are labelled "typed in" with the chosen source, and the app works out lat/lon for the maps.
+- **Unit datums** warn above ±1 m and **corner shots** above ±0.5 m, whatever the source.
+- **iPhone/iPad:** web apps can't connect to Bluetooth receivers. Use the phone's own GPS or type in coordinates.
+- **PPK:** every capture stores a UTC timestamp (`gps_time`) for matching to post-processed points later.
 
 ## 4. QGIS
 Add a PostgreSQL connection to the Supabase database (Project Settings → Database → connection string, *session pooler*). Use these layers:

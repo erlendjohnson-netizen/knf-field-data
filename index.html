@@ -233,14 +233,14 @@ const now = () => new Date().toISOString();
 const today = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
 const pad = (n, w) => String(n ?? '').padStart(w, '0');
 const me = () => S.settings.name || S.session?.email || 'unknown';
-const DEF = { name: '', level_cm: 10, gps_secs: 10, gps_max_acc: 2, gps_source: 'Emlid Reach RX2 (mock location)', datum: 'WGS84 / ITRF (device)', theme: 'auto', sb_url: 'https://xmvzhxlqagstuvqvcyhc.supabase.co', sb_key: 'sb_publishable_SUcJNMK83_q6eTAVWLr-Rw_cVItt_6b' };
+const DEF = { name: '', level_cm: 10, gps_secs: 10, gps_max_acc: 2, gps_source: 'Phone/tablet built-in GPS', datum: 'WGS84 / ITRF (device)', theme: 'auto', sb_url: 'https://xmvzhxlqagstuvqvcyhc.supabase.co', sb_key: 'sb_publishable_SUcJNMK83_q6eTAVWLr-Rw_cVItt_6b' };
 
 function live(tbl) { return [...S.recs.values()].filter(r => r.tbl === tbl && !r.deleted); }
 function kids(parent, tbl) { return live(tbl).filter(r => r.parent === parent); }
 function get(id) { const r = S.recs.get(id); return r && !r.deleted ? r : null; }
 function siteRec(r) { return r ? get(r.site) : null; }
 const num = v => (v === '' || v == null || isNaN(+v)) ? null : +v;
-const GPSK = ['lat', 'lon', 'gps_n', 'gps_time', 'gps_source', 'datum', 'elev_m'];
+const GPSK = ['lat', 'lon', 'gps_n', 'gps_time', 'gps_source', 'gps_entry', 'datum', 'elev_m'];
 const pick = (o, ks) => Object.fromEntries(ks.filter(k => o[k] !== undefined).map(k => [k, o[k]]));
 
 /* ================= computed fields ================= */
@@ -386,9 +386,18 @@ function toUTM(lat, lon) {
   if (lat < 0) Nn += 1e7;
   return { zone, e: +E.toFixed(2), n: +Nn.toFixed(2) };
 }
+/* GPS sources: the browser only sees "a position", so the crew picks which receiver is feeding it.
+   warn = accuracy (m) above which the app warns for that source. */
+const GPS_SOURCES = [
+  { k: 'Emlid Reach RX2 (RTK via Emlid Flow)', warn: 0.1, hint: 'Android: Emlid Flow set as the mock location app, with an RTK fix.' },
+  { k: 'Trimble TDC600 (RTX via Trimble Mobile Manager)', warn: 1, hint: 'Open this app on the TDC600 itself; set Trimble Mobile Manager as the mock location app.' },
+  { k: 'Phone/tablet built-in GPS', warn: 10, hint: 'Usually 3–10 m. Fine for finding STPs, too coarse for unit datums and corners.' },
+  { k: 'Other receiver (mock location)', warn: 2, hint: '' },
+];
+const srcInfo = k => GPS_SOURCES.find(x => x.k === k) || (/emlid/i.test(k || '') ? GPS_SOURCES[0] : /trimble|tdc/i.test(k || '') ? GPS_SOURCES[1] : /phone|tablet|device/i.test(k || '') ? GPS_SOURCES[2] : GPS_SOURCES[3]);
 let gpsWatch = null;
 function gpsCapture(box, d, onDone) {
-  const out = $('.live', box), btn = $('button', box);
+  const out = $('.live', box), btn = $('.gpsbtn', box), src = $('.gpssrc', box)?.value || S.settings.gps_source;
   if (!navigator.geolocation) { out.textContent = 'This device/browser has no location access.'; return; }
   if (gpsWatch != null) { navigator.geolocation.clearWatch(gpsWatch); gpsWatch = null; btn.textContent = 'Capture position'; out.textContent = 'Stopped.'; return; }
   const secs = +S.settings.gps_secs || 10, fixes = [], t0 = Date.now();
@@ -396,13 +405,13 @@ function gpsCapture(box, d, onDone) {
   out.textContent = 'Waiting for position…';
   const finish = () => {
     navigator.geolocation.clearWatch(gpsWatch); gpsWatch = null; btn.textContent = 'Capture position';
-    if (!fixes.length) { out.textContent = 'No position received. Check that location is on (and the Emlid is paired and streaming).'; return; }
+    if (!fixes.length) { out.textContent = 'No position received. Check that location is on and the receiver is connected and streaming. ' + (srcInfo(src).hint || ''); return; }
     const best = fixes.filter(f => f.acc <= Math.min(...fixes.map(x => x.acc)) * 1.5);
     const lat = best.reduce((a, f) => a + f.lat, 0) / best.length, lon = best.reduce((a, f) => a + f.lon, 0) / best.length;
     const alts = best.filter(f => f.alt != null), alt = alts.length ? alts.reduce((a, f) => a + f.alt, 0) / alts.length : null;
     const acc = Math.min(...best.map(f => f.acc)), u = toUTM(lat, lon);
     Object.assign(d, { lat: +lat.toFixed(8), lon: +lon.toFixed(8), gps_acc_m: +acc.toFixed(2), gps_n: best.length, gps_time: new Date(fixes[fixes.length - 1].t).toISOString(),
-      gps_source: S.settings.gps_source, datum: S.settings.datum, utmzone: u.zone, utme: u.e, utmn: u.n, elev_m: alt != null ? +alt.toFixed(2) : null });
+      gps_source: src, gps_entry: 'captured', datum: S.settings.datum, utmzone: u.zone, utme: u.e, utmn: u.n, elev_m: alt != null ? +alt.toFixed(2) : null });
     renderGps(box, d);
     out.textContent = `Averaged ${best.length} of ${fixes.length} fixes · best accuracy ±${acc.toFixed(2)} m`;
     onDone && onDone();
@@ -419,7 +428,7 @@ function gpsCapture(box, d, onDone) {
 }
 function renderGps(box, d) {
   ['utme', 'utmn', 'utmzone', 'gps_acc_m'].forEach(k => { const i = box.querySelector(`[data-g=${k}]`); if (i) i.value = d[k] ?? ''; });
-  $('.gpsinfo', box).innerHTML = d.lat != null ? `${d.lat}, ${d.lon} · ±${d.gps_acc_m ?? '?'} m · ${esc(d.gps_source || '')} · ${d.gps_time ? new Date(d.gps_time).toLocaleString() : ''}` : 'No position yet';
+  $('.gpsinfo', box).innerHTML = d.lat != null ? `${d.lat}, ${d.lon} · ±${d.gps_acc_m ?? '?'} m · ${esc(d.gps_source || '')}${d.gps_entry === 'typed' ? ' (typed in)' : ''} · ${d.gps_time ? new Date(d.gps_time).toLocaleString() : ''}` : 'No position yet';
 }
 
 /* ================= forms ================= */
@@ -430,7 +439,10 @@ function fieldHTML(f, v, d) {
   let h = f.g ? `<div class="grp">${esc(f.g)}</div>` : '';
   if (f.t === 'gps') {
     return h + `<div class="gps" data-gps>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="flex:1">Location</b><button type="button" class="btn sm">Capture position</button></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="flex:1">Location</b>
+        <select class="gpssrc" style="width:auto;max-width:100%;min-height:36px;padding:4px 8px" aria-label="GPS source">${GPS_SOURCES.map(g => `<option ${g.k === (d.gps_source && d.gps_entry !== 'typed' ? srcInfo(d.gps_source).k : srcInfo(S.settings.gps_source).k) ? 'selected' : ''}>${esc(g.k)}</option>`).join('')}</select>
+        <button type="button" class="btn sm gpsbtn">Capture position</button></div>
+      <div class="help gpshint"></div>
       <div class="live"></div><div class="gpsinfo help"></div><div class="msg w gpswarn" style="font-size:13px;color:var(--warn)"></div>
       <div class="grid" style="margin-top:8px">
         <div class="f"><label>UTM E</label><input data-g="utme" inputmode="decimal"></div>
@@ -533,6 +545,7 @@ function sanity(tbl, d, rec, v) {
   if (d.date && /^\d{4}-\d{2}-\d{2}$/.test(d.date) && d.date > today()) errs.date = 'Date is in the future';
   for (const [c, w] of [['cnt', 'wt'], ['cnt', 'weight']]) if (num(d[c]) > 0 && d[w] === 0) errs[w] = 'Weight 0 with a count: leave blank if not weighed';
   if (num(d.cnt) === 0) errs.cnt = 'Count must be at least 1';
+  if (tbl === 'mappoints' && d.kind === 'Unit corner' && num(d.gps_acc_m) > 0.5) warns._gps = `Corner shots need better than ±0.5 m (now ±${d.gps_acc_m} m). Use the Emlid, or the Trimble with RTX converged.`;
   if (tbl === 'lithic_tools') {
     if (num(d.maxthk) && num(d.maxwid) && d.maxthk > d.maxwid) errs.maxthk = 'Thicker than wide? Check';
     if (d.portion === 'Complete' && num(d.maxwid) && num(d.mlen) && d.maxwid > d.mlen * 1.5) warns.maxwid = 'Much wider than long: check length/width';
@@ -547,8 +560,9 @@ function sanity(tbl, d, rec, v) {
   }
   if (tbl === 'excavations') {
     if (d.excavation_type === 'STP' && num(d.depthcm) > 150) warns.depthcm = 'Deep for an STP: check';
-    const maxAcc = +S.settings.gps_max_acc || 2;
-    if (num(d.gps_acc_m) > maxAcc) warns._gps = `Accuracy ±${d.gps_acc_m} m is worse than ${maxAcc} m. Is the Emlid connected with a fix?`;
+    const si = srcInfo(d.gps_source);
+    if (num(d.gps_acc_m) > si.warn) warns._gps = `Accuracy ±${d.gps_acc_m} m is worse than expected for ${si.k} (${si.warn} m). ${si.hint}`;
+    if (isUnit(d) && num(d.gps_acc_m) > 1) warns._gps = `A unit datum needs better than ±1 m (now ±${d.gps_acc_m} m). Use the Emlid or the Trimble.`;
     if (d.lat != null) {
       const others = kids(rec.parent, 'excavations').filter(r => r.id !== rec.id && r.data.lat != null);
       if (others.length) {
@@ -869,7 +883,18 @@ function formView(rec, isNew, opts = {}) {
     ${!isNew ? `<div class="help">Created ${esc(new Date(rec.created_at).toLocaleString())} by ${esc(rec.created_by || '?')} · last edit ${esc(new Date(rec.updated_at).toLocaleString())} by ${esc(rec.updated_by || '?')}</div>` : ''}`;
   const form = $('#frm');
   const gbox = $('[data-gps]', form);
-  if (gbox) { renderGps(gbox, d); $('button', gbox).onclick = () => gpsCapture(gbox, d, () => refresh()); }
+  if (gbox) {
+    renderGps(gbox, d); $('.gpsbtn', gbox).onclick = () => gpsCapture(gbox, d, () => refresh());
+    const sel = $('.gpssrc', gbox), hint = () => { $('.gpshint', gbox).textContent = srcInfo(sel.value).hint; };
+    hint();
+    sel.onchange = async () => { hint(); S.settings.gps_source = sel.value; await CORE.setMeta('settings', S.settings); if (d.gps_entry === 'typed') d.gps_source = sel.value; refresh(); };
+    // coordinates typed in from another receiver: keep them, label them, and work out lat/lon for the maps
+    gbox.querySelectorAll('[data-g]').forEach(i => i.addEventListener('input', () => {
+      const E = num(gbox.querySelector('[data-g=utme]').value), N = num(gbox.querySelector('[data-g=utmn]').value), Z = num(gbox.querySelector('[data-g=utmzone]').value) || 15;
+      d.gps_entry = 'typed'; d.gps_source = sel.value; d.gps_time = now(); d.gps_n = 0; d.datum = S.settings.datum;
+      if (E != null && N != null && E > 100000 && N > 1000000) { const g = fromUTM(E, N, Z); d.lat = +g.lat.toFixed(8); d.lon = +g.lon.toFixed(8); } else { d.lat = null; d.lon = null; }
+    }));
+  }
   const current = () => { const c = compute(rec.tbl, readForm(form, { fields }, d), ctx()); Object.assign(c, pick(d, GPSK)); return c; };
   const refresh = () => {
     const cur = current();
@@ -1190,8 +1215,7 @@ async function viewSettings() {
       <div class="f w2"><label>Your name (recorder / lab tech)</label><input id="s_name" value="${esc(s.name)}" placeholder="Last, First"></div>
       <div class="f"><label>Default level thickness (cm)</label><input id="s_level_cm" inputmode="numeric" value="${esc(s.level_cm)}"></div>
       <div class="f"><label>GPS averaging (seconds)</label><input id="s_gps_secs" inputmode="numeric" value="${esc(s.gps_secs)}"></div>
-      <div class="f"><label>Warn if GPS accuracy worse than (m)</label><input id="s_gps_max_acc" inputmode="decimal" value="${esc(s.gps_max_acc)}"></div>
-      <div class="f w2"><label>GPS source label</label><input id="s_gps_source" value="${esc(s.gps_source)}"></div>
+      <div class="f w2"><label>Usual GPS source on this device</label><select id="s_gps_source">${GPS_SOURCES.map(g => `<option ${g.k === srcInfo(s.gps_source).k ? 'selected' : ''}>${esc(g.k)}</option>`).join('')}</select><div class="help">Can be changed for each capture. Accuracy warnings follow the source.</div></div>
       <div class="f w2"><label>Datum / reference frame label</label><input id="s_datum" value="${esc(s.datum)}"><div class="help">Phone/browser coordinates are WGS84. With Emlid RTK, use the frame of your correction source.</div></div>
       <div class="f"><label>Theme</label><select id="s_theme">${['auto', 'light', 'dark'].map(t => `<option ${s.theme === t ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
       <div class="grp">Server (Supabase)</div>
@@ -1208,7 +1232,7 @@ async function viewSettings() {
     <div class="card">${TESTMODE ? `<p><b>You are in TEST MODE.</b> Everything here is practice data, stored separately from the project.</p>
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a><button class="btn sec" id="tmoff">Leave test mode</button></div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.5 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.6 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   $('#demo') && ($('#demo').onclick = loadDemo);
   $('#tmoff') && ($('#tmoff').onclick = () => switchMode(false));
   $('#tmon') && ($('#tmon').onclick = () => switchMode(true));
@@ -1779,7 +1803,7 @@ function provenience(r) {
 }
 function tableCSV(t) {
   const def = TABLES[t], recs = live(t);
-  const extra = t === 'excavations' ? ['lat', 'lon', 'utmzone', 'utme', 'utmn', 'gps_acc_m', 'gps_n', 'gps_time', 'gps_source', 'datum', 'elev_m'] : [];
+  const extra = (t === 'excavations' || t === 'mappoints') ? ['lat', 'lon', 'utmzone', 'utme', 'utmn', 'gps_acc_m', 'gps_n', 'gps_time', 'gps_source', 'gps_entry', 'datum', 'elev_m'] : [];
   const fk = def.fields.filter(f => f.t !== 'gps').map(f => f.k);
   const provK = { sites: [], excavations: ['sitename'], levels: ['sitename', 'excavation_uuid', 'excavationid', 'excavation_name'] }[t]
     || ['sitename', 'excavation_uuid', 'excavationid', 'excavation_name', 'level_uuid', 'levelid', 'excavation_unit', 'levelno', 'top_cm', 'bottom_cm'];
