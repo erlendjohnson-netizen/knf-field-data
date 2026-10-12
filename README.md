@@ -49,7 +49,7 @@ Add a PostgreSQL connection to the Supabase database (Project Settings → Datab
 ## Sites
 - **Previously recorded sites:** choose the district, then pick the trinomial from the list (type to search). The app fills in the site name, parish, ID code and USGS quad.
 - **New sites (temporary number):** *📍 Fill parish, quad & district from my position* takes the quad from the 7.5' grid and the parish and district from the nearest recorded site, so check those near parish lines. If you are standing within 400 m of a recorded site, the app asks whether it is that site.
-- ID codes are parish digit + site number (NA 1, CL 2, WE 3, GR 4, WN 5, RA 6, VN 7). For example, 16NA41 is 1041.
+- ID codes are 6 digits: the 2-digit Louisiana parish number (01 Acadia … 64 Winn, alphabetical) + the 4-digit site number. For example 16NA41 is 350041 and 16VN2025 is 582025. New sites are 80 + district digit + number (KRD-T01 = 801001) and survey areas 90 + district digit + number (KRD-S01 = 901001). Records made with the old 4-digit codes are upgraded automatically when the app opens; the old code is kept as `old_code` (and `old_excavationid` / `old_levelid`) for matching older data.
 
 ## Points and site map
 On a site page, **+ Take a point** records any GPS point: boundary, site datum, isolated find, feature, photo point, landmark or road. **Finish & add next** keeps the same kind and counts the label up (B1, B2, B3…). The **site map** draws STPs (filled = positive), units, points and a boundary outline with a scale bar, and works offline without a basemap. It also warns if the site's recorded location is more than 500 m from the points being taken. In QGIS the points are in `mappoints_pts`.
@@ -77,8 +77,8 @@ Settings → *Switch to test mode* gives a practice copy of the app with a purpl
 ## Sites, survey areas and odd jobs
 Everything you dig hangs under a **site or work area**. The kinds are:
 - **Previously recorded site:** pick the trinomial from the KNF list.
-- **New site:** gets a temporary designation from the district (KRD-T01, CRD-T02 …) and an ID code of 8xxx.
-- **Survey area:** survey STPs outside sites. Numbered KRD-S01 … with an ID code of 9xxx.
+- **New site:** gets a temporary designation from the district (KRD-T01, CRD-T02 …) and an ID code of 80xxxx.
+- **Survey area:** survey STPs outside sites. Numbered KRD-S01 … with an ID code of 90xxxx.
 - **Isolated find / Other investigation:** for example a request from Matt (note who asked).
 
 Take a GPS point on the form: the UTM coordinates and accuracy show live. The parish is filled in from Louisiana parish outlines (all 64 parishes), and the USGS quad from the 7.5' grid. Quads outside the KNF list are left as "Unknown (find later)", and the USGS cell code (e.g. 31093-D1) is stored so it can be looked up. When the state assigns a trinomial, edit the site number; the temporary designation and ID code are kept so excavation IDs don't change.

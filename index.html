@@ -194,7 +194,7 @@ async function loadDemo() {
   if (!TESTMODE) return;
   if (!(await ask('Load practice data? This adds a practice site (KRD-T99) with a finished STP, an STP in progress, a test unit with subunits, bags and a box.', 'Load'))) return;
   await seedPhase2();
-  const site = mk('sites', null, { record_kind: 'New site (temporary no.)', district: 'Kisatchie RD', sitename: 'KRD-T99', temp_name: 'KRD-T99', site_code: '8199',  project: 'PRACTICE', _status: 'complete', _missing: [] });
+  const site = mk('sites', null, { record_kind: 'New site (temporary no.)', district: 'Kisatchie RD', sitename: 'KRD-T99', temp_name: 'KRD-T99', site_code: '801099',  project: 'PRACTICE', _status: 'complete', _missing: [] });
   await save(site);
   const base = { lat: 31.4521, lon: -93.0834, utmzone: 15, gps_acc_m: 0.02, gps_n: 10, gps_source: 'Practice', datum: 'WGS84', gps_time: now() };
   const u0 = toUTM(base.lat, base.lon);
@@ -368,7 +368,7 @@ async function runSync(manual) {
     const r = await CORE.sync();
     S.syncErr = null;
     if (r && !r.skipped && !REG.list.length) await loadRegistry(true);
-    if (r && !r.skipped) { await reload(); if (manual) toast(`Synced: ${r.pushed} up, ${r.pulled} down`); if (r.pulled) render(); }
+    if (r && !r.skipped) { await reload(); if (r.pulled) await migrateCodes(); if (manual) toast(`Synced: ${r.pushed} up, ${r.pulled} down`); if (r.pulled) render(); }
   } catch (e) { S.syncErr = e.message; if (manual) toast(e.message); }
   S.syncing = false; S.lastSync = await CORE.getMeta('last_sync'); S.session = await CORE.getMeta('session'); updatePill();
   if (location.hash.startsWith('#/data')) render();
@@ -610,7 +610,7 @@ function validate(tbl, d, rec) {
   }
   const sib = (key, list) => list.filter(r => r.id !== rec.id && String(r.data[key] ?? '') === String(d[key] ?? '') && d[key] != null && d[key] !== '');
   if (tbl === 'sites') {
-    if (d.site_code && !/^\d{4}$/.test(d.site_code)) errs.site_code = '4 digits';
+    if (d.site_code && !/^\d{6}$/.test(d.site_code)) errs.site_code = '6 digits (parish no. + site no.)';
     if (live('sites').some(r => r.id !== rec.id && r.data.site_code === d.site_code && d.site_code)) errs.site_code = 'Code already used by another site';
     if (live('sites').some(r => r.id !== rec.id && r.data.sitename === d.sitename)) errs.sitename = 'Site already exists';
     if (d.sitename && !/^16[A-Z]{2}\d+$/.test(d.sitename) && !TEMP_RE.test(d.sitename)) errs.sitename = 'Use a trinomial (16NA41) or a designation like KRD-T01 / KRD-S01';
@@ -1127,6 +1127,7 @@ function formView(rec, isNew, opts = {}) {
       } else if (kind === 'Previously recorded site' && TEMP_RE.test($('#f_sitename').value)) { $('#f_sitename').value = ''; $('#f_site_code').value = ''; d.temp_name = ''; }
     }
     if (rec.tbl === 'sites' && e.target.id === 'f_district') fillSiteList(form);
+    if (rec.tbl === 'sites' && e.target.id === 'f_parish' && !$('#f_site_code').value) $('#f_site_code').value = siteCodeFor($('#f_sitename').value.trim().toUpperCase(), e.target.value);
     if (rec.tbl === 'sites' && e.target.id === 'f_sitename') {
       const v = e.target.value.trim().toUpperCase(); e.target.value = v;
       const info = regInfo(v);
@@ -1134,7 +1135,7 @@ function formView(rec, isNew, opts = {}) {
         for (const [k, val] of Object.entries(info)) { const el = $('#f_' + k, form); if (el && val && (!el.value || isNew || k !== 'site_name')) el.value = val; }
         $('#sitemsg', form).innerHTML = `<div class="check okc">${esc(v)} found in the KNF site list${info.usgsquad ? '' : '. Its quad isn\'t known; type it in'}.</div>`;
       } else if (/^16[A-Z]{2}\d+$/.test(v)) {
-        if (!$('#f_site_code').value) $('#f_site_code').value = siteCodeFor(v);
+        if (!$('#f_site_code').value) $('#f_site_code').value = siteCodeFor(v, $('#f_parish').value);
         const pc = v.slice(2, 4); if (!$('#f_parish').value && PARISH[pc]) $('#f_parish').value = PARISH[pc];
         $('#sitemsg', form).innerHTML = REG.list.length ? `<div class="check">${esc(v)} is not in the KNF site list. Check the number.</div>` : '';
       }
@@ -1445,7 +1446,7 @@ async function viewSettings() {
     <div class="card">${TESTMODE ? `<p><b>You are in TEST MODE.</b> Everything here is practice data, stored separately from the project.</p>
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a><button class="btn sec" id="tmoff">Leave test mode</button></div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.11 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.12 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   $('#demo') && ($('#demo').onclick = loadDemo);
   $('#tmoff') && ($('#tmoff').onclick = () => switchMode(false));
   $('#tmon') && ($('#tmon').onclick = () => switchMode(true));
@@ -1495,10 +1496,38 @@ function fromUTM(E, N, zone = 15) {
   return { lat: lat * 180 / Math.PI, lon: lon * 180 / Math.PI };
 }
 function quadAt(lat, lon) { for (const [q, b] of Object.entries(QUADS)) if (lon >= b[0] && lon < b[2] && lat >= b[1] && lat < b[3]) return q; return ''; }
-function siteCodeFor(t) {
-  const m = String(t || '').match(/^16([A-Z]{2})(\d+)$/); if (!m) return '';
-  const n = +m[2], d = PARISH_DIGIT[m[1]] || '9';
-  return n < 1000 ? d + String(n).padStart(3, '0') : String(n).slice(-4);
+/* 6-digit ID code: parish no. (2) + site no. (4); see PARISH_NO in schema.js */
+function siteCodeFor(t, parishName) {
+  const m = String(t || '').match(/^16([A-Z]{2,3})(\d+)$/); if (!m) return '';
+  const no = PARISH_NO[PARISH[m[1]] || parishName]; if (!no || +m[2] > 9999) return '';
+  return pad(no, 2) + pad(+m[2], 4);
+}
+function tempCodeFor(name) { // KRD-T01 → 801001, KRD-S01 → 901001
+  const m = String(name || '').match(/^([A-Z]{2,3})-([TS])(\d+)$/); if (!m) return '';
+  const dig = (Object.values(DISTRICT_CODE).find(([a]) => a === m[1]) || ['', 9])[1];
+  return (m[2] === 'S' ? '90' : '80') + dig + pad(+m[3] % 1000, 3);
+}
+function codeFor(site) { const d = site.data; return tempCodeFor(d.temp_name) || tempCodeFor(d.sitename) || siteCodeFor(d.sitename, d.parish); }
+/* one-off upgrade of the old 4-digit codes (which collided across parishes) to 6 digits, and of every excavation and level ID built on them */
+let migrating = false;
+async function migrateCodes() {
+  if (migrating) return 0; migrating = true; let n = 0;
+  try {
+    for (const s of live('sites')) {
+      if (!/^\d{4}$/.test(s.data.site_code || '')) continue;
+      const c = codeFor(s); if (!c || c === s.data.site_code) continue;
+      s.data = { ...s.data, old_code: s.data.site_code, site_code: c }; await save(s); n++;
+    }
+    if (n) {
+      for (const tbl of ['excavations', 'levels']) for (const r of live(tbl)) {
+        const k = tbl === 'excavations' ? 'excavationid' : 'levelid', site = get(r.site);
+        const c = compute(tbl, r.data, { site, parentRec: get(r.parent), self: r })[k];
+        if (c && c !== r.data[k]) { r.data = { ...r.data, ['old_' + k]: r.data[k], [k]: c }; await save(r); }
+      }
+      toast(`Updated ${n} site ID code${n > 1 ? 's' : ''} to the 6-digit format`);
+    }
+  } finally { migrating = false; }
+  return n;
 }
 /* what the app can fill in for a known site */
 function regInfo(t) {
@@ -1772,7 +1801,7 @@ function nextTemp(district, kind) {
   const [abbr, dig] = DISTRICT_CODE[district] || ['OTH', 9], L = kind === 'Survey area' ? 'S' : 'T';
   const re = new RegExp('^' + abbr + '-' + L + '(\\d+)$');
   const n = live('sites').reduce((m, r) => { const a = (r.data.temp_name || r.data.sitename || '').match(re); return a ? Math.max(m, +a[1]) : m; }, 0) + 1;
-  return { name: `${abbr}-${L}${pad(n, 2)}`, code: (L === 'S' ? '9' : '8') + dig + pad(n % 100, 2) };
+  return { name: `${abbr}-${L}${pad(n, 2)}`, code: (L === 'S' ? '90' : '80') + dig + pad(n % 1000, 3) };
 }
 async function custodyEvent(code, kind, action, extra = {}) {
   const r = mk('custody', null, { item_qr: code, item_kind: kind, action, to_person: me(), from_person: '', location: '', time: now(), ...extra, _status: 'complete', _missing: [] });
@@ -2518,7 +2547,7 @@ addEventListener('beforeunload', e => { if (S.formDirty || draftCount()) { e.pre
   S.settings = { ...DEF, ...((await CORE.getMeta('settings')) || {}) };
   S.session = await CORE.getMeta('session');
   S.lastSync = await CORE.getMeta('last_sync');
-  await reload(); applyTheme(); updatePill(); await loadRegistry(false);
+  await reload(); applyTheme(); updatePill(); await loadRegistry(false); await migrateCodes();
   if (TESTMODE) { $('#testbar').classList.remove('hidden'); }
   render();
   try { if (navigator.storage?.persist) S.persisted = await navigator.storage.persist(); } catch (e) { }
