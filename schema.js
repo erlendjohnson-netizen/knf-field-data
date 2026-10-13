@@ -28,9 +28,10 @@ const LISTS = {
   ynu: ['Yes', 'No', 'Uncertain'],
   feature_type: ['Pit', 'Posthole / post mold', 'Possible posthole', 'Hearth', 'Stain (undefined)', 'Burned area', 'Rock / FCR concentration', 'Midden', 'Trench / ditch', 'Tree burn / root cast (natural?)', 'Rodent burrow / krotovina (natural?)', 'Possible human remains: stop and call the PI', 'Other'],
   sample_type: ['Radiocarbon (AMS)', 'OSL', 'Flotation', 'Soil/sediment', 'Pollen', 'Phytolith', 'Other'],
+  sample_context: ['Level fill', 'Feature fill', 'Level floor', 'Wall profile / column', 'Other'],
   sample_material: ['Charcoal', 'Wood', 'Nutshell', 'Seed', 'Bone', 'Pottery residue', 'Sediment', 'Other'],
   osl_collection: ['Core (tube)', 'Bag (dark sample)'],
-  bag_contents: ['Prehistoric artifacts', 'Special find', 'Diagnostic lithics', 'Diagnostic ceramics', 'Ground stone', 'Historic artifacts', 'Mixed artifacts', 'Lithics', 'Ceramics', 'FCR', 'Bone', 'Charcoal', 'Sample', 'Other'],
+  bag_contents: ['Prehistoric artifacts', 'Special find', 'Soil sample', 'Diagnostic lithics', 'Diagnostic ceramics', 'Ground stone', 'Historic artifacts', 'Mixed artifacts', 'Lithics', 'Ceramics', 'FCR', 'Bone', 'Charcoal', 'Sample', 'Other'],
   // lithics
   tool_type: ['Biface (Hafted)', 'Biface (Unhafted)', 'Biface Fragment', 'Biface Preform', 'Scraper', 'Drill',
     'Bifacial Flake Tool', 'Unifacial Flake Tool', 'Blade', 'Core', 'Hammerstone', 'Special', 'Unknown'],
@@ -173,6 +174,7 @@ const TABLES = {
       { k: 'feature', l: 'Feature', t: 'bool' },
       { k: 'special_find', l: 'Special find', t: 'bool' },
       { k: 'special_find_desc', l: 'Special find: what it is, where and depth', t: 'area', w: 3, ph: 'e.g. Gary point, base intact, NE quad of A at 34 cmbs, in situ', show: r => !!r.special_find },
+      { k: 'soil_sample', l: 'Soil sample taken', t: 'bool', help: 'When you press Finish, scan the QR label on the sample bag and say what it is for' },
       { k: 'terminal_level', l: 'Terminal level', t: 'bool' },
       { k: 'close_override', l: 'Closed without two sterile levels because', t: 'ro', w: 3, show: r => !!r.close_override },
       { k: 'notes', l: 'Notes', t: 'area', w: 3 },
@@ -218,6 +220,8 @@ const TABLES = {
     fields: [
       { k: 'sample_type', l: 'Sample type', t: 'select', o: 'sample_type', req: 1 },
       { k: 'sample_number', l: 'Sample no.', t: 'int', req: 1 },
+      { k: 'qr', l: 'Sample bag label (QR)', t: 'ro', show: r => !!r.qr },
+      { k: 'sample_context', l: 'Taken from', t: 'select', o: 'sample_context' },
       { k: 'excavation_unit', l: 'EU', t: 'text' },
       { k: 'levelno', l: 'Level', t: 'int' },
       { k: 'depth', l: 'Depth (cmbs)', t: 'num' },
@@ -230,6 +234,14 @@ const TABLES = {
       { k: 'context', l: 'Context', t: 'text', w: 2 },
       { k: 'lab', l: 'Lab / lab no.', t: 'text' },
       { k: 'notes', l: 'Notes', t: 'area', w: 3 },
+      // radiocarbon results, filled in when the lab report comes back
+      { k: 'c14_sent', l: 'Sent to lab (date)', t: 'date', g: 'Radiocarbon result', show: r => /^Radiocarbon/.test(r.sample_type || '') },
+      { k: 'c14_lab_no', l: 'Lab no. (e.g. Beta-123456)', t: 'text', show: r => /^Radiocarbon/.test(r.sample_type || '') },
+      { k: 'c14_material_dated', l: 'Material dated', t: 'text', show: r => /^Radiocarbon/.test(r.sample_type || ''), ph: 'e.g. charred hickory nutshell' },
+      { k: 'c14_age', l: 'Conventional 14C age (BP)', t: 'num', show: r => /^Radiocarbon/.test(r.sample_type || '') },
+      { k: 'c14_sd', l: '± (1σ, years)', t: 'num', show: r => /^Radiocarbon/.test(r.sample_type || '') },
+      { k: 'd13c', l: 'δ13C (‰)', t: 'num', show: r => /^Radiocarbon/.test(r.sample_type || '') },
+      { k: 'cal_ranges', l: 'Calibrated ranges (2σ, with %)', t: 'area', w: 3, show: r => /^Radiocarbon/.test(r.sample_type || ''), ph: 'e.g. cal AD 1395–1450 (91.2%); cal AD 1455–1470 (4.2%) · IntCal20' },
     ],
   },
 
