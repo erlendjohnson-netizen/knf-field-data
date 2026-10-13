@@ -6,7 +6,8 @@
 //   1. Daily field summary (STPs, units and levels, bags, special finds, features, what is still open)
 //   2. Bag check & box contents (missing bags by excavator, extra labels, what is in which box)
 // If there is field activity but no bag check, the reports go out at 9 pm instead (saying no check was done).
-// A later bag check on the same day sends an updated set. Test-mode data gets its own "[TEST]" reports.
+// A later bag check on the same day sends an updated set. Nothing is sent for a day without new fieldwork,
+// and test-mode data is never emailed automatically (staff can still make or send test reports from the app).
 //
 // Signed-in staff can also call it from the app: { action: 'preview', date, mode } returns the PDFs,
 // { action: 'send', date, mode, to: 'me' | 'all' } emails them now.
@@ -367,14 +368,17 @@ async function due(sb: any, mode: string) {
   const sentN = new Map((log || []).map((l: any) => [l.day, l.checks_n]));
   const byDay = new Map<string, { n: number; last: string }>();
   checks.forEach((c: any) => { const d = c.data.date || dayOf(c.created_at), f = c.data.finished || c.created_at, o = byDay.get(d) || { n: 0, last: '' }; byDay.set(d, { n: o.n + 1, last: f > o.last ? f : o.last }); });
+  // a day only gets reports if new fieldwork (excavations, levels, bags or features) was recorded that day
+  const fieldwork = async (d: string) => {
+    const lo = new Date(Date.parse(d + 'T00:00:00Z') - 864e5).toISOString(), hi = new Date(Date.parse(d + 'T00:00:00Z') + 2 * 864e5).toISOString();
+    const rows = await page(() => sb.from(table).select('tbl,data,created_at').eq('deleted', false).in('tbl', ['excavations', 'levels', 'bags', 'features']).gte('created_at', lo).lt('created_at', hi));
+    // planned STPs loaded in the office are not fieldwork
+    return rows.some((r: any) => dayOf(r.created_at) === d && !(r.tbl === 'excavations' && r.data?._status === 'planned'));
+  };
   const out: { day: string; n: number }[] = [];
-  byDay.forEach((v, d) => { if (Date.now() - Date.parse(v.last) >= WAIT_MIN * 6e4 && !(sentN.has(d) && (sentN.get(d) as number) >= v.n)) out.push({ day: d, n: v.n }); });
-  // field work but no bag check by 9 pm
-  if (!byDay.has(today) && !sentN.has(today) && hourNow() >= FALLBACK_HOUR) {
-    const start = new Date(Date.parse(today + 'T05:00:00Z')).toISOString();
-    const { count } = await sb.from(table).select('id', { count: 'exact', head: true }).eq('deleted', false).in('tbl', ['excavations', 'levels', 'bags', 'features']).gte('created_at', start);
-    if (count) out.push({ day: today, n: 0 });
-  }
+  for (const [d, v] of byDay) if (Date.now() - Date.parse(v.last) >= WAIT_MIN * 6e4 && !(sentN.has(d) && (sentN.get(d) as number) >= v.n) && await fieldwork(d)) out.push({ day: d, n: v.n });
+  // fieldwork but no bag check by 9 pm
+  if (!byDay.has(today) && !sentN.has(today) && hourNow() >= FALLBACK_HOUR && await fieldwork(today)) out.push({ day: today, n: 0 });
   return out;
 }
 
@@ -386,7 +390,7 @@ Deno.serve(async (req) => {
     if (!b.action) {
       // scheduled run: send whatever is due, to everyone who has the reports switched on
       const to = await recipients(sb), done: unknown[] = [];
-      for (const mode of ['live', 'test']) for (const d of await due(sb, mode)) {
+      for (const mode of ['live']) for (const d of await due(sb, mode)) {
         const r = to.length ? await deliver(sb, d.day, mode, to) : { sent: [], failed: ['nobody has the reports switched on'], checks: d.n };
         await sb.from('report_log').upsert({ day: d.day, mode, checks_n: d.n, sent_at: new Date().toISOString(), sent_to: r.sent.join(', '), failed: r.failed.join('; ') || null });
         done.push({ day: d.day, mode, sent: r.sent.length, failed: r.failed.length });

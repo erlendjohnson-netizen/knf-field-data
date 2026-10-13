@@ -133,7 +133,7 @@ The Supabase Edge Function `daily-reports` makes two PDFs for each field day:
 * **Daily summary**: STPs, units and levels, a plan of each unit worked (subunits opened that day in orange, subunits dug that day in green, with their levels), special finds, features, photos of the special finds and features, and what is still open.
 * **Bag check and box contents**: missing bags by who bagged them, extra labels, and which bags are in each box.
 
-They are emailed 30 minutes after the end-of-day bag check is finished. If there was fieldwork but no bag check, they go out at 9 pm and say so. A later check on the same day sends an updated set. Test-mode data gets separate "[TEST]" reports.
+They are emailed 30 minutes after the end-of-day bag check is finished. If there was fieldwork but no bag check, they go out at 9 pm and say so. A later check on the same day sends an updated set. Nothing is emailed for a day without new fieldwork (excavations, levels, bags or features; planned STPs loaded in the office don't count). Test-mode data is never emailed automatically, but staff can still download or email test reports from the Bag check page.
 
 Who gets them: each person sets **Settings → Email me the daily reports**, and the PI can change it for anyone on **People & logins**. It is on by default for PI / Co-PI and Field director / crew chief. Staff can also download the PDFs, or email them right away, from the Bag check page.
 
