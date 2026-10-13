@@ -1667,7 +1667,7 @@ async function viewSettings() {
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a><button class="btn sec" id="tmoff">Leave test mode</button></div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
     <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a><a class="btn sec" href="#/offline">Offline maps (imagery)</a></div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.20 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.20.1 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   $('#demo') && ($('#demo').onclick = loadDemo);
   $('#tmoff') && ($('#tmoff').onclick = () => switchMode(false));
   $('#tmon') && ($('#tmon').onclick = () => switchMode(true));
@@ -1964,11 +1964,11 @@ function subunitEditor(rec, isNew) {
         <div class="f"><label>SW corner x (m E of datum)</label><input data-k="x" inputmode="decimal" value="${r2(a.x)}"></div><div class="f"><label>SW corner y (m N of datum)</label><input data-k="y" inputmode="decimal" value="${r2(a.y)}"></div></div>
       ${first && i === 0 ? `<div class="f" style="margin-top:8px"><label>The datum is at this piece's…</label><div class="btns">${['SW', 'SE', 'NW', 'NE'].map(c => `<button class="btn sm ${st.datumCorner === c ? '' : 'sec'}" data-act="datum" data-c="${c}">${c} corner</button>`).join('')}</div></div>`
         : `<div class="f" style="margin-top:8px"><label>Place against</label><div class="btns">${(others.length ? others : []).map(s => `<span style="display:inline-flex;gap:4px;align-items:center"><b>${esc(s.data.letter)}</b>${['N', 'S', 'E', 'W'].map(sd => `<button class="btn sm sec" data-act="att" data-id="${s.id}" data-side="${sd}">${sd}</button>`).join('')}</span>`).join('&nbsp;&nbsp;')}${i > 0 ? `<span style="display:inline-flex;gap:4px;align-items:center"><b>Piece 1</b>${['N', 'S', 'E', 'W'].map(sd => `<button class="btn sm sec" data-act="attp" data-side="${sd}">${sd}</button>`).join('')}</span>` : ''}</div></div>`}
-      <div class="btns"><span class="help">Nudge 0.25 m:</span>${[['←', -0.25, 0], ['→', 0.25, 0], ['↓', 0, -0.25], ['↑', 0, 0.25]].map(([t, dx, dy]) => `<button class="btn sm sec" data-act="nudge" data-dx="${dx}" data-dy="${dy}">${t}</button>`).join('')}</div>` : `<div class="help">${fmtM(a.w)} × ${fmtM(a.h)} m at (${r2(a.x)}, ${r2(a.y)})</div>`}
+      <div class="btns"><span class="help">${st.snap !== false && !(first && i === 0) ? 'Move along the edge:' : 'Nudge 0.25 m:'}</span>${[['←', -0.25, 0], ['→', 0.25, 0], ['↓', 0, -0.25], ['↑', 0, 0.25]].map(([t, dx, dy]) => `<button class="btn sm sec" data-act="nudge" data-dx="${dx}" data-dy="${dy}">${t}</button>`).join('')}</div>` : `<div class="help">${fmtM(a.w)} × ${fmtM(a.h)} m at (${r2(a.x)}, ${r2(a.y)})</div>`}
     </div>`).join('')}
     <div class="card" style="margin-top:10px"><div id="planbox">${unitPlanSVG(e, { parts: st.parts, editId: rec.id })}</div>
       <label style="display:flex;gap:8px;align-items:center;margin-top:6px"><input type="checkbox" id="snap" ${st.snap !== false ? 'checked' : ''} style="width:22px;height:22px;min-height:0"> Snap to the edge of the existing unit</label>
-      <div class="help">Tap the plan to move the highlighted piece. With snapping on it stays against the unit's outside edge and slides along it in 0.25 m steps.</div></div>
+      <div class="help">Tap the plan to move the highlighted piece. With snapping on it stays against the unit's outside edge: the arrows slide it along the edge in 0.25 m steps and carry it round the corners.</div></div>
     <div class="btns"><button class="btn sec" id="addp">+ Add a piece (L-shape)</button></div>
     ${errs.map(m => `<div class="check" style="border-color:var(--bad)">${esc(m)}</div>`).join('')}${msgs.map(m => `<div class="check">${esc(m)}</div>`).join('')}
     <div class="formbar"><button class="btn" id="sv" ${errs.length ? 'disabled' : ''}>${isNew ? 'Add subunit ✓' : 'Save subunit ✓'}</button><button class="btn sec" id="cx">Cancel</button>
@@ -1989,7 +1989,11 @@ function subunitEditor(rec, isNew) {
       if (first && i === 0) { a.w = w; a.h = h; setDatum(a, st.datumCorner); } else { a.w = w; a.h = h; }
     }
     if (act === 'datum') { st.datumCorner = b.dataset.c; setDatum(a, st.datumCorner); }
-    if (act === 'nudge') { a.x = r2(a.x + +b.dataset.dx); a.y = r2(a.y + +b.dataset.dy); doSnap(a, { x: a.x, y: a.y }); }
+    if (act === 'nudge') {
+      const dx = +b.dataset.dx, dy = +b.dataset.dy, fixed = others.flatMap(o => partsOf(o)).concat(st.parts.filter(x => x !== a));
+      if (st.snap !== false && !(first && st.parts[0] === a) && fixed.length) { if (!stepPiece(a, fixed, Math.sign(dx), Math.sign(dy))) toast('Can’t go further that way along the edge'); }
+      else { a.x = r2(a.x + dx); a.y = r2(a.y + dy); }
+    }
     if (act === 'size' && !(first && i === 0)) doSnap(a, { x: a.x, y: a.y });
     if (act === 'att' || act === 'attp') {
       const nb = act === 'att' ? bbox(partsOf(get(b.dataset.id))) : bbox([st.parts[0]]), sd = b.dataset.side;
@@ -2021,6 +2025,26 @@ function subunitEditor(rec, isNew) {
   });
 }
 /* slide a piece along the outside edge of the existing subunits: nearest edge-touching, non-overlapping spot to the target */
+function edgeSpots(a, fixed) {
+  const cands = [], st = 0.25, eps = 1e-6;
+  for (const b of fixed) {
+    for (let x = r2(b.x - a.w + st); x <= b.x + b.w - st + eps; x = r2(x + st)) { cands.push({ x, y: r2(b.y + b.h) }, { x, y: r2(b.y - a.h) }); }
+    for (let y = r2(b.y - a.h + st); y <= b.y + b.h - st + eps; y = r2(y + st)) { cands.push({ x: r2(b.x + b.w), y }, { x: r2(b.x - a.w), y }); }
+  }
+  const seen = new Set();
+  return cands.filter(c => { const k = c.x + ',' + c.y; if (seen.has(k)) return false; seen.add(k); return !fixed.some(b => overlap({ ...a, ...c }, b)); });
+}
+/* one step around the unit's edge in the direction pressed (also turns corners) */
+function stepPiece(a, fixed, dx, dy) {
+  let best = null, bc = Infinity;
+  for (const c of edgeSpots(a, fixed)) {
+    const mx = c.x - a.x, my = c.y - a.y, along = mx * dx + my * dy; if (along <= 1e-6) continue;
+    const perp = Math.abs(mx * dy - my * dx), cost = Math.hypot(mx, my) + 2 * perp;
+    if (cost < bc - 1e-9) { bc = cost; best = c; }
+  }
+  if (best) { a.x = best.x; a.y = best.y; }
+  return !!best;
+}
 function snapPiece(a, fixed, target) {
   const cands = [], st = 0.25, eps = 1e-6;
   for (const b of fixed) {
