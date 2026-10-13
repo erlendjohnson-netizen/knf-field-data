@@ -334,6 +334,11 @@ function compute(tbl, d, ctx) {
       'grndstnwght', 'plainsherdwght', 'plnsherdrimwght', 'decsherdwght', 'decsherdrimwght', 'diagnosticceramwght', 'historicwght'].reduce((a, k) => a + c(k), 0);
     d.debitage_count = deb; d.artifact_count = cnt; d.artifactwght = +wt.toFixed(2);
   }
+  if (tbl === 'historic_tabulation') {
+    const fs = TABLES.historic_tabulation.fields;
+    d.hist_count = fs.filter(f => f.t === 'int').reduce((a, f) => a + (num(d[f.k]) || 0), 0);
+    d.hist_wght = +fs.filter(f => f.t === 'num').reduce((a, f) => a + (num(d[f.k]) || 0), 0).toFixed(2);
+  }
   return d;
 }
 
@@ -988,6 +993,10 @@ function completeness(rec, d) {
   if (t === 'ground_stone') { need('raw_material', 'Material'); need('weight', 'Weight'); if (!hasPhoto()) m.push('Photo'); }
   if (t === 'historic_artifacts') { need('cnt', 'Count'); need('weight', 'Weight'); }
   if (t === 'exotic_lithics') { need('weight', 'Weight'); need('cnt', 'Count'); }
+  if (t === 'historic_tabulation') {
+    if (!num(d.hist_count)) m.push('No counts entered');
+    if (num(d.otherhistct) > 0 && blank(d.notes)) m.push('Describe the “other historic” items in the notes');
+  }
   if (t === 'tabulation') {
     const l = get(rec.parent); if (l) m.push(...catalogueCheck(l, d)); if (!num(d.artifact_count)) m.push('No counts entered');
     const sum = ks => ks.reduce((a, k) => a + (num(d[k]) || 0), 0);
@@ -995,6 +1004,8 @@ function completeness(rec, d) {
     if (sherds && !paste) m.push(`Sort the ${sherds} plain and decorated sherds by paste / temper`);
     else if (paste !== sherds) m.push(`Sherds by paste (${paste}) ≠ plain + decorated sherds (${sherds})`);
     if (!hasPhoto(['Tray (all artifacts)'])) m.push('Photo of the tray (all the artifacts laid out)');
+    const ht = l && kids(l.id, 'historic_tabulation')[0];
+    if (ht && (num(ht.data.hist_count) || 0) !== (num(d.historicct) || 0)) m.push(`Historic artifacts n (${num(d.historicct) || 0}) ≠ the historic tabulation total (${num(ht.data.hist_count) || 0})`);
     if (l) for (const [k, cat] of DIAG_BAGS) if (num(d[k]) > 0 && !kids(l.id, 'bags').some(b => b.data.contents === cat)) m.push(diagMsg(cat));
   }
   return m;
@@ -1612,6 +1623,7 @@ function labSection(l) {
   const labDone = tab && tab.data._status === 'complete';
   return `<h3>Lab ${tab ? (labDone ? '<span class="badge pos">lab work complete ✓</span>' : '<span class="badge">in progress</span>') : ''}</h3>${check}
     <div class="btns">${tab ? `<a class="btn sec sm" href="#/rec/${tab.id}">Edit tabulation</a>` : `<a class="btn sm" href="#/new/tabulation/${l.id}">+ Level tabulation</a>`}
+    ${kids(l.id, 'historic_tabulation')[0] ? `<a class="btn sec sm" href="#/rec/${kids(l.id, 'historic_tabulation')[0].id}">Edit historic tabulation</a>` : `<a class="btn sec sm" href="#/new/historic_tabulation/${l.id}">+ Historic tabulation</a>`}
     ${labT.filter(t => !TABLES[t].single).map(t => `<a class="btn sec sm" href="#/new/${t}/${l.id}">+ ${esc(TABLES[t].label)}</a>`).join('')}</div>
     ${labT.map(t => { const k = kids(l.id, t); return k.length ? `<h3>${esc(TABLES[t].plural)} <span class="badge">${k.length}</span></h3><div class="list">${k.sort((a, b) => (num(a.data[TABLES[t].fields[0].k]) || 0) - (num(b.data[TABLES[t].fields[0].k]) || 0)).map(r => rowHTML(r)).join('')}</div>` : ''; }).join('')}`;
 }
@@ -1740,7 +1752,7 @@ async function viewSettings() {
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a><button class="btn sec" id="tmoff">Leave test mode</button></div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
     <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a><a class="btn sec" href="#/offline">Offline maps (imagery)</a></div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.30 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.31 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   if ($('#s_rep')) CORE.myProfile().then(p => {
     const cb = $('#s_rep'); if (!cb || !p) return;
     cb.checked = reportsOn(p); cb.disabled = false; $('#s_rep_h').textContent = `Sent to ${p.email}.`;
@@ -3380,7 +3392,7 @@ function render() {
     case 'new': {
       const t = seg[1], parent = seg[2] || null;
       if (!TABLES[t]) return notFound();
-      if (t === 'tabulation') { const ex = kids(parent, 'tabulation')[0]; if (ex) return formView(ex, false); }
+      if (TABLES[t].single) { const ex = kids(parent, t)[0]; if (ex) return formView(ex, false); }
       if (t === 'levels') {
         const open = kids(parent, 'levels').filter(l => l.data._status === 'draft');
         if (open.length) {
