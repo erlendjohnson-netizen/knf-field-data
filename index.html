@@ -126,6 +126,7 @@ table.corners{border-collapse:collapse;width:100%}table.corners th{font-size:12p
 .plan .g1{stroke:var(--line);stroke-width:.02}.plan .g2{stroke:var(--line);stroke-width:.008;stroke-dasharray:.04 .04}
 .plan .su{fill:rgba(206,24,30,.12);stroke:var(--acc);stroke-width:.03;cursor:pointer}.plan .su.sel{fill:rgba(0,151,167,.35);stroke:#0097A7}
 .plan .su.done{fill:rgba(206,24,30,.32)}.plan .su.edit{fill:rgba(163,84,43,.45);stroke:var(--acc2);stroke-width:.04;stroke-dasharray:.08 .05;cursor:grab;touch-action:none}.plan .su.edit.act{fill:rgba(163,84,43,.7)}.plan.dragging .su.edit.act{cursor:grabbing;stroke-width:.07}
+.plan .su.win{fill:rgba(110,70,170,.3);stroke:#5b3a9a;stroke-width:.035;stroke-dasharray:.07 .04}.plan .su.win.done{fill:rgba(110,70,170,.5)}.plan .su.win.sel{fill:rgba(0,151,167,.45);stroke:#0097A7}.plan .sut.win{font-size:.2px}
 .plan .sut{font:700 .32px system-ui,sans-serif;fill:var(--ink);text-anchor:middle;dominant-baseline:central;pointer-events:none}
 .plan .datum circle{fill:#b3261e}.plan .datum path{stroke:#b3261e;stroke-width:.03}
 .plan .shot{fill:var(--ok)}.plan .shot.bad{fill:var(--bad)}.plan .narrow{fill:var(--ink)}.plan .nt{font:700 .18px system-ui;fill:var(--ink);text-anchor:middle}
@@ -722,6 +723,24 @@ function fieldHTML(f, v, d) {
 }
 const CORNERS = ['nw', 'ne', 'sw', 'se'];
 const CORNER_KEYS = CORNERS.flatMap(c => ['top_' + c, 'bot_' + c]);
+/* unit close-out requirements */
+const WALL_KINDS = ['Wall profile – North', 'Wall profile – South', 'Wall profile – East', 'Wall profile – West'];
+const MSG_STERILE = 'At least one subunit ending in two sterile levels (dig a ¼-unit window if needed)';
+const MSG_OVERVIEW = 'Overview photo of the unit', MSG_WALLS = 'Photos of two walls (wall profiles)', MSG_FLOOR = 'Photo of the unit floor', MSG_DRAW = 'Photo of the field drawing(s)';
+function unitPhotoState(e) {
+  const k = photosOf(e.id).map(p => p.data.kind);
+  const walls = WALL_KINDS.filter(w => k.includes(w)); if (k.includes('Profile') && walls.length < 2) walls.push('Profile');
+  return { overview: k.includes('Overview'), walls, floor: k.includes('Floor (final)') || k.includes('Plan view'), drawing: k.includes('Field drawing') };
+}
+const suLevels = (excId, letter) => kids(excId, 'levels').filter(l => String(l.data.excavation_unit).toUpperCase() === String(letter).toUpperCase());
+/* a window's levels carry on below its parent subunit's, so they count together for "two sterile levels" */
+function chainLevels(exc, s, seen = new Set()) {
+  if (!s || seen.has(s.id)) return []; seen.add(s.id);
+  const own = suLevels(exc.id, s.data.letter);
+  if (!s.data.window_of) return own;
+  const p = subsOf(exc.id).find(x => String(x.data.letter).toUpperCase() === String(s.data.window_of).toUpperCase());
+  return chainLevels(exc, p, seen).concat(own);
+}
 function parseMunsell(v) { const m = String(v || '').toUpperCase().match(/^\s*(10R|2\.5YR|5YR|7\.5YR|10YR|2\.5Y|5Y|GLEY ?1|GLEY ?2)\s+(2|2\.5|3|4|5|6|7|8)\/(1|2|3|4|6|8)\s*$/); return m ? { hue: m[1].replace(' ', ''), val: m[2], chr: m[3] } : null; }
 function readForm(form, def, d) {
   const out = { ...d };
@@ -901,18 +920,24 @@ function completeness(rec, d) {
         if (!sl.length) m.push(`Subunit ${s.data.letter} has no levels`);
         else if (!sl.some(l => l.data.terminal_level)) m.push(`Mark the terminal level in subunit ${s.data.letter}`);
       }
+      if (subs.length && !subs.some(s => trailingSterile(chainLevels(rec, s)) >= 2)) m.push(MSG_STERILE);
       if (num(d.azimuth) == null) m.push('Unit azimuth (shoot a corner, then “Set azimuth”)');
       const cc = cornerChecks(rec);
       if (!cc.length) m.push('At least one GPS corner shot');
       for (const c of cc) if (c.misfit != null && c.misfit > CORNER_TOL) m.push(`Corner shot ${c.m.data.label || c.m.data.corner} is ${(c.misfit * 100).toFixed(0)} cm off the plan: re-shoot it or check the subunit layout`);
     }
+    if (d.excavation_type === 'STP') {
+      if (!hasPhoto(['Soil profile', 'Profile'])) m.push('Photo of the STP profile (Soil profile)');
+      for (const l of kids(rec.id, 'levels')) if (l.data.special_find && !photosOf(l.id).some(p => ['Special find', 'In situ find'].includes(p.data.kind))) m.push(`Photo of the special find in level ${l.data.levelno}`);
+    }
     if (d.feature && !kids(rec.id, 'features').length) m.push('Feature box ticked but no feature record');
     if (d.dateablematerial && !kids(rec.id, 'samples').length) m.push('Dateable material ticked but no sample record');
     if (d.excavation_type === 'TP' || d.excavation_type === 'Unit') {
-      if (!hasPhoto(['Profile'])) m.push('Profile photo');
-      if (!hasPhoto(['Overview'])) m.push('Overview photo of the unit');
-      if (!hasPhoto(['Plan view'])) m.push('Plan view photo');
-      if (!hasPhoto(['Field drawing'])) m.push('Photo of the field drawing(s)');
+      const ph = unitPhotoState(rec);
+      if (!ph.overview) m.push(MSG_OVERVIEW);
+      if (ph.walls.length < 2) m.push(MSG_WALLS);
+      if (!ph.floor) m.push(MSG_FLOOR);
+      if (!ph.drawing) m.push(MSG_DRAW);
       need('profile_drawing_1', 'Profile drawing no.');
     }
   }
@@ -1041,6 +1066,17 @@ function photoStripHTML(rec) {
     <label class="btn sm sec">From files<input type="file" accept="image/*" multiple hidden class="pfile"></label></div>
     <div class="thumbs"></div></div>`;
 }
+async function addPhotoFiles(rec, files, kind) {
+  for (const f of files) {
+    const { blob, width, height } = await resizeImage(f);
+    const p = mk('photos', rec.id, {}); p.site = rec.tbl === 'sites' ? rec.id : rec.site;
+    const sn = (get(p.site)?.data.sitename || 'nosite').replace(/[^\w-]/g, '');
+    p.data = { kind, caption: photoCaption(rec, kind), path: `${sn}/${rec.id}/${p.id}.jpg`, taken_at: new Date(f.lastModified || Date.now()).toISOString(), width, height, bytes: blob.size };
+    await CORE.putBlob(p.id, { blob, uploaded: 0 });
+    await save(p);
+  }
+  toast(files.length > 1 ? `${files.length} photos added` : 'Photo added');
+}
 async function bindPhotos(box, rec, onChange) {
   if (!box) return;
   const draw = async () => {
@@ -1055,17 +1091,7 @@ async function bindPhotos(box, rec, onChange) {
     }
     onChange && onChange();
   };
-  const add = async files => {
-    for (const f of files) {
-      const kind = $('.pkind', box).value, { blob, width, height } = await resizeImage(f);
-      const p = mk('photos', rec.id, {}); p.site = rec.tbl === 'sites' ? rec.id : rec.site;
-      const sn = (get(p.site)?.data.sitename || 'nosite').replace(/[^\w-]/g, '');
-      p.data = { kind, caption: photoCaption(rec, kind), path: `${sn}/${rec.id}/${p.id}.jpg`, taken_at: new Date(f.lastModified || Date.now()).toISOString(), width, height, bytes: blob.size };
-      await CORE.putBlob(p.id, { blob, uploaded: 0 });
-      await save(p);
-    }
-    toast(files.length > 1 ? `${files.length} photos added` : 'Photo added'); draw();
-  };
+  const add = async files => { await addPhotoFiles(rec, files, $('.pkind', box).value); draw(); };
   $('.pcam', box).onchange = e => { add([...e.target.files]); e.target.value = ''; };
   $('.pfile', box).onchange = e => { add([...e.target.files]); e.target.value = ''; };
   draw();
@@ -1106,8 +1132,11 @@ function defaults(tbl, parentId) {
     d.excavation_unit = S._newSU || last?.data.excavation_unit || (isUnit(p?.data) ? (subsOf(parentId)[0]?.data.letter || '') : 'A');
     const same = ls.filter(r => String(r.data.excavation_unit).toUpperCase() === String(d.excavation_unit).toUpperCase());
     if (S._newSU) last = same[same.length - 1] || last;
-    d.levelno = nextNum(same, 'levelno');
-    const lastSame = same[same.length - 1];
+    let lastSame = same[same.length - 1];
+    // a quarter-unit window carries on below its parent subunit: next level number and depth follow the parent
+    const suR = isUnit(p?.data) ? subsOf(parentId).find(s => String(s.data.letter).toUpperCase() === String(d.excavation_unit).toUpperCase()) : null;
+    if (!lastSame && suR?.data.window_of) { const pl = ls.filter(r => String(r.data.excavation_unit).toUpperCase() === String(suR.data.window_of).toUpperCase()); lastSame = pl[pl.length - 1]; }
+    d.levelno = !same.length && lastSame ? (num(lastSame.data.levelno) || 0) + 1 : nextNum(same, 'levelno');
     d.top_cm = lastSame ? (num(lastSame.data.bgscm) ?? '') : 0;
     const th = +S.settings.level_cm || 10;
     d.excdepth = th; d.bgscm = (num(d.top_cm) ?? 0) + th;
@@ -1345,6 +1374,11 @@ function formView(rec, isNew, opts = {}) {
     refresh();
   });
   refresh();
+  if (S._closeIt === rec.id) {
+    S._closeIt = null; const cb = $('#f_terminal_level', form);
+    if (cb && !cb.checked) { cb.checked = true; cb.dispatchEvent(new Event('change', { bubbles: true })); S.formDirty = true; }
+    toast('“Terminal level” is ticked. Check the level, then press Finish');
+  }
   const doSave = async (mode, next) => { // mode: 'finish' | 'draft'
     let nd = current();
     const wasStatus = rec.data._status;
@@ -1360,7 +1394,8 @@ function formView(rec, isNew, opts = {}) {
     // closing a test-unit subunit: it should end on two sterile levels, or say why not
     if (mode === 'finish' && rec.tbl === 'levels' && nd.terminal_level && isUnit(parent?.data) && !(st === 'draft')) {
       const why = await sterileCheck(parent, rec, nd); if (why === false) return;
-      if (why) nd.close_override = why; else delete nd.close_override;
+      if (why === 'window') { nd.close_override = 'Continued below in a quarter-unit window'; S._winAfter = { exc: parent.id, of: String(nd.excavation_unit || '').toUpperCase() }; }
+      else if (why) nd.close_override = why; else delete nd.close_override;
     }
     const featAfter = rec.tbl === 'levels' && miss.includes(FEAT_MISS);
     if (featAfter && mode === 'finish') { miss = miss.filter(x => x !== FEAT_MISS); st = statusFor(rec, nd, miss); }
@@ -1391,6 +1426,7 @@ function formView(rec, isNew, opts = {}) {
     toast(nd._status === 'draft' ? '⚠ Saved UNFINISHED: not sent to the project' : nd._status === 'open' ? 'Saved: excavation open' : 'Finished ✓');
     if (rec.tbl === 'levels' && nd._status === 'complete' && newSiteDue(get(rec.parent))) { const go = await newSitePrompt(get(rec.parent)); if (go) { location.hash = go; return; } }
     if (featAfter && mode === 'finish') { toast('Level finished ✓ Now record the feature'); location.hash = `#/new/features/${rec.parent}?lv=${rec.id}`; return; }
+    if (S._winAfter && rec.tbl === 'levels') { const w = S._winAfter; S._winAfter = null; location.hash = `#/window/${w.exc}?of=${encodeURIComponent(w.of)}`; return; }
     if (rec.tbl === 'levels' && nd.terminal_level && nd._status === 'complete' && isUnit(parent?.data)) { location.hash = `#/closed/${rec.parent}?su=${encodeURIComponent(String(nd.excavation_unit || '').toUpperCase())}`; return; }
     if (rec.tbl === 'excavations' && !isNew && nd._status === 'complete' && wasStatus !== 'complete') { location.hash = `#/closed/${rec.id}`; return; }
     if (next) { const h = `#/new/${rec.tbl}/${rec.parent}`; if (location.hash === h) render(); else location.hash = h; }
@@ -1513,7 +1549,7 @@ function viewExc(e) {
     ${e.data._status === 'draft' || d.planned ? '' : checklistHTML(e)}
     ${levels.some(l => l.data._status === 'draft') ? `<div class="unfinbox"><b class="t">⚠ ${levels.filter(l => l.data._status === 'draft').length} level(s) UNFINISHED</b>Finish ${levels.filter(l => l.data._status === 'draft').map(l => 'EU ' + esc(l.data.excavation_unit) + ' Lvl ' + esc(l.data.levelno)).join(', ')} before starting another level.</div>` : ''}
     <div class="card" style="margin-top:8px">${photoStripHTML(e)}</div>
-    <div class="btns${d.planned ? ' hidden' : ''}">${isUnit(d) ? '' : `<a class="btn" href="#/new/levels/${e.id}">+ Next level</a>`}<a class="btn sec" href="#/edit/${e.id}">Edit / close out</a>
+    <div class="btns${d.planned ? ' hidden' : ''}">${isUnit(d) ? '' : `<a class="btn" href="#/new/levels/${e.id}">+ Next level</a>`}${isUnit(d) ? `<a class="btn" href="#/closeout/${e.id}">Close out unit…</a><a class="btn sec" href="#/edit/${e.id}">Edit details</a>` : `<a class="btn sec" href="#/edit/${e.id}">Edit / close out</a>`}
       <a class="btn sec" href="#/new/features/${e.id}">+ Feature</a><a class="btn sec" href="#/new/samples/${e.id}">+ Sample</a></div>
     ${unitSectionHTML(e)}
     <h3>Levels</h3><div class="list">${levels.map(l => {
@@ -1535,7 +1571,7 @@ function checklistHTML(r) {
   const miss = completeness(r, r.data);
   const stale = (r.data._status === 'complete') !== !miss.length;
   return `<div id="cl">${miss.length ? `<div class="check"><b>${r.data._status === 'complete' ? 'Now incomplete' : 'To close out'}:</b><ul style="margin:4px 0 0;padding-left:18px">${miss.map(x => `<li>${esc(x)}</li>`).join('')}</ul>${stale ? '' : ''}</div>`
-    : `<div class="check okc">All checks pass${r.data._status !== 'complete' ? '. Open “Edit / close out” and save to mark it complete.' : ' ✓'}</div>`}</div>`;
+    : `<div class="check okc">All checks pass${r.data._status !== 'complete' ? (isUnit(r.data) ? '. Press “Close out unit…” to close it.' : '. Open “Edit / close out” and save to mark it complete.') : ' ✓'}</div>`}</div>`;
 }
 function labSection(l) {
   const labT = Object.keys(TABLES).filter(t => TABLES[t].mode === 'lab');
@@ -1676,7 +1712,7 @@ async function viewSettings() {
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a><button class="btn sec" id="tmoff">Leave test mode</button></div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
     <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a><a class="btn sec" href="#/offline">Offline maps (imagery)</a></div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.24 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.25 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   if ($('#s_rep')) CORE.myProfile().then(p => {
     const cb = $('#s_rep'); if (!cb || !p) return;
     cb.checked = reportsOn(p); cb.disabled = false; $('#s_rep_h').textContent = `Sent to ${p.email}.`;
@@ -1886,12 +1922,12 @@ function unitPlanSVG(e, o = {}) {
   for (let y = y0; y <= y1 + 1e-9; y += 0.5) g += `<line x1="${x0}" y1="${Y(y)}" x2="${x1}" y2="${Y(y)}" class="${Math.abs(y % 1) < 1e-9 ? 'g1' : 'g2'}"/>`;
   const pieces = (ps, cls, letter, id) => ps.map(p => `<rect x="${p.x}" y="${Y(p.y + p.h)}" width="${p.w}" height="${p.h}" class="${cls}" ${letter ? `data-letter="${esc(letter)}"` : ''} ${id ? `data-id="${id}"` : ''}/>`).join('');
   let body = '';
-  for (const s of subs) {
+  for (const s of [...subs].sort((a, b) => (a.data.window_of ? 1 : 0) - (b.data.window_of ? 1 : 0))) {
     const ps = partsOf(s), big = ps.slice().sort((a, b) => b.w * b.h - a.w * a.h)[0];
     const lv = kids(s.parent, 'levels').filter(l => String(l.data.excavation_unit).toUpperCase() === String(s.data.letter).toUpperCase());
-    const cls = 'su' + (o.sel && o.sel === s.data.letter ? ' sel' : '') + (lv.some(l => l.data.terminal_level) ? ' done' : '');
+    const cls = 'su' + (s.data.window_of ? ' win' : '') + (o.sel && o.sel === s.data.letter ? ' sel' : '') + (lv.some(l => l.data.terminal_level) ? ' done' : '');
     body += pieces(ps, cls, s.data.letter, s.id);
-    if (big) body += `<text x="${big.x + big.w / 2}" y="${Y(big.y + big.h / 2)}" class="sut">${esc(s.data.letter)}</text>`;
+    if (big) body += `<text x="${big.x + big.w / 2}" y="${Y(big.y + big.h / 2)}" class="sut${s.data.window_of ? ' win' : ''}">${esc(s.data.letter)}</text>`;
   }
   if (o.parts) body += o.parts.map((p, i) => `<rect x="${p.x}" y="${Y(p.y + p.h)}" width="${p.w}" height="${p.h}" class="su edit${i === (o.active ?? 0) ? ' act' : ''}" data-pi="${i}"/>`).join('');
   // datum + corner shots
@@ -1939,7 +1975,8 @@ function unitPreviewHTML(d) {
 function trailingSterile(levels) { let n = 0; for (const l of [...levels].sort((a, b) => num(b.data.levelno) - num(a.data.levelno))) { if (l.data.artifacts) break; n++; } return n; }
 function sterileCheck(exc, rec, nd) {
   const eu = String(nd.excavation_unit || '').toUpperCase();
-  const lv = kids(exc.id, 'levels').filter(l => l.id !== rec.id && String(l.data.excavation_unit).toUpperCase() === eu && num(l.data.levelno) < num(nd.levelno));
+  const su = subsOf(exc.id).find(s => String(s.data.letter).toUpperCase() === eu);
+  const lv = (su ? chainLevels(exc, su) : kids(exc.id, 'levels').filter(l => String(l.data.excavation_unit).toUpperCase() === eu)).filter(l => l.id !== rec.id && num(l.data.levelno) < num(nd.levelno));
   const n = trailingSterile([...lv, { data: nd }]);
   if (n >= 2) return Promise.resolve(null);
   return new Promise(resolve => {
@@ -1947,9 +1984,11 @@ function sterileCheck(exc, rec, nd) {
     m.innerHTML = `<div class="card bagprompt" style="max-width:480px"><b class="t">⚠ Subunit ${esc(eu)}: ${n === 0 ? 'this level is not sterile' : 'only one sterile level'}</b>
       <p style="margin:6px 0">Test units are closed after <b>two sterile levels</b> in a row. ${n === 0 ? 'This last level has artifacts.' : 'Only this last level is sterile; the one above it had artifacts.'} Dig another level, or close the subunit anyway and say why.</p>
       <div class="f"><label for="ovr">Why close it now?</label><textarea id="ovr" rows="3" placeholder="e.g. hit the water table / clay subsoil reached / unit stopped by the PI">${esc(nd.close_override || '')}</textarea></div>
-      <div class="btns" style="justify-content:flex-end"><button class="btn sec" id="ovno">Keep digging</button><button class="btn bad" id="ovyes">Close it anyway</button></div></div>`;
+      <div class="btns" style="justify-content:flex-end"><button class="btn sec" id="ovno">Keep digging</button>${su && !su.data.window_of ? '<button class="btn sec" id="ovwin">Close &amp; dig a ¼-unit window</button>' : ''}<button class="btn bad" id="ovyes">Close it anyway</button></div>
+      <div class="help">A ¼-unit window is a smaller square dug inside this subunit, below its floor, to reach sterile.</div></div>`;
     document.body.append(m);
     $('#ovno', m).onclick = () => { m.remove(); resolve(false); };
+    if ($('#ovwin', m)) $('#ovwin', m).onclick = () => { m.remove(); resolve('window'); };
     $('#ovyes', m).onclick = () => { const r = $('#ovr', m).value.trim(); if (!r) { toast('Say why it is being closed early'); $('#ovr', m).focus(); return; } m.remove(); resolve(r); };
   });
 }
@@ -1968,7 +2007,7 @@ function viewClosed(id, su) {
   if (su) {
     btns = stillOpen.map(s => `<a class="btn sec" href="#/new/levels/${id}?su=${encodeURIComponent(s.data.letter)}">Next level in ${esc(s.data.letter)}</a>`).join('')
       + `<a class="btn sec" href="#/new/subunits/${id}">+ Add an expansion</a>`
-      + (stillOpen.length ? `<a class="btn" href="#/rec/${id}">Back to ${esc(nm)}</a>` : `<a class="btn" href="#/edit/${id}">Close out ${esc(nm)} →</a><a class="btn sec" href="#/rec/${id}">Back to ${esc(nm)}</a>`);
+      + (stillOpen.length ? `<a class="btn" href="#/rec/${id}">Back to ${esc(nm)}</a>` : `<a class="btn" href="#/closeout/${id}">Close out ${esc(nm)} →</a><a class="btn sec" href="#/rec/${id}">Back to ${esc(nm)}</a>`);
   } else {
     btns = (unit ? '' : `<a class="btn" href="#/new/excavations/${e.site}?STP">+ Next STP</a>`) + `<a class="btn ${unit ? '' : 'sec'}" href="#/site/${e.site}">Back to ${esc(site?.data.sitename || 'the site')}</a><a class="btn sec" href="#/rec/${id}">View ${esc(nm)}</a>`;
   }
@@ -1988,6 +2027,98 @@ function viewClosed(id, su) {
     ${su && stillOpen.length ? `<div class="check">Still open in ${esc(nm)}: ${stillOpen.map(s => esc(s.data.letter)).join(', ')}</div>` : ''}
     ${su && !stillOpen.length ? `<div class="check okc">Every subunit of ${esc(nm)} is closed. Close out the unit next (final depth, photos, corner shots).</div>` : ''}
     <div class="btns" style="margin-top:12px">${btns}</div>`;
+}
+
+/* ---- closing out a whole unit: one screen that checks everything and fixes what it can ---- */
+function viewUnitCloseout(id) {
+  const e = get(id); if (!e || !isUnit(e.data)) return notFound();
+  const nm = TABLES.excavations.title(e.data), subs = subsOf(id), all = kids(id, 'levels');
+  setTitle('Close out ' + nm);
+  const deepest = all.length ? Math.max(...all.map(l => num(l.data.bgscm) || 0)) : null;
+  const rows = subs.map(s => {
+    const lv = suLevels(id, s.data.letter).sort((a, b) => num(a.data.levelno) - num(b.data.levelno)), last = lv[lv.length - 1];
+    const draft = lv.find(l => l.data._status === 'draft'), term = lv.find(l => l.data.terminal_level);
+    return { s, lv, last, draft, term, closed: !!term && !draft, ster: trailingSterile(chainLevels(e, s)) };
+  });
+  const sterOk = rows.some(r => r.closed && r.ster >= 2);
+  const ph = unitPhotoState(e);
+  const auto = { depthcm: deepest, positive: all.some(l => l.data.artifacts) ? 1 : 0 }; // filled in at close-out
+  const miss = completeness(e, { ...e.data, ...auto });
+  const known = new Set([MSG_STERILE, MSG_OVERVIEW, MSG_WALLS, MSG_FLOOR, MSG_DRAW, 'Some levels are still drafts', 'At least one subunit on the unit plan',
+    ...subs.flatMap(s => [`Subunit ${s.data.letter} has no levels`, `Mark the terminal level in subunit ${s.data.letter}`])]);
+  const other = miss.filter(m => !known.has(m) && !/^Final depth/.test(m));
+  const ok = !miss.length;
+  const tick = v => `<span style="font-size:20px;color:${v ? 'var(--ok)' : 'var(--bad)'};width:24px;display:inline-block">${v ? '✓' : '✗'}</span>`;
+  const photoBtn = (kind, label) => `<label class="btn sm">📷 ${esc(label)}<input type="file" accept="image/*" capture="environment" hidden data-pk="${esc(kind)}"></label>`;
+  const suRow = r => {
+    const s = r.s, L = esc(s.data.letter);
+    let act = '';
+    if (r.draft) act = `<a class="btn sm" href="#/edit/${r.draft.id}">Finish level ${esc(r.draft.data.levelno)}</a>`;
+    else if (!r.lv.length) act = `<a class="btn sm" href="#/new/levels/${id}?su=${encodeURIComponent(s.data.letter)}">Start level 1</a><button class="btn sm sec bad" data-delsu="${s.id}">Delete ${L} (added by mistake)</button>`;
+    else if (!r.term) act = `<button class="btn sm" data-closelv="${r.last.id}">Make level ${esc(r.last.data.levelno)} the last level</button><a class="btn sm sec" href="#/new/levels/${id}?su=${encodeURIComponent(s.data.letter)}">Dig another level</a>`;
+    return `<div style="display:flex;gap:6px;align-items:flex-start;padding:6px 0;border-top:1px solid var(--line)">${tick(r.closed)}<div style="flex:1">
+      <b>${s.data.window_of ? `${L} · ¼ window in ${esc(s.data.window_of)}` : `Subunit ${L}`}</b> <span class="help">${r.lv.length ? `${r.lv.length} level${r.lv.length > 1 ? 's' : ''} to ${esc(r.last.data.bgscm)} cmbs · ${r.ster} sterile at the bottom` : 'no levels'}${r.closed ? ' · closed' : ''}</span>
+      ${r.term?.data.close_override ? `<div class="help">Closed early: ${esc(r.term.data.close_override)}</div>` : ''}
+      ${act ? `<div class="btns" style="margin-top:4px">${act}</div>` : ''}</div></div>`;
+  };
+  $('#app').innerHTML = `${crumbs(e)}<h2>Close out ${esc(nm)}</h2>
+    <div class="help">Everything below must be ✓ before the unit can be closed. Fix things straight from this page.</div>
+    <h3>1 · Subunits closed</h3><div class="card">${rows.map(suRow).join('') || '<div class="empty">No subunits</div>'}</div>
+    <h3>2 · Two sterile levels</h3><div class="card"><div style="display:flex;gap:6px">${tick(sterOk)}<div style="flex:1">${sterOk
+      ? `Reached in ${rows.filter(r => r.closed && r.ster >= 2).map(r => esc(r.s.data.letter)).join(', ')}.`
+      : `No closed subunit ends in two sterile levels yet. Dig deeper in one subunit, or dig a <b>¼-unit window</b> (a smaller square inside a subunit, below its floor) until two levels in a row have no artifacts.`}</div></div>
+      ${sterOk ? '' : `<div class="btns">${rows.filter(r => r.lv.length && !r.s.data.window_of).map(r => `<a class="btn sm sec" href="#/window/${id}?of=${encodeURIComponent(r.s.data.letter)}">Dig a ¼ window in ${esc(r.s.data.letter)}</a>`).join('')}</div>`}</div>
+    <h3>3 · Close-out photos</h3><div class="card">
+      <div style="display:flex;gap:6px;align-items:center;padding:4px 0">${tick(ph.overview)}<span style="flex:1">Overview of the unit</span>${ph.overview ? '' : photoBtn('Overview', 'Overview')}</div>
+      <div style="display:flex;gap:6px;align-items:center;padding:4px 0;flex-wrap:wrap">${tick(ph.walls.length >= 2)}<span style="flex:1">Two walls${ph.walls.length ? ` <span class="help">(done: ${ph.walls.map(w => esc(w.replace('Wall profile – ', ''))).join(', ')})</span>` : ''}</span>
+        ${ph.walls.length >= 2 ? '' : WALL_KINDS.filter(w => !ph.walls.includes(w)).map(w => photoBtn(w, w.replace('Wall profile – ', '') + ' wall')).join('')}</div>
+      <div style="display:flex;gap:6px;align-items:center;padding:4px 0">${tick(ph.floor)}<span style="flex:1">Floor of the unit</span>${ph.floor ? '' : photoBtn('Floor (final)', 'Floor')}</div>
+      <div style="display:flex;gap:6px;align-items:center;padding:4px 0">${tick(ph.drawing)}<span style="flex:1">Field drawing(s)</span>${photoBtn('Field drawing', ph.drawing ? 'Add another' : 'Drawing')}</div>
+    </div>
+    <h3>4 · Everything else</h3><div class="card"><div style="display:flex;gap:6px">${tick(!other.length)}<div style="flex:1">${other.length ? `<ul style="margin:0;padding-left:18px">${other.map(m => `<li>${esc(m)}</li>`).join('')}</ul><div class="btns"><a class="btn sm sec" href="#/edit/${id}">Edit unit details</a><a class="btn sm sec" href="#/rec/${id}">Unit page (corner shots, plan)</a></div>` : 'Unit details, corner shots, features and samples all check out.'}</div></div>
+      <div class="kv" style="margin-top:8px"><div><span>Final depth (deepest level)</span><br>${deepest != null ? deepest + ' cmbs' : '—'}</div><div><span>Positive?</span><br>${auto.positive ? 'Yes (artifacts found)' : 'No'}</div></div><div class="help">Final depth and positive/negative are filled in for you when the unit is closed.</div></div>
+    <div class="formbar"><button class="btn" id="cofin" ${ok ? '' : 'disabled'}>${ok ? `Close out ${esc(nm)} ✓` : `${miss.length} thing${miss.length > 1 ? 's' : ''} left before closing`}</button><a class="btn sec" href="#/rec/${id}">Back</a></div>`;
+  $('#app').querySelectorAll('[data-pk]').forEach(inp => inp.onchange = async () => { const f = [...inp.files]; if (f.length) { await addPhotoFiles(e, f, inp.dataset.pk); viewUnitCloseout(id); } });
+  $('#app').querySelectorAll('[data-closelv]').forEach(b => b.onclick = () => { S._closeIt = b.dataset.closelv; location.hash = '#/edit/' + b.dataset.closelv; });
+  $('#app').querySelectorAll('[data-delsu]').forEach(b => b.onclick = async () => {
+    const su = get(b.dataset.delsu); if (!su) return; if (!canDelete(su)) return toast(noDeleteMsg);
+    if (!(await ask(`Delete subunit ${su.data.letter}? Use this for a subunit added by mistake.`, 'Delete', 'Keep it'))) return;
+    await softDelete(su); viewUnitCloseout(id);
+  });
+  $('#cofin').onclick = async () => {
+    if (!(await ask(`Close out ${nm}?\n\nFinal depth ${deepest} cmbs, ${subs.length} subunit${subs.length > 1 ? 's' : ''}. The unit is marked complete and uploaded.`, 'Yes, close it out', 'Not yet'))) return;
+    const d = { ...e.data, ...auto }, m2 = completeness(e, d);
+    if (m2.length) { toast('Something changed: check the list again'); return viewUnitCloseout(id); }
+    d._missing = []; d._status = 'complete'; d.closed_at = now(); d.closed_by = me();
+    e.data = d; await save(e); location.hash = '#/closed/' + id;
+  };
+}
+/* ---- a quarter-unit window: a smaller square dug inside a subunit, below its floor, to reach sterile ---- */
+function viewWindow(id, of) {
+  const e = get(id); if (!e || !isUnit(e.data)) return notFound();
+  const par = subsOf(id).find(s => String(s.data.letter).toUpperCase() === of); if (!par) return notFound();
+  const lv = suLevels(id, of).sort((a, b) => num(a.data.levelno) - num(b.data.levelno)), last = lv[lv.length - 1];
+  if (!last) { toast(`Subunit ${of} has no levels yet`); location.hash = '#/rec/' + id; return; }
+  const big = partsOf(par).slice().sort((a, b) => b.w * b.h - a.w * a.h)[0], w = r2(big.w / 2), h = r2(big.h / 2);
+  const Q = { SW: { x: big.x, y: big.y }, SE: { x: r2(big.x + w), y: big.y }, NW: { x: big.x, y: r2(big.y + h) }, NE: { x: r2(big.x + w), y: r2(big.y + h) } };
+  S.winQ = Q[S.winQ] ? S.winQ : 'SW';
+  const part = { ...Q[S.winQ], w, h }, L = nextLetter(id), closedPar = lv.some(l => l.data.terminal_level);
+  setTitle('¼-unit window in ' + of);
+  $('#app').innerHTML = `${crumbs(e)}<h2>Dig a ¼-unit window in ${esc(of)}</h2>
+    <div class="help">A smaller square inside subunit ${esc(of)}, dug below its floor to reach two sterile levels. It gets its own letter (<b>${esc(L)}</b>) and carries on ${esc(of)}’s level numbers: its first level is <b>level ${(num(last.data.levelno) || 0) + 1}</b>, starting at <b>${esc(last.data.bgscm)} cmbs</b>.</div>
+    <div class="card" style="margin-top:8px"><div id="planbox">${unitPlanSVG(e, { parts: [part] })}</div>
+      <div class="f" style="margin-top:6px"><label>Which quarter of ${esc(of)}?</label><div class="btns">${Object.keys(Q).map(k => `<button class="btn sm ${k === S.winQ ? '' : 'sec'}" data-q="${k}">${k}</button>`).join('')}</div>
+      <div class="help">${fmtM(w)} × ${fmtM(h)} m</div></div></div>
+    ${closedPar ? '' : `<div class="check">Level ${esc(last.data.levelno)} becomes the last level of ${esc(of)} (the window carries on below it).</div>`}
+    <div class="formbar"><button class="btn" id="wgo">Create window ${esc(L)} &amp; start level ${(num(last.data.levelno) || 0) + 1}</button><a class="btn sec" href="#/rec/${id}">Cancel</a></div>`;
+  $('#app').querySelectorAll('[data-q]').forEach(b => b.onclick = () => { S.winQ = b.dataset.q; viewWindow(id, of); });
+  $('#wgo').onclick = async () => {
+    if (!closedPar) { last.data = { ...last.data, terminal_level: 1, close_override: last.data.close_override || `Continued below in ¼-unit window ${L}` }; await save(last); }
+    const su = mk('subunits', id, {});
+    su.data = { letter: L, window_of: of, parts: [part], opened: today(), reason: `¼-unit window in ${of} to reach sterile`, area_m2: partsArea([part]), size_label: `${sizeLabel([part])} window`, _status: 'complete', _missing: [] };
+    await save(su); toast(`Window ${L} created`);
+    location.hash = `#/new/levels/${id}?su=${encodeURIComponent(L)}`;
+  };
 }
 
 /* ---- subunit editor ---- */
@@ -2010,7 +2141,7 @@ function subunitEditor(rec, isNew) {
   const msgs = [], errs = [];
   st.parts.forEach((a, i) => {
     if (!(a.w > 0 && a.h > 0)) errs.push(`Piece ${i + 1}: size must be more than 0`);
-    for (const s of others) for (const b of partsOf(s)) if (overlap(a, b)) errs.push(`Piece ${i + 1} overlaps subunit ${s.data.letter}`);
+    for (const s of others) { if (s.data.window_of || (rec.data.window_of && String(s.data.letter).toUpperCase() === String(rec.data.window_of).toUpperCase())) continue; for (const b of partsOf(s)) if (overlap(a, b)) errs.push(`Piece ${i + 1} overlaps subunit ${s.data.letter}`); }
     st.parts.forEach((b, j) => { if (j > i && overlap(a, b)) errs.push(`Pieces ${i + 1} and ${j + 1} overlap`); });
   });
   if (st.parts.length > 1 && st.parts.some((a, i) => !st.parts.some((b, j) => j !== i && touches(a, b)))) msgs.push('The pieces of this subunit do not touch each other');
@@ -2178,9 +2309,9 @@ function unitSectionHTML(e) {
   return `${ov ? '' : `<div class="check">📷 <b>Overview photo of the unit needed</b> (required to close out). Take it under Photos below, with “Overview” picked.</div>`}
     <h3>Unit plan <span class="sp"></span><a class="btn sm" href="#/new/subunits/${e.id}">+ Add subunit / expansion</a></h3>
     <div class="card"><div id="unitplan">${subs.length ? unitPlanSVG(e, { sel }) : '<div class="empty">No subunits yet. Add the first one (+ Add subunit): it is the square next to the datum stake and gets the letter A.</div>'}</div>
-    ${subs.length ? `<div class="btns">${subs.map(s => `<button class="btn sm ${s.data.letter === sel ? '' : 'sec'}" data-su="${esc(s.data.letter)}">${esc(s.data.letter)} · ${esc(s.data.size_label || '')}</button>`).join('')}</div>` : ''}
+    ${subs.length ? `<div class="btns">${subs.map(s => `<button class="btn sm ${s.data.letter === sel ? '' : 'sec'}" data-su="${esc(s.data.letter)}">${esc(s.data.letter)} · ${s.data.window_of ? '¼ window in ' + esc(s.data.window_of) : esc(s.data.size_label || '')}</button>`).join('')}</div>` : ''}
     ${sel ? `<div class="kv" style="margin-top:6px"><div><span>Subunit ${esc(sel)}</span><br>${lv.length ? `${lv.length} level${lv.length > 1 ? 's' : ''}, to ${esc(lv[lv.length - 1].data.bgscm)} cmbs${lv.some(l => l.data.terminal_level) ? ' (closed)' : ''}` : 'no levels yet'}</div></div>
-      <div class="btns"><a class="btn" href="#/new/levels/${e.id}?su=${encodeURIComponent(sel)}">+ Level in ${esc(sel)}</a><a class="btn sec" href="#/rec/${subs.find(s => s.data.letter === sel).id}">Edit / move ${esc(sel)}</a>${lv.length ? '' : `<button class="btn sec bad" data-delsu="${subs.find(s => s.data.letter === sel).id}">Delete ${esc(sel)}</button>`}</div>
+      <div class="btns"><a class="btn" href="#/new/levels/${e.id}?su=${encodeURIComponent(sel)}">+ Level in ${esc(sel)}</a><a class="btn sec" href="#/rec/${subs.find(s => s.data.letter === sel).id}">Edit / move ${esc(sel)}</a>${lv.length ? '' : `<button class="btn sec bad" data-delsu="${subs.find(s => s.data.letter === sel).id}">Delete ${esc(sel)}</button>`}${lv.length && !subs.find(s => s.data.letter === sel).data.window_of ? `<a class="btn sec" href="#/window/${e.id}?of=${encodeURIComponent(sel)}">Dig a ¼ window in ${esc(sel)}</a>` : ''}</div>
       <div class="help">Tap a subunit on the plan (or its button) to select it.</div>` : ''}</div>
     <h3>Unit datum &amp; corner shots <span class="sp"></span><a class="btn sm" href="#/new/mappoints/${e.id}?corner">+ Shoot a corner</a></h3>
     <div class="card">
@@ -3009,7 +3140,7 @@ function render() {
   const h = location.hash || '#/';
   const [path, qs] = h.slice(1).split('?');
   const seg = path.split('/').filter(Boolean);
-  const tab = { sites: 'field', site: 'field', rec: 'field', closed: 'field', edit: 'field', new: 'field', lab: 'lab', catalog: 'lab', scan: 'scan', boxes: 'scan', labels: 'scan', daycheck: 'scan', data: 'data' }[seg[0]] || (seg.length ? '' : 'home');
+  const tab = { sites: 'field', site: 'field', rec: 'field', closed: 'field', closeout: 'field', window: 'field', edit: 'field', new: 'field', lab: 'lab', catalog: 'lab', scan: 'scan', boxes: 'scan', labels: 'scan', daycheck: 'scan', data: 'data' }[seg[0]] || (seg.length ? '' : 'home');
   document.querySelectorAll('#tabs a').forEach(a => a.classList.toggle('on', a.dataset.t === tab));
   if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; document.querySelectorAll('.modal').forEach(m => m.remove()); }
   stopLiveGps(); scrollTo(0, 0);
@@ -3019,6 +3150,8 @@ function render() {
     case 'sites': return viewSites();
     case 'site': return viewSite(seg[1]);
     case 'rec': return viewRec(seg[1]);
+    case 'closeout': return viewUnitCloseout(seg[1]);
+    case 'window': return viewWindow(seg[1], new URLSearchParams(qs || '').get('of')?.toUpperCase() || '');
     case 'closed': return viewClosed(seg[1], new URLSearchParams(qs || '').get('su')?.toUpperCase() || null);
     case 'edit': { const r = get(seg[1]); return !r ? notFound() : r.tbl === 'subunits' ? subunitEditor(r, false) : formView(r, false); }
     case 'new': {

@@ -450,7 +450,7 @@ TABLES.photos = {
   ],
 };
 const PHOTO_KINDS = {
-  excavations: ['Overview', 'Plan view', 'Profile', 'Field drawing', 'Other'],
+  excavations: ['Overview', 'Wall profile – North', 'Wall profile – South', 'Wall profile – East', 'Wall profile – West', 'Floor (final)', 'Plan view', 'Field drawing', 'Other'],
   levels: ['Level floor', 'Profile', 'Special find', 'In situ find', 'Other'],
   boxes: ['Label', 'Contents', 'Other'],
   features: ['Plan view (top down)', 'Bisect / profile', 'Field drawing', 'Overview', 'Other'],
