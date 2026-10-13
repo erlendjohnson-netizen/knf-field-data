@@ -898,7 +898,8 @@ const LABELKEY = { 'Location (GPS capture or UTM)': '_gps', 'Excavators': 'crew'
 const BAG_MISS = 'Bag label for the artifacts (scanned when you press Finish)';
 const FEAT_MISS = 'Feature form (opens when you press Finish)';
 const SOIL_MISS = 'Soil sample bag label (scanned when you press Finish)';
-const AFTER = [BAG_MISS, FEAT_MISS, SOIL_MISS]; // asked for after Finish, so they don't block the button
+const C14_MISS = 'Carbon sample bag label (scanned when you press Finish)';
+const AFTER = [BAG_MISS, FEAT_MISS, SOIL_MISS, C14_MISS]; // asked for after Finish, so they don't block the button
 /* lab: diagnostics counted in the tabulation each go into their own bag, scanned when the tabulation is finished */
 const DIAG_BAGS = [['diagnosticlithicsct', 'Diagnostic lithics'], ['diagnosticcermct', 'Diagnostic ceramics'], ['grndstnct', 'Ground stone'], ['historicct', 'Historic artifacts']];
 const diagMsg = cat => `Bag for ${cat} (scan its label when you press Finish)`;
@@ -967,7 +968,8 @@ function completeness(rec, d) {
     if (!isSTPLevel(rec) && !hasPhoto()) m.push('Photo of the level (floor or profile)');
     if (d.artifacts && !kids(rec.id, 'bags').length && blank(d.bag_qr)) m.push(BAG_MISS);
     if (d.feature && !featuresOfLevel(rec).length) m.push(FEAT_MISS);
-    if (d.soil_sample && !(Array.isArray(d.soil_qrs) && d.soil_qrs.length) && !live('samples').some(x => x.data.level_id === rec.id && x.data.qr)) m.push(SOIL_MISS);
+    if (d.soil_sample && !(Array.isArray(d.soil_qrs) && d.soil_qrs.length) && !live('samples').some(x => x.data.level_id === rec.id && x.data.qr && !/^Radiocarbon/.test(x.data.sample_type || ''))) m.push(SOIL_MISS);
+    if (d.carbon_sample && !(Array.isArray(d.c14_qrs) && d.c14_qrs.length) && !live('samples').some(x => x.data.level_id === rec.id && x.data.qr && /^Radiocarbon/.test(x.data.sample_type || ''))) m.push(C14_MISS);
   }
   if (t === 'bags') need('contents', 'Contents');
   if (t === 'mappoints') { if (d.lat == null && blank(d.utme)) m.push('GPS position'); if (d.kind === 'Unit corner') need('corner', 'Which corner'); }
@@ -978,7 +980,7 @@ function completeness(rec, d) {
     if (!hasPhoto(['Bisect / profile', 'Profile/bisect'])) m.push('Photo: bisect / profile');
     if (!hasPhoto(['Field drawing'])) m.push('Photo of the field drawing');
   }
-  if (t === 'samples') { need('depth', 'Depth'); need('context', 'Context'); if (d.sample_type === 'OSL') need('collection', 'OSL collection method'); }
+  if (t === 'samples') { need('depth', 'Depth'); if (blank(d.sample_context)) need('context', 'Context'); if (d.sample_type === 'OSL') need('collection', 'OSL collection method'); }
   if (t === 'lithic_tools') {
     need('material_class', 'Raw material'); need('sourcing_basis', 'Material ID basis'); need('portion', 'Portion'); need('wt', 'Weight'); need('cnt', 'Count');
     if (d.tool_type === 'Biface (Hafted)') {
@@ -1231,13 +1233,13 @@ function showMissing(form, miss, errs = {}) {
 function formView(rec, isNew, opts = {}) {
   const def = TABLES[rec.tbl], parent = rec.parent ? get(rec.parent) : null;
   let d = { ...rec.data };
-  let fields = def.fields.filter(f => !(f.newOnly && !isNew));
+  let fields = def.fields.filter(f => !(f.newOnly && !isNew) && !(f.lab && !opts.lab)); // lab-only fields (radiocarbon results) are entered from the Lab screen
   if (rec.tbl === 'excavations' && !isSurvey(get(rec.site)) && !rec.data.transect) fields = fields.filter(f => f.k !== 'transect');
   let soilPrev = null;
   if (rec.tbl === 'levels') {
     const unitLv = parent && isUnit(parent.data);
     if (unitLv) fields = fields.map(f => f.k === 'top_cm' ? { ...f, t: 'ro', l: 'Top (average of corners)' } : f.k === 'bgscm' ? { ...f, t: 'ro', l: 'Bottom (average of corners)' } : f);
-    else fields = fields.filter(f => f.k !== '_corners');
+    else fields = fields.filter(f => f.k !== '_corners' && f.k !== 'soil_sample'); // soil samples come from test units, not STPs
     const sib = kids(rec.parent, 'levels').filter(l => l.id !== rec.id), eu = String(d.excavation_unit || 'A').toUpperCase(), ln = num(d.levelno) ?? 1e9;
     const sameEU = sib.filter(l => String(l.data.excavation_unit || 'A').toUpperCase() === eu && num(l.data.levelno) < ln).sort((a, b) => a.data.levelno - b.data.levelno);
     soilPrev = sameEU[sameEU.length - 1] || null;
@@ -1334,9 +1336,9 @@ function formView(rec, isNew, opts = {}) {
       if (f.t === 'ro') { const el = $('#f_' + f.k, form); if (el) el.textContent = cur[f.k] === '' || cur[f.k] == null ? '—' : cur[f.k]; }
       if (f.show) form.querySelector(`.f[data-k="${f.k}"]`)?.classList.toggle('hidden', !f.show(cur));
     });
-    const v = validate(rec.tbl, cur, rec), errs = Object.keys(v.errs).length, missAll = headOnly ? excHeaderMissing(cur) : completeness(rec, cur), bagNext = missAll.includes(BAG_MISS), featNext = missAll.includes(FEAT_MISS), soilNext = missAll.includes(SOIL_MISS), diagNext = missAll.map(diagCat).filter(Boolean), miss = missAll.filter(x => !isAfter(x)), st = statusFor(rec, cur, miss);
+    const v = validate(rec.tbl, cur, rec), errs = Object.keys(v.errs).length, missAll = headOnly ? excHeaderMissing(cur) : completeness(rec, cur), bagNext = missAll.includes(BAG_MISS), featNext = missAll.includes(FEAT_MISS), soilNext = missAll.includes(SOIL_MISS), c14Next = missAll.includes(C14_MISS), diagNext = missAll.map(diagCat).filter(Boolean), miss = missAll.filter(x => !isAfter(x)), st = statusFor(rec, cur, miss);
     if (headOnly && !miss.length) { $('#chk').innerHTML = '<div class="check okc">Ready to save ✓</div>'; }
-    else $('#chk').innerHTML = (bagNext ? '<div class="check bagnext">🏷 <b>Artifacts recorded:</b> when you press Finish, the app asks you to scan the bag label for this level.</div>' : '') + (featNext ? '<div class="check bagnext">🕳 <b>Feature ticked:</b> when you press Finish, the feature form opens next.</div>' : '') + (soilNext ? '<div class="check bagnext">🧪 <b>Soil sample taken:</b> when you press Finish, scan the sample bag’s label.</div>' : '') + (diagNext.length ? `<div class="check bagnext">🏷 <b>Bag the diagnostics:</b> put the ${esc(diagNext.join(', ').toLowerCase())} in their own plastic bag${diagNext.length > 1 ? 's' : ''}. When you press Finish, scan each bag’s label.</div>` : '') + (miss.length ? `<div class="check"><b>${isExc && st === 'open' ? 'Before close-out' : 'Still needed before this can be finished'}:</b><ul style="margin:4px 0 0;padding-left:18px">${miss.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : '<div class="check okc">Everything is filled in ✓</div>')
+    else $('#chk').innerHTML = (bagNext ? '<div class="check bagnext">🏷 <b>Artifacts recorded:</b> when you press Finish, the app asks you to scan the bag label for this level.</div>' : '') + (featNext ? '<div class="check bagnext">🕳 <b>Feature ticked:</b> when you press Finish, the feature form opens next.</div>' : '') + (soilNext ? '<div class="check bagnext">🧪 <b>Soil sample taken:</b> when you press Finish, scan the sample bag’s label.</div>' : '') + (c14Next ? '<div class="check bagnext">🔥 <b>Carbon sample:</b> when you press Finish, scan its bag label (it gets a catalogue number).</div>' : '') + (diagNext.length ? `<div class="check bagnext">🏷 <b>Bag the diagnostics:</b> put the ${esc(diagNext.join(', ').toLowerCase())} in their own plastic bag${diagNext.length > 1 ? 's' : ''}. When you press Finish, scan each bag’s label.</div>` : '') + (miss.length ? `<div class="check"><b>${isExc && st === 'open' ? 'Before close-out' : 'Still needed before this can be finished'}:</b><ul style="margin:4px 0 0;padding-left:18px">${miss.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : '<div class="check okc">Everything is filled in ✓</div>')
       + (errs ? `<div class="check" style="border-color:var(--bad)"><b>${errs} field${errs > 1 ? 's have' : ' has'} an error</b> (see highlighted fields)</div>` : '');
     const fin = $('#fin'), canFin = !errs && (st === 'complete' || (isExc && st === 'open'));
     fin.classList.toggle('dim', !canFin); if ($('#saveNext')) $('#saveNext').classList.toggle('dim', !canFin);
@@ -1427,9 +1429,14 @@ function formView(rec, isNew, opts = {}) {
       miss = completeness(rec, nd); st = statusFor(rec, nd, miss);
     }
     let soilNew = [];
-    if (mode === 'finish' && rec.tbl === 'levels' && miss.includes(SOIL_MISS) && miss.every(x => isAfter(x) || x === BAG_MISS)) {
-      soilNew = await soilPrompt(rec, nd); if (!soilNew) return;
-      nd.soil_qrs = soilNew.map(x => x.code);
+    if (mode === 'finish' && rec.tbl === 'levels' && miss.includes(SOIL_MISS) && miss.every(isAfter)) {
+      const got = await soilPrompt(rec, nd, 'soil'); if (!got) return;
+      nd.soil_qrs = got.map(x => x.code); soilNew.push(...got);
+      miss = completeness(rec, nd); st = statusFor(rec, nd, miss);
+    }
+    if (mode === 'finish' && rec.tbl === 'levels' && miss.includes(C14_MISS) && miss.every(isAfter)) {
+      const got = await soilPrompt(rec, nd, 'carbon'); if (!got) return;
+      nd.c14_qrs = got.map(x => x.code); soilNew.push(...got);
       miss = completeness(rec, nd); st = statusFor(rec, nd, miss);
     }
     // closing a test-unit subunit: it should end on two sterile levels, or say why not
@@ -1630,7 +1637,9 @@ function labSection(l) {
     check = msgs.length ? msgs.map(m => `<div class="check">${esc(m)}</div>`).join('') : (kids(l.id, 'prehistoric_ceramics').length || kids(l.id, 'lithic_tools').length ? '<div class="check okc">Tabulation matches the catalogue.</div>' : '');
   }
   const labDone = tab && tab.data._status === 'complete';
-  return `<h3>Lab ${tab ? (labDone ? '<span class="badge pos">lab work complete ✓</span>' : '<span class="badge">in progress</span>') : ''}</h3>${check}
+  const c14 = live('samples').filter(x => x.data.level_id === l.id && /^Radiocarbon/.test(x.data.sample_type || ''));
+  const c14HTML = c14.length ? `<h3>Carbon samples <span class="badge">${c14.length}</span></h3><div class="list">${c14.map(x => `<a class="row" href="#/c14/${x.id}"><div class="t"><b>Cat. ${esc(x.data.catalogno || '—')}</b><small>${esc(x.data.qr || '')} · ${esc(x.data.material || '')} · ${x.data.c14_age != null && x.data.c14_age !== '' ? `${esc(x.data.c14_age)} ± ${esc(x.data.c14_sd ?? '?')} BP${x.data.c14_lab_no ? ' (' + esc(x.data.c14_lab_no) + ')' : ''}` : 'not dated yet: tap to enter lab results'}</small></div><span aria-hidden="true">›</span></a>`).join('')}</div>` : '';
+  return c14HTML + `<h3>Lab ${tab ? (labDone ? '<span class="badge pos">lab work complete ✓</span>' : '<span class="badge">in progress</span>') : ''}</h3>${check}
     <div class="btns">${tab ? `<a class="btn sec sm" href="#/rec/${tab.id}">Edit tabulation</a>` : `<a class="btn sm" href="#/new/tabulation/${l.id}">+ Level tabulation</a>`}
     ${kids(l.id, 'historic_tabulation')[0] ? `<a class="btn sec sm" href="#/rec/${kids(l.id, 'historic_tabulation')[0].id}">Edit historic tabulation</a>` : `<a class="btn sec sm" href="#/new/historic_tabulation/${l.id}">+ Historic tabulation</a>`}
     ${labT.filter(t => !TABLES[t].single).map(t => `<a class="btn sec sm" href="#/new/${t}/${l.id}">+ ${esc(TABLES[t].label)}</a>`).join('')}</div>
@@ -1762,7 +1771,7 @@ async function viewSettings() {
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a><button class="btn sec" id="tmoff">Leave test mode</button></div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
     <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a><a class="btn sec" href="#/offline">Offline maps (imagery)</a></div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.32 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.33 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   if ($('#s_rep')) CORE.myProfile().then(p => {
     const cb = $('#s_rep'); if (!cb || !p) return;
     cb.checked = reportsOn(p); cb.disabled = false; $('#s_rep_h').textContent = `Sent to ${p.email}.`;
@@ -2542,45 +2551,49 @@ function bagPrompt(level, d) {
 
 /* soil samples: a bag with its own QR (so custody, bag checks and storage all work) plus a sample record with the details */
 async function createSoilSample(level, x) {
-  await createBag(level, x.code, 'Soil sample');
-  const exc = get(level.parent), d = level.data;
+  const carbon = x.kind === 'carbon', d = level.data;
+  await createBag(level, x.code, carbon ? 'Carbon sample' : 'Soil sample');
   const sm = mk('samples', level.parent, {});
-  sm.data = { sample_type: x.type, sample_number: nextNum(live('samples').filter(r => r.site === level.site), 'sample_number'), qr: x.code, level_id: level.id, sample_context: x.context,
+  // carbon samples are catalogued like the old database: Level ID + a 2-digit number within the level
+  const nIn = live('samples').filter(r => r.data.level_id === level.id && /^Radiocarbon/.test(r.data.sample_type || '')).length + 1;
+  sm.data = { sample_type: carbon ? 'Radiocarbon (AMS)' : x.type, sample_number: nextNum(live('samples').filter(r => r.site === level.site), 'sample_number'), qr: x.code, level_id: level.id, sample_context: x.context, context: x.context + (x.feature_no ? ' (Feature ' + x.feature_no + ')' : ''),
+    catalogno: carbon && d.levelid ? d.levelid + pad(nIn, 2) : null, material: carbon ? x.material : null,
     excavation_unit: d.excavation_unit, levelno: d.levelno, depth: num(d.top_cm), lower_bgs: num(d.bgscm), feature_no: x.feature_no || null, notes: x.notes || '', _status: 'complete', _missing: [] };
   await save(sm); return sm;
 }
-function soilPrompt(level, d) {
+function soilPrompt(level, d, kind = 'soil') {
+  const carbon = kind === 'carbon', what = carbon ? 'carbon sample' : 'soil sample';
   return new Promise(resolve => {
     const list = [], m = document.createElement('div'); m.className = 'modal';
     const exc = get(level.parent), site = get(level.site);
     const opt = (L, cur) => L.map(x => `<option ${x === cur ? 'selected' : ''}>${esc(x)}</option>`).join('');
-    m.innerHTML = `<div class="card bagprompt" style="max-width:480px"><b class="t">🧪 Soil sample: scan its bag</b>
-      <p style="margin:6px 0">Scan the QR label on the sample bag and say what it is for and where it came from. Volume and weight are added later in the lab.</p>
-      <div class="baglevel"><small>Write on the sample bag as a backup</small><b>${esc(site?.data.sitename || '')} · ${esc(exc?.data.excavation_name || '')}</b><br>EU ${esc(d.excavation_unit || 'A')} · Level ${esc(d.levelno ?? '?')} · ${esc(d.top_cm ?? '?')}–${esc(d.bgscm ?? '?')} cmbs · SOIL SAMPLE</div>
+    m.innerHTML = `<div class="card bagprompt" style="max-width:480px"><b class="t">${carbon ? '🔥 Carbon sample' : '🧪 Soil sample'}: scan its bag</b>
+      <p style="margin:6px 0">${carbon ? 'Scan the QR label on the carbon sample’s bag (or foil packet) and say what it is and where it came from. It gets a catalogue number; dates are added later in the lab.' : 'Scan the QR label on the sample bag and say what it is for and where it came from. Volume and weight are added later in the lab.'}</p>
+      <div class="baglevel"><small>Write on the sample bag as a backup</small><b>${esc(site?.data.sitename || '')} · ${esc(exc?.data.excavation_name || '')}</b><br>EU ${esc(d.excavation_unit || 'A')} · Level ${esc(d.levelno ?? '?')} · ${esc(d.top_cm ?? '?')}–${esc(d.bgscm ?? '?')} cmbs · ${carbon ? 'CARBON' : 'SOIL SAMPLE'}</div>
       <div id="splist"></div><div class="help" id="spmsg"></div>
       <div class="btns"><button class="btn big" id="spscan">📷 Scan sample bag label</button></div>
       <div class="btns" style="justify-content:flex-end"><button class="btn sec" id="spx">Back to the form</button><button class="btn" id="spok" disabled>Done ✓</button></div></div>`;
     document.body.append(m);
     const draw = () => {
       $('#splist', m).innerHTML = list.map((x, i) => `<div class="card" style="margin:6px 0;padding:8px"><div style="display:flex;gap:6px;align-items:center"><b style="flex:1">✓ ${esc(x.code)}</b><button class="btn sm sec" data-rm="${i}">✕</button></div>
-        <div class="grid"><div class="f"><label>For</label><select data-i="${i}" data-k="type">${opt(LISTS.sample_type.filter(t => t !== 'OSL'), x.type)}</select></div>
+        <div class="grid">${carbon ? `<div class="f"><label>Material</label><select data-i="${i}" data-k="material">${opt(LISTS.sample_material, x.material)}</select></div>` : `<div class="f"><label>For</label><select data-i="${i}" data-k="type">${opt(LISTS.sample_type.filter(t => t !== 'OSL' && !/^Radiocarbon/.test(t)), x.type)}</select></div>`}
         <div class="f"><label>Taken from</label><select data-i="${i}" data-k="context">${opt(LISTS.sample_context, x.context)}</select></div>
         <div class="f"><label>Feature no. (if any)</label><input data-i="${i}" data-k="feature_no" inputmode="numeric" value="${esc(x.feature_no || '')}"></div></div></div>`).join('');
-      $('#spscan', m).textContent = list.length ? '📷 Scan another sample bag' : '📷 Scan sample bag label';
+      $('#spscan', m).textContent = list.length ? `📷 Scan another ${what} bag` : `📷 Scan the ${what} bag label`;
       $('#spscan', m).classList.toggle('sec', !!list.length);
       $('#spok', m).disabled = !list.length;
     };
     const scan = async () => {
-      const code = await openScanner('Scan the soil sample bag label'); if (!code) return;
+      const code = await openScanner(`Scan the ${what} bag label`); if (!code) return;
       const msg = $('#spmsg', m); msg.textContent = '';
       if (!code.startsWith('B-')) { msg.textContent = `${code} is a box label. Use a bag label for the sample.`; return; }
       if (live('bags').some(b => b.data.qr === code) || list.some(x => x.code === code) || code === d.bag_qr) { msg.textContent = `${code} is already used. Use a new label.`; return; }
-      list.push({ code, type: 'Flotation', context: d.feature ? 'Feature fill' : 'Level fill', feature_no: '' }); draw();
+      list.push({ kind, code, type: 'Flotation', material: 'Charcoal', context: d.feature ? 'Feature fill' : 'Level fill', feature_no: '' }); draw();
     };
     m.addEventListener('change', e => { const i = e.target.dataset.i, k = e.target.dataset.k; if (i != null && k) list[+i][k] = e.target.value; });
     m.addEventListener('click', e => { const i = e.target.dataset.rm; if (i != null) { list.splice(+i, 1); draw(); } });
     $('#spscan', m).onclick = scan;
-    $('#spx', m).onclick = () => { m.remove(); toast('Level NOT finished: the soil sample still needs its bag label'); resolve(null); };
+    $('#spx', m).onclick = () => { m.remove(); toast(`Level NOT finished: the ${what} still needs its bag label`); resolve(null); };
     $('#spok', m).onclick = () => { m.remove(); resolve(list); };
     draw(); scan();
   });
@@ -3428,7 +3441,7 @@ function render() {
   const h = location.hash || '#/';
   const [path, qs] = h.slice(1).split('?');
   const seg = path.split('/').filter(Boolean);
-  const tab = { sites: 'field', site: 'field', rec: 'field', closed: 'field', closeout: 'field', window: 'field', edit: 'field', new: 'field', lab: 'lab', catalog: 'lab', storage: 'lab', boxlabel: 'scan', scan: 'scan', boxes: 'scan', labels: 'scan', daycheck: 'scan', data: 'data' }[seg[0]] || (seg.length ? '' : 'home');
+  const tab = { sites: 'field', site: 'field', rec: 'field', closed: 'field', closeout: 'field', window: 'field', edit: 'field', new: 'field', lab: 'lab', catalog: 'lab', storage: 'lab', boxlabel: 'scan', c14: 'lab', scan: 'scan', boxes: 'scan', labels: 'scan', daycheck: 'scan', data: 'data' }[seg[0]] || (seg.length ? '' : 'home');
   document.querySelectorAll('#tabs a').forEach(a => a.classList.toggle('on', a.dataset.t === tab));
   if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; document.querySelectorAll('.modal').forEach(m => m.remove()); }
   stopLiveGps(); scrollTo(0, 0);
@@ -3440,6 +3453,7 @@ function render() {
     case 'rec': return viewRec(seg[1]);
     case 'closeout': return viewUnitCloseout(seg[1]);
     case 'storage': return viewStorage();
+    case 'c14': { const r = get(seg[1]); return r ? formView(r, false, { lab: true, back: r.data.level_id ? '#/rec/' + r.data.level_id : null }) : notFound(); }
     case 'boxlabel': return viewBoxLabel(decodeURIComponent(seg[1] || ''));
     case 'window': return viewWindow(seg[1], new URLSearchParams(qs || '').get('of')?.toUpperCase() || '');
     case 'closed': return viewClosed(seg[1], new URLSearchParams(qs || '').get('su')?.toUpperCase() || null);
