@@ -10,7 +10,7 @@ const LISTS = {
   _corners: [],
   record_kind: ['Previously recorded site', 'New site (temporary no.)', 'Survey area', 'Isolated find', 'Other investigation'],
   parish: ['Acadia', 'Allen', 'Ascension', 'Assumption', 'Avoyelles', 'Beauregard', 'Bienville', 'Bossier', 'Caddo', 'Calcasieu', 'Caldwell', 'Cameron', 'Catahoula', 'Claiborne', 'Concordia', 'De Soto', 'East Baton Rouge', 'East Carroll', 'East Feliciana', 'Evangeline', 'Franklin', 'Grant', 'Iberia', 'Iberville', 'Jackson', 'Jefferson', 'Jefferson Davis', 'La Salle', 'Lafayette', 'Lafourche', 'Lincoln', 'Livingston', 'Madison', 'Morehouse', 'Natchitoches', 'Orleans', 'Ouachita', 'Plaquemines', 'Pointe Coupee', 'Rapides', 'Red River', 'Richland', 'Sabine', 'St. Bernard', 'St. Charles', 'St. Helena', 'St. James', 'St. John the Baptist', 'St. Landry', 'St. Martin', 'St. Mary', 'St. Tammany', 'Tangipahoa', 'Tensas', 'Terrebonne', 'Union', 'Vermilion', 'Vernon', 'Washington', 'Webster', 'West Baton Rouge', 'West Carroll', 'West Feliciana', 'Winn', 'Outside Louisiana'],
-  custody_action: ['Collected in field', 'Transferred', 'Placed in box', 'Removed from box', 'Received at lab', 'Checked out for analysis', 'Returned to storage', 'Sent to specialist', 'Curated'],
+  custody_action: ['Collected in field', 'Bagged in lab', 'Transferred', 'Placed in box', 'Removed from box', 'Received at lab', 'Checked out for analysis', 'Returned to storage', 'Sent to specialist', 'Curated'],
   excavation_type: ['STP', 'TP', 'Unit', 'Surface collection', 'Feature grouping'],
   su_size: ['Whole unit (one subunit)', '1 × 1 m', '0.5 × 1 m (E–W × N–S)', '1 × 0.5 m (E–W × N–S)', '0.5 × 0.5 m', '2 × 2 m'],
   datum_corner: ['SW corner', 'SE corner', 'NW corner', 'NE corner'],
@@ -30,7 +30,7 @@ const LISTS = {
   sample_type: ['Radiocarbon (AMS)', 'OSL', 'Flotation', 'Soil/sediment', 'Pollen', 'Phytolith', 'Other'],
   sample_material: ['Charcoal', 'Wood', 'Nutshell', 'Seed', 'Bone', 'Pottery residue', 'Sediment', 'Other'],
   osl_collection: ['Core (tube)', 'Bag (dark sample)'],
-  bag_contents: ['Prehistoric artifacts', 'Special find', 'Historic artifacts', 'Mixed artifacts', 'Lithics', 'Ceramics', 'FCR', 'Bone', 'Charcoal', 'Sample', 'Other'],
+  bag_contents: ['Prehistoric artifacts', 'Special find', 'Diagnostic lithics', 'Diagnostic ceramics', 'Ground stone', 'Historic artifacts', 'Mixed artifacts', 'Lithics', 'Ceramics', 'FCR', 'Bone', 'Charcoal', 'Sample', 'Other'],
   // lithics
   tool_type: ['Biface (Hafted)', 'Biface (Unhafted)', 'Biface Fragment', 'Biface Preform', 'Scraper', 'Drill',
     'Bifacial Flake Tool', 'Unifacial Flake Tool', 'Blade', 'Core', 'Hammerstone', 'Special', 'Unknown'],
@@ -254,7 +254,12 @@ const TABLES = {
       { k: 'decsherdct', l: 'Decorated body sherds n', t: 'int' }, { k: 'decsherdwght', l: 'g', t: 'num' },
       { k: 'decsherdrimct', l: 'Decorated rims n', t: 'int' }, { k: 'decsherdrimwght', l: 'g', t: 'num' },
       { k: 'diagnosticcermct', l: 'Diagnostic ceramics n', t: 'int' }, { k: 'diagnosticceramwght', l: 'g', t: 'num' },
-      { k: 'historicct', l: 'Historic items n', t: 'int', g: 'Historic' }, { k: 'historicwght', l: 'g', t: 'num' }, // new
+      { k: 'sandtsherd', l: 'Sand-tempered n', t: 'int', g: 'Ceramics by paste / temper (the plain and decorated sherds above, sorted again by paste)' }, { k: 'sandtsherdwght', l: 'g', t: 'num' },
+      { k: 'grogtsherd', l: 'Grog-tempered n', t: 'int' }, { k: 'grogtsherdwght', l: 'g', t: 'num' },
+      { k: 'shelltsherd', l: 'Shell-tempered n', t: 'int' }, { k: 'shelltsherdwght', l: 'g', t: 'num' },
+      { k: 'bonetsherd', l: 'Bone-tempered n', t: 'int' }, { k: 'bonetsherdwght', l: 'g', t: 'num' },
+      { k: 'othertsherd', l: 'Other / mixed / indet. paste n', t: 'int' }, { k: 'othertsherdwght', l: 'g', t: 'num' },
+      { k: 'historicct', l: 'Historic artifacts n', t: 'int', g: 'Historic' }, { k: 'historicwght', l: 'g', t: 'num' },
       { k: 'debitage_count', l: 'Debitage total n', t: 'ro', g: 'Totals' },
       { k: 'artifact_count', l: 'Artifact total n', t: 'ro' },
       { k: 'artifactwght', l: 'Artifact total g', t: 'ro' },
@@ -397,10 +402,14 @@ TABLES.boxes = {
   fields: [
     { k: 'qr', l: 'Box label (QR)', t: 'qr', req: 1, w: 2 },
     { k: 'box_no', l: 'Box no. / name', t: 'text', req: 1 },
+    { k: 'box_kind', l: 'Kind of box', t: 'select', o: 'box_kind' },
     { k: 'location', l: 'Storage location', t: 'text', req: 1, ph: 'LPAL shelf 3B' },
+    { k: 'contents_desc', l: 'Contents (for the label)', t: 'text', w: 2, ph: 'e.g. 16NA669 TU1–TU3 debitage, diagnostics bagged separately' },
+    { k: 'packed_by', l: 'Packed by', t: 'text' }, { k: 'packed_date', l: 'Packed', t: 'date' },
     { k: 'notes', l: 'Notes', t: 'area', w: 3 },
   ],
 };
+LISTS.box_kind = ['Field box', 'Final storage (curation)'];
 TABLES.custody = {
   label: 'Custody event', plural: 'Custody log', parent: null, mode: 'custody', legacy: null,
   title: r => `${r.action || ''} · ${r.item_qr || ''}`,
@@ -453,6 +462,7 @@ const PHOTO_KINDS = {
   excavations: ['Overview', 'Wall profile – North', 'Wall profile – South', 'Wall profile – East', 'Wall profile – West', 'Floor (final)', 'Plan view', 'Field drawing', 'Other'],
   levels: ['Level floor', 'Profile', 'Special find', 'In situ find', 'Other'],
   boxes: ['Label', 'Contents', 'Other'],
+  tabulation: ['Tray (all artifacts)', 'Other'],
   features: ['Plan view (top down)', 'Bisect / profile', 'Field drawing', 'Overview', 'Other'],
   samples: ['In situ', 'Other'],
   lithic_tools: ['Obverse', 'Reverse', 'Edge/profile', 'Other'],

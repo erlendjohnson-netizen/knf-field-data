@@ -107,6 +107,7 @@ table.corners{border-collapse:collapse;width:100%}table.corners th{font-size:12p
 .flash{animation:flash 1.2s ease 2}@keyframes flash{50%{background:#fff3b0}}
 .misslist li{margin:3px 0}.misslist a{color:var(--ink);text-decoration:underline}
 /* printable label sheets */
+.boxlbl{position:absolute;left:.25in;top:.25in;width:6in;height:4in;border:1px dashed #999;padding:.2in;box-sizing:border-box;font-family:Arial,sans-serif;color:#000;overflow:hidden}
 .sheet{background:#fff;color:#000;width:8.5in;height:11in;position:relative;margin:0 auto 16px;box-shadow:0 1px 6px rgba(0,0,0,.2);overflow:hidden}
 .lbl{position:absolute;display:flex;align-items:center;gap:.06in;padding:.05in .08in;overflow:hidden;font-family:Arial,sans-serif}
 .lbl svg{flex:none}.lbl .lt{display:flex;flex-direction:column;gap:2px;min-width:0}
@@ -243,7 +244,7 @@ const TESTPLAN = [
   ['Test unit', ['Create a TU and capture the datum', 'Add subunit A and choose the datum corner', 'Add a 0.5 × 1 m subunit against A', 'Build an L-shaped subunit from two pieces', 'Try to overlap two subunits (must be blocked)', 'Start a level in a specific subunit and check the volume', 'Shoot a corner, choose which plan corner it is, and set the azimuth', 'Check close-out lists what is missing', 'New unit: set the size, subunit size and datum corner; check the layout preview and that the subunits are made', 'Answer Yes to start Level 1 in A', 'Check close-out asks for overview, plan view and profile photos', 'Level in a unit: enter top corner depths, change the thickness and check the bottoms and averages', 'Leave Soil change unticked (soil copied and locked), then tick it and pick a new Munsell from the drop-downs', 'Add a subunit and check it snaps to the unit edge and slides along it', 'Feature: pick Other and describe it; check it needs plan view, bisect and field-drawing photos']],
   ['Bags & boxes', ['Print a sheet of bag labels and a sheet of box labels', 'Scan a bag with the app and with the phone’s own camera app', 'Hand over a bag and check the custody log', 'Register a box and scan bags into it', 'Remove a bag from a box', 'Scan an unassigned bag label and assign it to a level']],
   ['End-of-day bag check', ['Sync every test device first', 'Home → Bag check: start, scan a box label, then scan most (not all) of the day’s bags', 'Scan a bag label that was never used (must show as extra)', 'Finish and read the report: missing bags grouped by who bagged them', 'Copy the report as text and paste it into a message', 'Box a missing bag later and reopen the report (shows “found since”)']],
-  ['Lab', ['Scan a bag on the Lab screen and check it opens the right level', 'Enter a lithic tool with a named chert source on visual ID (warning)', 'Enter a hafted biface without a photo (must be blocked)', 'Enter ceramics, then a tabulation that disagrees with the catalogue (must be blocked)', 'Fix the tabulation and finish it', 'Open the site catalogue table']],
+  ['Lab', ['Scan a bag on the Lab screen and check it opens the right level', 'Enter a lithic tool with a named chert source on visual ID (warning)', 'Enter a hafted biface without a photo (must be blocked)', 'Enter ceramics, then a tabulation that disagrees with the catalogue (must be blocked)', 'Fix the tabulation and finish it', 'Tabulation: sherds by paste must add up to the plain + decorated sherds', 'Tabulation: tray photo required', 'Tabulation with diagnostics / ground stone / historic: Finish asks you to scan a bag for each', 'Final storage: make a box, scan bags into it, print its label', 'Open the site catalogue table']],
   ['Offline & sync', ['Turn on airplane mode, enter a level with photo, turn it off, and check it uploads by itself', 'Edit the same record on two devices and check the newest edit wins', 'Check a second device sees the first device’s records and photos', 'Check drafts do NOT appear on the second device', 'Two devices offline use the same STP number: check the duplicate warning on the Sync page']],
   ['Export', ['Download the CSV zip and open it in Excel / QGIS', 'Make a JSON backup and restore it on another device']],
 ];
@@ -892,6 +893,11 @@ const LABELKEY = { 'Location (GPS capture or UTM)': '_gps', 'Excavators': 'crew'
 const BAG_MISS = 'Bag label for the artifacts (scanned when you press Finish)';
 const FEAT_MISS = 'Feature form (opens when you press Finish)';
 const AFTER = [BAG_MISS, FEAT_MISS]; // asked for after Finish, so they don't block the button
+/* lab: diagnostics counted in the tabulation each go into their own bag, scanned when the tabulation is finished */
+const DIAG_BAGS = [['diagnosticlithicsct', 'Diagnostic lithics'], ['diagnosticcermct', 'Diagnostic ceramics'], ['grndstnct', 'Ground stone'], ['historicct', 'Historic artifacts']];
+const diagMsg = cat => `Bag for ${cat} (scan its label when you press Finish)`;
+const diagCat = m => (String(m).match(/^Bag for (.+?) \(scan its label/) || [])[1];
+const isAfter = x => AFTER.includes(x) || !!diagCat(x);
 const onlyBag = miss => miss.length > 0 && miss.every(x => x === BAG_MISS);
 const featuresOfLevel = l => live('features').filter(f => f.data.level_id === l.id || (!f.data.level_id && f.parent === l.parent && String(f.data.levelno) === String(l.data.levelno) && String(f.data.excavation_unit || 'A').toUpperCase() === String(l.data.excavation_unit || 'A').toUpperCase()));
 function completeness(rec, d) {
@@ -982,7 +988,15 @@ function completeness(rec, d) {
   if (t === 'ground_stone') { need('raw_material', 'Material'); need('weight', 'Weight'); if (!hasPhoto()) m.push('Photo'); }
   if (t === 'historic_artifacts') { need('cnt', 'Count'); need('weight', 'Weight'); }
   if (t === 'exotic_lithics') { need('weight', 'Weight'); need('cnt', 'Count'); }
-  if (t === 'tabulation') { const l = get(rec.parent); if (l) m.push(...catalogueCheck(l, d)); if (!d.artifact_count) m.push('No counts entered'); }
+  if (t === 'tabulation') {
+    const l = get(rec.parent); if (l) m.push(...catalogueCheck(l, d)); if (!num(d.artifact_count)) m.push('No counts entered');
+    const sum = ks => ks.reduce((a, k) => a + (num(d[k]) || 0), 0);
+    const sherds = sum(['plainsherdct', 'plnsherdrimct', 'decsherdct', 'decsherdrimct']), paste = sum(['sandtsherd', 'grogtsherd', 'shelltsherd', 'bonetsherd', 'othertsherd']);
+    if (sherds && !paste) m.push(`Sort the ${sherds} plain and decorated sherds by paste / temper`);
+    else if (paste !== sherds) m.push(`Sherds by paste (${paste}) ≠ plain + decorated sherds (${sherds})`);
+    if (!hasPhoto(['Tray (all artifacts)'])) m.push('Photo of the tray (all the artifacts laid out)');
+    if (l) for (const [k, cat] of DIAG_BAGS) if (num(d[k]) > 0 && !kids(l.id, 'bags').some(b => b.data.contents === cat)) m.push(diagMsg(cat));
+  }
   return m;
 }
 function confirmUnfinished(what, miss) {
@@ -1003,7 +1017,7 @@ async function finishNow(rec) {
   const d = compute(rec.tbl, rec.data, { site: rec.tbl === 'sites' ? rec : get(rec.site), parentRec: get(rec.parent) });
   const v = validate(rec.tbl, d, rec);
   let miss = completeness(rec, d), st = statusFor(rec, d, miss);
-  if (!Object.keys(v.errs).length && rec.tbl === 'levels' && miss.includes(BAG_MISS) && miss.every(x => AFTER.includes(x))) {
+  if (!Object.keys(v.errs).length && rec.tbl === 'levels' && miss.includes(BAG_MISS) && miss.every(x => isAfter(x))) {
     const bags = await bagPrompt(rec, d); if (!bags) return;
     for (const b of bags) await createBag(rec, b.code, b.contents);
     miss = completeness(rec, d); st = statusFor(rec, d, miss);
@@ -1307,9 +1321,9 @@ function formView(rec, isNew, opts = {}) {
       if (f.t === 'ro') { const el = $('#f_' + f.k, form); if (el) el.textContent = cur[f.k] === '' || cur[f.k] == null ? '—' : cur[f.k]; }
       if (f.show) form.querySelector(`.f[data-k="${f.k}"]`)?.classList.toggle('hidden', !f.show(cur));
     });
-    const v = validate(rec.tbl, cur, rec), errs = Object.keys(v.errs).length, missAll = headOnly ? excHeaderMissing(cur) : completeness(rec, cur), bagNext = missAll.includes(BAG_MISS), featNext = missAll.includes(FEAT_MISS), miss = missAll.filter(x => !AFTER.includes(x)), st = statusFor(rec, cur, miss);
+    const v = validate(rec.tbl, cur, rec), errs = Object.keys(v.errs).length, missAll = headOnly ? excHeaderMissing(cur) : completeness(rec, cur), bagNext = missAll.includes(BAG_MISS), featNext = missAll.includes(FEAT_MISS), diagNext = missAll.map(diagCat).filter(Boolean), miss = missAll.filter(x => !isAfter(x)), st = statusFor(rec, cur, miss);
     if (headOnly && !miss.length) { $('#chk').innerHTML = '<div class="check okc">Ready to save ✓</div>'; }
-    else $('#chk').innerHTML = (bagNext ? '<div class="check bagnext">🏷 <b>Artifacts recorded:</b> when you press Finish, the app asks you to scan the bag label for this level.</div>' : '') + (featNext ? '<div class="check bagnext">🕳 <b>Feature ticked:</b> when you press Finish, the feature form opens next.</div>' : '') + (miss.length ? `<div class="check"><b>${isExc && st === 'open' ? 'Before close-out' : 'Still needed before this can be finished'}:</b><ul style="margin:4px 0 0;padding-left:18px">${miss.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : '<div class="check okc">Everything is filled in ✓</div>')
+    else $('#chk').innerHTML = (bagNext ? '<div class="check bagnext">🏷 <b>Artifacts recorded:</b> when you press Finish, the app asks you to scan the bag label for this level.</div>' : '') + (featNext ? '<div class="check bagnext">🕳 <b>Feature ticked:</b> when you press Finish, the feature form opens next.</div>' : '') + (diagNext.length ? `<div class="check bagnext">🏷 <b>Bag the diagnostics:</b> put the ${esc(diagNext.join(', ').toLowerCase())} in their own plastic bag${diagNext.length > 1 ? 's' : ''}. When you press Finish, scan each bag’s label.</div>` : '') + (miss.length ? `<div class="check"><b>${isExc && st === 'open' ? 'Before close-out' : 'Still needed before this can be finished'}:</b><ul style="margin:4px 0 0;padding-left:18px">${miss.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : '<div class="check okc">Everything is filled in ✓</div>')
       + (errs ? `<div class="check" style="border-color:var(--bad)"><b>${errs} field${errs > 1 ? 's have' : ' has'} an error</b> (see highlighted fields)</div>` : '');
     const fin = $('#fin'), canFin = !errs && (st === 'complete' || (isExc && st === 'open'));
     fin.classList.toggle('dim', !canFin); if ($('#saveNext')) $('#saveNext').classList.toggle('dim', !canFin);
@@ -1392,9 +1406,9 @@ function formView(rec, isNew, opts = {}) {
     const wasStatus = rec.data._status;
     const v = validate(rec.tbl, nd, rec);
     showMsgs(form, v);
-    if (Object.keys(v.errs).length) { showMissing(form, completeness(rec, nd).filter(x => !AFTER.includes(x)), v.errs); return; }
+    if (Object.keys(v.errs).length) { showMissing(form, completeness(rec, nd).filter(x => !isAfter(x)), v.errs); return; }
     let miss = completeness(rec, nd), st = statusFor(rec, nd, miss), extraBags = [];
-    if (mode === 'finish' && rec.tbl === 'levels' && miss.includes(BAG_MISS) && miss.every(x => AFTER.includes(x))) {
+    if (mode === 'finish' && rec.tbl === 'levels' && miss.includes(BAG_MISS) && miss.every(x => isAfter(x))) {
       const bags = await bagPrompt(rec, nd); if (!bags) return;
       nd.bag_qr = bags[0].code; nd._bag_contents = bags[0].contents; extraBags = bags.slice(1);
       miss = completeness(rec, nd); st = statusFor(rec, nd, miss);
@@ -1404,6 +1418,10 @@ function formView(rec, isNew, opts = {}) {
       const why = await sterileCheck(parent, rec, nd); if (why === false) return;
       if (why === 'window') { nd.close_override = 'Continued below in a quarter-unit window'; S._winAfter = { exc: parent.id, of: String(nd.excavation_unit || '').toUpperCase() }; }
       else if (why) nd.close_override = why; else delete nd.close_override;
+    }
+    if (mode === 'finish' && rec.tbl === 'tabulation' && miss.some(diagCat) && miss.every(isAfter)) {
+      const ok = await diagBagPrompt(parent, miss.map(diagCat).filter(Boolean)); if (!ok) return;
+      miss = completeness(rec, nd); st = statusFor(rec, nd, miss);
     }
     const featAfter = rec.tbl === 'levels' && miss.includes(FEAT_MISS);
     if (featAfter && mode === 'finish') { miss = miss.filter(x => x !== FEAT_MISS); st = statusFor(rec, nd, miss); }
@@ -1591,7 +1609,8 @@ function labSection(l) {
     const msgs = catalogueCheck(l);
     check = msgs.length ? msgs.map(m => `<div class="check">${esc(m)}</div>`).join('') : (kids(l.id, 'prehistoric_ceramics').length || kids(l.id, 'lithic_tools').length ? '<div class="check okc">Tabulation matches the catalogue.</div>' : '');
   }
-  return `<h3>Lab</h3>${check}
+  const labDone = tab && tab.data._status === 'complete';
+  return `<h3>Lab ${tab ? (labDone ? '<span class="badge pos">lab work complete ✓</span>' : '<span class="badge">in progress</span>') : ''}</h3>${check}
     <div class="btns">${tab ? `<a class="btn sec sm" href="#/rec/${tab.id}">Edit tabulation</a>` : `<a class="btn sm" href="#/new/tabulation/${l.id}">+ Level tabulation</a>`}
     ${labT.filter(t => !TABLES[t].single).map(t => `<a class="btn sec sm" href="#/new/${t}/${l.id}">+ ${esc(TABLES[t].label)}</a>`).join('')}</div>
     ${labT.map(t => { const k = kids(l.id, t); return k.length ? `<h3>${esc(TABLES[t].plural)} <span class="badge">${k.length}</span></h3><div class="list">${k.sort((a, b) => (num(a.data[TABLES[t].fields[0].k]) || 0) - (num(b.data[TABLES[t].fields[0].k]) || 0)).map(r => rowHTML(r)).join('')}</div>` : ''; }).join('')}`;
@@ -1632,7 +1651,7 @@ function viewLab() {
       <div class="f w2"><label>Excavation</label><select id="le">${opt(ex, L.exc, r => `${TABLES.excavations.title(r.data)}${r.data.excavationid ? ' (' + r.data.excavationid + ')' : ''}${r.data.positive ? ' +' : ''}`)}</select></div>
       <div class="f w2"><label>Level</label><select id="ll">${opt(lv, L.lev, r => TABLES.levels.title(r.data))}</select></div>
     </div>
-    <div class="btns"><button class="btn" id="labscan">▣ Scan bag</button>${L.site ? `<a class="btn sec" href="#/catalog/${L.site}">Site catalogue table</a>` : ''}</div>
+    <div class="btns"><button class="btn" id="labscan">▣ Scan bag</button>${L.site ? `<a class="btn sec" href="#/catalog/${L.site}">Site catalogue table</a>` : ''}<a class="btn sec" href="#/storage">📦 Final storage / reboxing</a></div>
     <div id="labbody">${lev ? `<div class="crumbs">${crumbs(lev).replace(/^<div class="crumbs">|<\/div>$/g, '')}</div>${labSection(lev)}` : '<div class="empty">Pick a site, excavation and level to enter lab data. Levels are created in the field, or with “+ Next level” on the excavation page.</div>'}</div>`;
   $('#labscan').onclick = async () => {
     const c = await openScanner('Scan the bag'); if (!c) return;
@@ -1721,7 +1740,7 @@ async function viewSettings() {
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a><button class="btn sec" id="tmoff">Leave test mode</button></div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
     <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a><a class="btn sec" href="#/offline">Offline maps (imagery)</a></div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.29 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.30 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   if ($('#s_rep')) CORE.myProfile().then(p => {
     const cb = $('#s_rep'); if (!cb || !p) return;
     cb.checked = reportsOn(p); cb.disabled = false; $('#s_rep_h').textContent = `Sent to ${p.email}.`;
@@ -2499,6 +2518,39 @@ function bagPrompt(level, d) {
   });
 }
 
+async function createLabBag(level, code, contents) {
+  const b = mk('bags', level.id, {});
+  b.data = { qr: code, bag_no: nextNum(live('bags').filter(r => r.site === level.site), 'bag_no'), contents, date: today(), notes: 'Bagged in the lab', _status: 'complete', _missing: [] };
+  await save(b); await custodyEvent(code, 'bag', 'Bagged in lab', { location: 'Lab' });
+  return b;
+}
+function diagBagPrompt(level, cats) {
+  return new Promise(resolve => {
+    const done = {}; const m = document.createElement('div'); m.className = 'modal';
+    const exc = get(level.parent), site = get(level.site), d = level.data;
+    m.innerHTML = `<div class="card bagprompt" style="max-width:480px"><b class="t">🏷 Bag the diagnostics</b>
+      <p style="margin:6px 0">Put each of these in its own plastic bag and scan the bag’s QR label. The level’s lab work is finished once they are all bagged.</p>
+      <div class="baglevel"><small>Write on each bag as a backup</small><b>${esc(site?.data.sitename || '')} · ${esc(exc?.data.excavation_name || '')}</b><br>EU ${esc(d.excavation_unit || 'A')} · Level ${esc(d.levelno ?? '?')} · ${esc(d.top_cm ?? '?')}–${esc(d.bgscm ?? '?')} cmbs${d.levelid ? ' · ID ' + esc(d.levelid) : ''}</div>
+      <div id="dblist"></div><div class="help" id="dbmsg"></div>
+      <div class="btns" style="justify-content:flex-end"><button class="btn sec" id="dbx">Back to the form</button><button class="btn" id="dbok" disabled>Finish tabulation ✓</button></div></div>`;
+    document.body.append(m);
+    const draw = () => {
+      $('#dblist', m).innerHTML = cats.map(c => `<div class="bagrow"><b style="flex:1">${done[c] ? '✓' : '○'} ${esc(c)}</b>${done[c] ? `<span class="code">${esc(done[c])}</span>` : `<button class="btn sm" data-c="${esc(c)}">📷 Scan bag</button>`}</div>`).join('');
+      $('#dbok', m).disabled = !cats.every(c => done[c]);
+      m.querySelectorAll('[data-c]').forEach(b => b.onclick = async () => {
+        const c = b.dataset.c, code = await openScanner(`Scan the bag label for the ${c.toLowerCase()}`); if (!code) return;
+        const msg = $('#dbmsg', m); msg.textContent = '';
+        if (!code.startsWith('B-')) { msg.textContent = `${code} is a box label, not a bag label.`; return; }
+        if (live('bags').some(x => x.data.qr === code) || Object.values(done).includes(code)) { msg.textContent = `${code} is already used on another bag. Use a new label.`; return; }
+        await createLabBag(level, code, c); done[c] = code; draw();
+      });
+    };
+    $('#dbx', m).onclick = () => { m.remove(); toast('Tabulation NOT finished: the diagnostics still need their bags'); resolve(false); };
+    $('#dbok', m).onclick = () => { m.remove(); resolve(true); };
+    draw();
+  });
+}
+
 let scanStream = null;
 function openScanner(title = 'Scan label') {
   return new Promise(resolve => {
@@ -2753,7 +2805,7 @@ async function dcScanBox() {
 }
 async function dcSetBox(bx) {
   if (!live('boxes').find(r => r.data.qr === bx)) {
-    const r = mk('boxes', null, { qr: bx, box_no: String(nextNum(live('boxes'), 'box_no')), location: 'Field (end-of-day check)', _status: 'complete', _missing: [] });
+    const r = mk('boxes', null, { qr: bx, box_no: String(nextNum(live('boxes'), 'box_no')), box_kind: 'Field box', location: 'Field (end-of-day check)', _status: 'complete', _missing: [] });
     await save(r); await custodyEvent(bx, 'box', 'Transferred', { location: r.data.location, notes: 'Box registered at end-of-day check' });
     toast(`New box registered: ${bx}`);
   }
@@ -2990,7 +3042,7 @@ function viewHome() {
     <div class="home">
       <a class="tile field" href="#/sites"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><span>Field<small>Sites &amp; survey areas · STPs · units · levels · bags</small></span></a>
       <a class="tile bagchk" href="#/daycheck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/><path d="M15.5 16.5l1.5 1.5 3-3" stroke-width="2"/></svg><span>Bag check<small>End of day · box the bags · missing-bag report</small></span></a>
-      <a class="tile lab" href="#/lab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/><path d="M7.5 14h9"/></svg><span>Lab<small>Analysis · catalogue · tabulation</small></span></a>
+      <a class="tile lab" href="#/lab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/><path d="M7.5 14h9"/></svg><span>Lab<small>Tabulation · catalogue · final storage</small></span></a>
     </div>
     <div class="minis">
       <a class="mini" href="#/scan">▣ Scan a label</a>
@@ -3039,7 +3091,7 @@ async function viewScan(code) {
     const bags = boxContents(code);
     $('#app').innerHTML = `<h2>${esc(TABLES.boxes.title(box.data))} <span class="code">${esc(code)}</span></h2>
       <div class="card kv"><div><span>Storage location</span><br>${esc(st.location || box.data.location || '—')}</div><div><span>Held by</span><br>${esc(st.holder || '—')}</div><div><span>Bags in box</span><br><b>${bags.length}</b></div></div>
-      ${actions([['add', 'Add bags (scan)', ''], ['give', 'Move / hand over box'], ['edit', 'Edit box'], ['print', 'Print contents list']])}
+      ${actions([['add', 'Add bags (scan)', ''], ['label', '⎙ Print box label'], ['give', 'Move / hand over box'], ['edit', 'Edit box'], ['print', 'Print contents list']])}
       <h3>Contents</h3><div class="list">${bags.map(b => { const l = get(b.parent), e = l && get(l.parent); return `<a class="row" href="#/scan/${b.data.qr}"><div class="t"><b class="code">${esc(b.data.qr)}</b><small>${esc(get(b.site)?.data.sitename || '')} · ${esc(e ? TABLES.excavations.title(e.data) : '')} · EU ${esc(l?.data.excavation_unit || '')} Lvl ${esc(l?.data.levelno ?? '')} · bag ${esc(b.data.bag_no)}</small></div><span aria-hidden="true">›</span></a>`; }).join('') || '<div class="empty">Empty</div>'}</div>
       ${histHTML}`;
   } else {
@@ -3077,6 +3129,7 @@ async function viewScan(code) {
     if (a === 'lab') { const lv = get(bag.parent), ex = lv && get(lv.parent); S.lab = { site: bag.site, exc: ex?.id, lev: lv?.id }; location.hash = '#/lab'; return; }
     if (a === 'edit') { location.hash = '#/edit/' + (bag || box).id; return; }
     if (a === 'print') { window.print(); return; }
+    if (a === 'label') { location.hash = '#/boxlabel/' + code; return; }
     if (a === 'give') {
       const r = await custodyForm(`Hand over ${item} ${code}`, st.holder);
       if (r) await custodyEvent(code, item, 'Transferred', { from_person: st.holder, ...r });
@@ -3123,6 +3176,87 @@ function viewBoxes() {
     <div class="list">${bx.map(b => `<a class="row" href="#/scan/${b.data.qr}"><div class="t"><b>${esc(TABLES.boxes.title(b.data))}</b><small>${esc(b.data.qr)} · ${esc(itemState(b.data.qr).location || b.data.location || '')} · ${boxContents(b.data.qr).length} bags</small></div><span aria-hidden="true">›</span></a>`).join('') || '<div class="empty">No boxes yet. Scan a box label to register one.</div>'}</div>`;
   $('#scanbox').onclick = async () => { const c = await openScanner('Scan box label'); if (c) location.hash = '#/scan/' + c; };
 }
+/* ================= final storage / reboxing and box labels ================= */
+function boxSummary(code) {
+  const bags = boxContents(code), bySite = {}, cats = {};
+  for (const b of bags) {
+    const l = get(b.parent), e = l && get(l.parent), sn = get(b.site)?.data.sitename || '?';
+    const ex = e ? (e.data.excavation_name || e.data.excavationid || '?') : '?';
+    ((bySite[sn] ||= {})[ex] ||= []).push(l ? `${l.data.excavation_unit || ''}${l.data.levelno ?? ''}` : '?');
+    const c = b.data.contents || 'Artifacts'; cats[c] = (cats[c] || 0) + 1;
+  }
+  const lines = Object.entries(bySite).sort().map(([sn, exs]) => `${sn}: ` + Object.entries(exs).sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true })).map(([ex, lv]) => `${ex} (${[...new Set(lv)].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).join(', ')})`).join('; '));
+  return { bags, lines, cats, sites: Object.keys(bySite).sort() };
+}
+function viewBoxLabel(code) {
+  const box = live('boxes').find(b => b.data.qr === code); if (!box) return notFound();
+  const d = box.data, sm = boxSummary(code), st = itemState(code);
+  setTitle('Box label');
+  $('#app').innerHTML = `<div class="noprint"><h2>Box label · ${esc(TABLES.boxes.title(d))}</h2>
+      <div class="help">A 4 × 6 in label (shipping-label size, or print on plain paper and tape it on). Print at 100% / “Actual size”. Reprint it whenever the contents change.</div>
+      <div class="btns"><button class="btn" id="bprint">⎙ Print label</button><a class="btn sec" href="#/scan/${esc(code)}">Back to the box</a></div></div>
+    <div class="sheetwrap"><div class="sheet"><div class="boxlbl">
+      <div style="display:flex;gap:.15in;align-items:flex-start">${qrSVG(labelText(code), '1.55in')}
+        <div style="flex:1"><div style="font-size:9pt;letter-spacing:.04em">KNF PHASE II · LPAL, UL LAFAYETTE${d.box_kind ? ' · ' + esc(d.box_kind.toUpperCase()) : ''}</div>
+          <div style="font-size:30pt;font-weight:700;line-height:1.05">BOX ${esc(d.box_no || '')}</div>
+          <div style="font-family:monospace;font-size:12pt">${esc(code)}</div>
+          <div style="font-size:10pt;margin-top:4px"><b>Location:</b> ${esc(st.location && !/^Box /.test(st.location) ? st.location : d.location || '')}</div></div></div>
+      ${d.contents_desc ? `<div style="font-size:11pt;font-weight:700;margin-top:.08in">${esc(d.contents_desc)}</div>` : ''}
+      <div style="font-size:9.5pt;margin-top:.06in;line-height:1.3">${sm.lines.slice(0, 9).map(esc).join('<br>')}${sm.lines.length > 9 ? `<br>… and ${sm.lines.length - 9} more site(s)` : ''}</div>
+      <div style="font-size:9pt;margin-top:.06in">${Object.entries(sm.cats).map(([c, n]) => `${esc(c)} ${n}`).join(' · ')}</div>
+      <div style="position:absolute;left:.2in;right:.2in;bottom:.15in;font-size:9pt;display:flex;justify-content:space-between"><span><b>${sm.bags.length}</b> bag${sm.bags.length === 1 ? '' : 's'}</span><span>Packed ${esc(d.packed_date || '')}${d.packed_by ? ' by ' + esc(d.packed_by) : ''}</span><span>Printed ${new Date().toLocaleDateString()}</span></div>
+    </div></div></div>`;
+  $('#bprint').onclick = () => window.print();
+}
+async function newStorageBox() {
+  const n = live('boxes').filter(b => /final storage/i.test(b.data.box_kind || '')).reduce((a, b) => Math.max(a, num(String(b.data.box_no || '').replace(/\D/g, '')) || 0), 0) + 1;
+  const r = mk('boxes', null, { qr: newCode('X'), box_no: 'S-' + pad(n, 3), box_kind: 'Final storage (curation)', location: S.lastStoreLoc || '', packed_by: me(), packed_date: today(), _status: 'complete', _missing: [] });
+  await save(r); await custodyEvent(r.data.qr, 'box', 'Transferred', { location: r.data.location || 'Lab', notes: 'Final storage box made' });
+  return r;
+}
+function viewStorage() {
+  setTitle('Final storage / reboxing');
+  const code = S.stBox, box = code && live('boxes').find(b => b.data.qr === code);
+  const recent = live('boxes').filter(b => /final storage/i.test(b.data.box_kind || '')).sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || '')).slice(0, 12);
+  const sm = box ? boxSummary(code) : null;
+  $('#app').innerHTML = `<div class="crumbs"><a href="#/lab">Lab</a></div><h2>Final storage / reboxing</h2>
+    <div class="help">Make (or scan) a storage box, scan every bag going into it, then print its label. The app makes the box’s QR code, so no pre-printed label is needed.</div>
+    ${box ? `<div class="card" style="margin-top:8px"><div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><b style="font-size:20px;flex:1">${esc(TABLES.boxes.title(box.data))}</b><span class="code">${esc(code)}</span></div>
+        <div class="grid" style="margin-top:6px"><div class="f w2"><label>Storage location</label><input id="stloc" value="${esc(box.data.location || '')}" placeholder="e.g. LPAL curation room, shelf 4B"></div>
+          <div class="f w3"><label>Contents (for the label)</label><input id="stdesc" value="${esc(box.data.contents_desc || '')}" placeholder="e.g. 16NA669 TU1–TU3, debitage and FCR"></div></div>
+        <div class="kv" style="margin-top:6px"><div><span>Bags in box</span><br><b>${sm.bags.length}</b></div><div><span>Sites</span><br>${esc(sm.sites.join(', ') || '—')}</div></div>
+        <div class="btns"><button class="btn big" id="stscan">📷 Scan bags into this box</button><a class="btn sec" href="#/boxlabel/${esc(code)}">⎙ Print box label</a><a class="btn sec" href="#/scan/${esc(code)}">Box page</a><button class="btn sec" id="stdone">Done with this box</button></div>
+        <h3>Contents</h3><div class="help">${sm.lines.map(esc).join('<br>') || 'Empty so far'}</div></div>`
+      : `<div class="btns" style="margin-top:8px"><button class="btn big" id="stnew">+ New storage box (makes its QR)</button><button class="btn sec" id="stold">▣ Scan an existing box label</button></div>`}
+    <h3>Storage boxes</h3><div class="list">${recent.map(b => `<a class="row" href="javascript:void 0" data-box="${esc(b.data.qr)}"><div class="t"><b>${esc(TABLES.boxes.title(b.data))}</b><small>${esc(b.data.qr)} · ${esc(b.data.location || 'no location')} · ${boxContents(b.data.qr).length} bags</small></div><span aria-hidden="true">›</span></a>`).join('') || '<div class="empty">None yet</div>'}</div>`;
+  $('#app').querySelectorAll('[data-box]').forEach(a => a.onclick = () => { S.stBox = a.dataset.box; viewStorage(); });
+  if ($('#stnew')) $('#stnew').onclick = async () => { const r = await newStorageBox(); S.stBox = r.data.qr; toast(`${r.data.box_no} made (${r.data.qr})`); viewStorage(); };
+  if ($('#stold')) $('#stold').onclick = async () => {
+    const c = await openScanner('Scan the box label'); if (!c) return;
+    if (!c.startsWith('X-')) return toast('That is a bag label. Scan a box label (X-…)');
+    let b = live('boxes').find(x => x.data.qr === c);
+    if (!b) { b = mk('boxes', null, { qr: c, box_no: c.slice(2), box_kind: 'Final storage (curation)', location: S.lastStoreLoc || '', packed_by: me(), packed_date: today(), _status: 'complete', _missing: [] }); await save(b); }
+    S.stBox = c; viewStorage();
+  };
+  if (!box) return;
+  const keep = async (k, v) => { box.data = { ...box.data, [k]: v }; await save(box); if (k === 'location') { S.lastStoreLoc = v; await custodyEvent(code, 'box', 'Returned to storage', { location: v, notes: 'Final storage location' }); } };
+  $('#stloc').onchange = () => keep('location', $('#stloc').value.trim());
+  $('#stdesc').onchange = () => keep('contents_desc', $('#stdesc').value.trim());
+  $('#stdone').onclick = () => { S.stBox = null; viewStorage(); };
+  $('#stscan').onclick = async () => {
+    for (let n = 0; ; n++) {
+      const c = await openScanner(`Box ${box.data.box_no}: scan bag ${n + 1} (Cancel when done)`); if (!c) break;
+      if (c.startsWith('X-')) { toast('That is a box label. Scan the bags'); continue; }
+      const bg = live('bags').find(r => r.data.qr === c);
+      if (!bg) { toast(`${c} is not linked to a level yet`); continue; }
+      if (itemState(c).box === code) { toast(`${c} is already in this box`); continue; }
+      await custodyEvent(c, 'bag', 'Placed in box', { from_person: itemState(c).holder, box_qr: code, location: `Box ${box.data.box_no} (final storage)`, notes: 'Final storage' });
+      navigator.vibrate?.(60); toast(`✓ ${c} → ${box.data.box_no}`);
+    }
+    viewStorage();
+  };
+}
+
 const LAYOUTS = {
   '5160': { name: 'Avery 5160 / 8160 / weatherproof equiv. (30 per sheet, 2⅝ × 1 in)', cols: 3, rows: 10, w: 2.625, h: 1, top: 0.5, left: 0.1875, gx: 0.125, gy: 0, qr: 0.86 },
   '5163': { name: 'Avery 5163 / 8163 (10 per sheet, 4 × 2 in), good for boxes', cols: 2, rows: 5, w: 4, h: 2, top: 0.5, left: 0.156, gx: 0.1875, gy: 0, qr: 1.75 },
@@ -3227,7 +3361,7 @@ function render() {
   const h = location.hash || '#/';
   const [path, qs] = h.slice(1).split('?');
   const seg = path.split('/').filter(Boolean);
-  const tab = { sites: 'field', site: 'field', rec: 'field', closed: 'field', closeout: 'field', window: 'field', edit: 'field', new: 'field', lab: 'lab', catalog: 'lab', scan: 'scan', boxes: 'scan', labels: 'scan', daycheck: 'scan', data: 'data' }[seg[0]] || (seg.length ? '' : 'home');
+  const tab = { sites: 'field', site: 'field', rec: 'field', closed: 'field', closeout: 'field', window: 'field', edit: 'field', new: 'field', lab: 'lab', catalog: 'lab', storage: 'lab', boxlabel: 'scan', scan: 'scan', boxes: 'scan', labels: 'scan', daycheck: 'scan', data: 'data' }[seg[0]] || (seg.length ? '' : 'home');
   document.querySelectorAll('#tabs a').forEach(a => a.classList.toggle('on', a.dataset.t === tab));
   if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; document.querySelectorAll('.modal').forEach(m => m.remove()); }
   stopLiveGps(); scrollTo(0, 0);
@@ -3238,6 +3372,8 @@ function render() {
     case 'site': return viewSite(seg[1]);
     case 'rec': return viewRec(seg[1]);
     case 'closeout': return viewUnitCloseout(seg[1]);
+    case 'storage': return viewStorage();
+    case 'boxlabel': return viewBoxLabel(decodeURIComponent(seg[1] || ''));
     case 'window': return viewWindow(seg[1], new URLSearchParams(qs || '').get('of')?.toUpperCase() || '');
     case 'closed': return viewClosed(seg[1], new URLSearchParams(qs || '').get('su')?.toUpperCase() || null);
     case 'edit': { const r = get(seg[1]); return !r ? notFound() : r.tbl === 'subunits' ? subunitEditor(r, false) : formView(r, false); }
