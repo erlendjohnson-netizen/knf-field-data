@@ -1667,7 +1667,7 @@ async function viewSettings() {
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a><button class="btn sec" id="tmoff">Leave test mode</button></div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
     <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a><a class="btn sec" href="#/offline">Offline maps (imagery)</a></div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.20.1 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.21 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   $('#demo') && ($('#demo').onclick = loadDemo);
   $('#tmoff') && ($('#tmoff').onclick = () => switchMode(false));
   $('#tmon') && ($('#tmon').onclick = () => switchMode(true));
@@ -1926,6 +1926,7 @@ function subunitEditor(rec, isNew) {
   const e = get(rec.parent); if (!e) return notFound();
   const others = subsOf(e.id).filter(s => s.id !== rec.id);
   const first = !others.length;
+  if (!(S.suEd && S.suEd.id === rec.id)) S.formDirty = false;
   const st = S.suEd && S.suEd.id === rec.id ? S.suEd : (S.suEd = {
     id: rec.id, letter: rec.data.letter || nextLetter(e.id), opened: rec.data.opened || today(), reason: rec.data.reason || '', notes: rec.data.notes || '',
     parts: partsOf(rec).length ? partsOf(rec).map(p => ({ ...p })) : [first ? { x: 0, y: 0, w: 1, h: 1 } : null].filter(Boolean),
@@ -1950,6 +1951,9 @@ function subunitEditor(rec, isNew) {
   if (!isNew && L !== String(rec.data.letter).toUpperCase() && kids(e.id, 'levels').some(l => String(l.data.excavation_unit).toUpperCase() === String(rec.data.letter).toUpperCase())) errs.push('This subunit already has levels, so its letter cannot be changed');
   const presets = [[1, 1], [0.5, 1], [1, 0.5], [0.5, 0.5], [1, 2], [2, 1]];
   $('#app').innerHTML = `${crumbs(e)}<h2>${isNew ? 'New subunit' : 'Subunit ' + esc(rec.data.letter)} <span class="badge">${esc(sizeLabel(st.parts))}</span></h2>
+    <div class="card" style="margin-bottom:10px"><div id="planbox">${unitPlanSVG(e, { parts: st.parts, editId: rec.id })}</div>
+      <label style="display:flex;gap:8px;align-items:center;margin-top:6px"><input type="checkbox" id="snap" ${st.snap !== false ? 'checked' : ''} style="width:22px;height:22px;min-height:0"> Snap to the edge of the existing unit</label>
+      <div class="help">Tap the plan to move the highlighted piece. With snapping on it stays against the unit's outside edge: the arrows slide it along the edge in 0.25 m steps and carry it round the corners.</div></div>
     <div class="card grid" style="margin-top:10px">
       <div class="f"><label>Letter</label><div class="ro">${esc(st.letter)}</div><input type="hidden" id="su_l" value="${esc(st.letter)}"><div class="help">${isNew ? 'Next free letter (after Z: AA, AB…)' : ''}</div></div>
       <div class="f"><label>Opened</label><input id="su_o" type="date" value="${esc(st.opened)}"></div>
@@ -1966,14 +1970,11 @@ function subunitEditor(rec, isNew) {
         : `<div class="f" style="margin-top:8px"><label>Place against</label><div class="btns">${(others.length ? others : []).map(s => `<span style="display:inline-flex;gap:4px;align-items:center"><b>${esc(s.data.letter)}</b>${['N', 'S', 'E', 'W'].map(sd => `<button class="btn sm sec" data-act="att" data-id="${s.id}" data-side="${sd}">${sd}</button>`).join('')}</span>`).join('&nbsp;&nbsp;')}${i > 0 ? `<span style="display:inline-flex;gap:4px;align-items:center"><b>Piece 1</b>${['N', 'S', 'E', 'W'].map(sd => `<button class="btn sm sec" data-act="attp" data-side="${sd}">${sd}</button>`).join('')}</span>` : ''}</div></div>`}
       <div class="btns"><span class="help">${st.snap !== false && !(first && i === 0) ? 'Move along the edge:' : 'Nudge 0.25 m:'}</span>${[['←', -0.25, 0], ['→', 0.25, 0], ['↓', 0, -0.25], ['↑', 0, 0.25]].map(([t, dx, dy]) => `<button class="btn sm sec" data-act="nudge" data-dx="${dx}" data-dy="${dy}">${t}</button>`).join('')}</div>` : `<div class="help">${fmtM(a.w)} × ${fmtM(a.h)} m at (${r2(a.x)}, ${r2(a.y)})</div>`}
     </div>`).join('')}
-    <div class="card" style="margin-top:10px"><div id="planbox">${unitPlanSVG(e, { parts: st.parts, editId: rec.id })}</div>
-      <label style="display:flex;gap:8px;align-items:center;margin-top:6px"><input type="checkbox" id="snap" ${st.snap !== false ? 'checked' : ''} style="width:22px;height:22px;min-height:0"> Snap to the edge of the existing unit</label>
-      <div class="help">Tap the plan to move the highlighted piece. With snapping on it stays against the unit's outside edge: the arrows slide it along the edge in 0.25 m steps and carry it round the corners.</div></div>
     <div class="btns"><button class="btn sec" id="addp">+ Add a piece (L-shape)</button></div>
     ${errs.map(m => `<div class="check" style="border-color:var(--bad)">${esc(m)}</div>`).join('')}${msgs.map(m => `<div class="check">${esc(m)}</div>`).join('')}
     <div class="formbar"><button class="btn" id="sv" ${errs.length ? 'disabled' : ''}>${isNew ? 'Add subunit ✓' : 'Save subunit ✓'}</button><button class="btn sec" id="cx">Cancel</button>
       ${!isNew ? '<span style="flex:1"></span><button class="btn bad" id="dl">Delete</button>' : ''}</div>`;
-  const redraw = () => subunitEditor(rec, isNew);
+  const redraw = () => { S.formDirty = true; subunitEditor(rec, isNew); };
   const doSnap0 = (a, target) => { if (st.snap === false || (first && st.parts[0] === a)) return; const fixed = others.flatMap(o => partsOf(o)).concat(st.parts.filter(x => x !== a)); if (fixed.length) snapPiece(a, fixed, target); };
   if (isNew && !first && !st.placed) { st.placed = true; doSnap0(st.parts[0], { x: st.parts[0].x, y: st.parts[0].y }); return redraw(); }
   const doSnap = (a, target) => { if (st.snap === false || (first && st.parts[0] === a)) return; const fixed = others.flatMap(o => partsOf(o)).concat(st.parts.filter(x => x !== a)); if (fixed.length) snapPiece(a, fixed, target); };
@@ -2011,14 +2012,18 @@ function subunitEditor(rec, isNew) {
   });
   $('#addp').onclick = () => { keep(); const b = bbox(st.parts); const np = { x: b.x1, y: b.y0, w: 0.5, h: 0.5 }; st.parts.push(np); st.active = st.parts.length - 1; doSnap(np, { x: np.x, y: np.y }); redraw(); };
   $('#snap').onchange = ev => { st.snap = ev.target.checked; if (st.snap) doSnap(p, { x: p.x, y: p.y }); redraw(); };
-  $('#cx').onclick = () => { S.suEd = null; S._suNew = null; location.hash = hashFor(e); };
+  $('#cx').onclick = async () => { if (S.formDirty && !(await ask('Discard the changes to this subunit?', 'Discard', 'Keep editing'))) return; S.formDirty = false; S.suEd = null; S._suNew = null; location.hash = hashFor(e); };
   $('#sv').onclick = async () => {
     keep();
+    const desc = st.parts.map(a => `${fmtM(a.w)} × ${fmtM(a.h)} m with its SW corner ${r2(a.x)} m E, ${r2(a.y)} m N of the datum`).join('\n');
+    if (!(await ask(`${isNew ? 'Add' : 'Save'} subunit ${String(st.letter).toUpperCase()}?\n\n${desc}`, isNew ? 'Yes, add it' : 'Yes, save', 'Keep editing'))) return;
+    S.formDirty = false;
     rec.data = { ...rec.data, letter: String(st.letter).trim().toUpperCase(), opened: st.opened, reason: st.reason, parts: st.parts.map(a => ({ x: r2(a.x), y: r2(a.y), w: r2(a.w), h: r2(a.h) })) };
     rec.data.area_m2 = partsArea(rec.data.parts); rec.data.size_label = sizeLabel(rec.data.parts); rec.data._status = 'complete'; rec.data._missing = [];
     await save(rec); S.suEd = null; S._suNew = null; toast(`Subunit ${rec.data.letter} saved`); location.hash = hashFor(e);
   };
   $('#dl') && ($('#dl').onclick = async () => {
+    S.formDirty = false;
     if (kids(e.id, 'levels').some(l => String(l.data.excavation_unit).toUpperCase() === String(rec.data.letter).toUpperCase())) return toast('This subunit has levels; delete those first');
     if (!canDelete(rec)) return toast(noDeleteMsg);
     if (await ask(`Delete subunit ${rec.data.letter}?`, 'Delete')) { await softDelete(rec); S.suEd = null; location.hash = hashFor(e); }
@@ -2075,7 +2080,8 @@ function unitSectionHTML(e) {
     <div class="card"><div id="unitplan">${subs.length ? unitPlanSVG(e, { sel }) : '<div class="empty">No subunits yet. Add the first one (+ Add subunit): it is the square next to the datum stake and gets the letter A.</div>'}</div>
     ${subs.length ? `<div class="btns">${subs.map(s => `<button class="btn sm ${s.data.letter === sel ? '' : 'sec'}" data-su="${esc(s.data.letter)}">${esc(s.data.letter)} · ${esc(s.data.size_label || '')}</button>`).join('')}</div>` : ''}
     ${sel ? `<div class="kv" style="margin-top:6px"><div><span>Subunit ${esc(sel)}</span><br>${lv.length ? `${lv.length} level${lv.length > 1 ? 's' : ''}, to ${esc(lv[lv.length - 1].data.bgscm)} cmbs${lv.some(l => l.data.terminal_level) ? ' (closed)' : ''}` : 'no levels yet'}</div></div>
-      <div class="btns"><a class="btn" href="#/new/levels/${e.id}?su=${encodeURIComponent(sel)}">+ Level in ${esc(sel)}</a><a class="btn sec" href="#/rec/${subs.find(s => s.data.letter === sel).id}">Edit ${esc(sel)}</a></div>` : ''}</div>
+      <div class="btns"><a class="btn" href="#/new/levels/${e.id}?su=${encodeURIComponent(sel)}">+ Level in ${esc(sel)}</a><a class="btn sec" href="#/rec/${subs.find(s => s.data.letter === sel).id}">Edit / move ${esc(sel)}</a>${lv.length ? '' : `<button class="btn sec bad" data-delsu="${subs.find(s => s.data.letter === sel).id}">Delete ${esc(sel)}</button>`}</div>
+      <div class="help">Tap a subunit on the plan (or its button) to select it.</div>` : ''}</div>
     <h3>Unit datum &amp; corner shots <span class="sp"></span><a class="btn sm" href="#/new/mappoints/${e.id}?corner">+ Shoot a corner</a></h3>
     <div class="card">
       <div class="kv"><div><span>Datum</span><br>${e.data.utme != null ? `${e.data.utme} E, ${e.data.utmn} N` : '<b style="color:var(--warn)">not shot yet</b>'}${e.data.datum_desc ? '<br>' + esc(e.data.datum_desc) : ''}</div>
@@ -2086,6 +2092,13 @@ function unitSectionHTML(e) {
     </div>`;
 }
 function bindUnitSection(e) {
+  $('#app').querySelectorAll('[data-delsu]').forEach(b => b.onclick = async () => {
+    const su = get(b.dataset.delsu); if (!su) return;
+    if (!canDelete(su)) return toast(noDeleteMsg);
+    if (kids(e.id, 'levels').some(l => String(l.data.excavation_unit).toUpperCase() === String(su.data.letter).toUpperCase())) return toast('This subunit has levels; delete those first');
+    if (!(await ask(`Delete subunit ${su.data.letter} (${su.data.size_label || ''})?\n\nUse this for a subunit added by mistake. Its letter becomes free again.`, 'Delete', 'Keep it'))) return;
+    await softDelete(su); S.suSel = null; toast(`Subunit ${su.data.letter} deleted`); viewExc(get(e.id));
+  });
   $('#app').querySelectorAll('[data-su]').forEach(b => b.onclick = () => { S.suSel = b.dataset.su; viewExc(e); });
   const svg = $('#unitplan svg'); if (svg) svg.addEventListener('click', ev => { const r = ev.target.closest('[data-letter]'); if (r) { S.suSel = r.dataset.letter; viewExc(e); } });
   const ua = $('#useaz'); if (ua) ua.onclick = async () => { e.data = { ...e.data, azimuth: +ua.dataset.az }; const miss = completeness(e, e.data); e.data._status = statusFor(e, e.data, miss) === 'draft' ? 'draft' : (e.data._status === 'complete' && miss.length ? 'open' : e.data._status); await save(e); toast('Azimuth set'); viewExc(e); };
