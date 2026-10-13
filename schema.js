@@ -174,6 +174,7 @@ const TABLES = {
       { k: 'special_find', l: 'Special find', t: 'bool' },
       { k: 'special_find_desc', l: 'Special find: what it is, where and depth', t: 'area', w: 3, ph: 'e.g. Gary point, base intact, NE quad of A at 34 cmbs, in situ', show: r => !!r.special_find },
       { k: 'terminal_level', l: 'Terminal level', t: 'bool' },
+      { k: 'close_override', l: 'Closed without two sterile levels because', t: 'ro', w: 3, show: r => !!r.close_override },
       { k: 'notes', l: 'Notes', t: 'area', w: 3 },
     ],
   },

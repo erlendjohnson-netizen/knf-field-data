@@ -695,10 +695,10 @@ function fieldHTML(f, v, d) {
   if (f.t === 'corners') {
     const cell = k => `<input data-c="${k}" inputmode="decimal" value="${esc(d?.[k] ?? '')}">`;
     return h + `<div class="f${w}${hid}" data-k="${f.k}"><label>${esc(f.l)}</label>
-      <table class="corners"><tr><th></th><th>NW</th><th>NE</th><th>SW</th><th>SE</th><th>Centre</th></tr>
+      <table class="corners"><tr><th></th><th>NW</th><th>NE</th><th>SW</th><th>SE</th></tr>
         <tr><th>Top</th>${CORNERS.map(c => `<td>${cell('top_' + c)}</td>`).join('')}</tr>
         <tr><th>Bottom</th>${CORNERS.map(c => `<td>${cell('bot_' + c)}</td>`).join('')}</tr></table>
-      <div class="help">Top corners come from the level above. Change the thickness to set all bottom corners, or type each one. The averages below are worked out for you (centre is optional).</div><div class="msg"></div></div>`;
+      <div class="help">Top corners are filled in from the bottom of the level above. Change the thickness to set all bottom corners, or type each one. The averages below are worked out for you.</div><div class="msg"></div></div>`;
   }
   if (f.t === 'munsell') {
     const m = parseMunsell(v), opt = (list, cur) => `<option value=""></option>` + list.map(o => `<option ${o === cur ? 'selected' : ''}>${o}</option>`).join('');
@@ -720,7 +720,7 @@ function fieldHTML(f, v, d) {
   else inp = `<input id="${id}" value="${val}" ${f.t === 'int' ? 'inputmode="numeric"' : f.t === 'num' ? 'inputmode="decimal"' : ''} placeholder="${esc(f.ph || '')}" ${f.t === 'munsell' ? 'autocapitalize="characters"' : ''} autocomplete="off">`;
   return h + `<div class="f${w}${hid}" data-k="${f.k}"><label for="${id}">${esc(f.l)}${req}</label>${inp}${help}<div class="msg"></div></div>`;
 }
-const CORNERS = ['nw', 'ne', 'sw', 'se', 'c'];
+const CORNERS = ['nw', 'ne', 'sw', 'se'];
 const CORNER_KEYS = CORNERS.flatMap(c => ['top_' + c, 'bot_' + c]);
 function parseMunsell(v) { const m = String(v || '').toUpperCase().match(/^\s*(10R|2\.5YR|5YR|7\.5YR|10YR|2\.5Y|5Y|GLEY ?1|GLEY ?2)\s+(2|2\.5|3|4|5|6|7|8)\/(1|2|3|4|6|8)\s*$/); return m ? { hue: m[1].replace(' ', ''), val: m[2], chr: m[3] } : null; }
 function readForm(form, def, d) {
@@ -803,7 +803,7 @@ function showMsgs(form, { errs, warns }, quiet) {
 /* ---- extra sanity checks (block obvious mistakes) ---- */
 function sanity(tbl, d, rec, v) {
   const { errs, warns } = v;
-  if (tbl === 'levels') for (const c of CORNERS) { const t = num(d['top_' + c]), b = num(d['bot_' + c]); if (t != null && b != null && b < t) errs._corners = `${c === 'c' ? 'Centre' : c.toUpperCase()}: bottom is above the top`; }
+  if (tbl === 'levels') for (const c of CORNERS) { const t = num(d['top_' + c]), b = num(d['bot_' + c]); if (t != null && b != null && b < t) errs._corners = `${c.toUpperCase()}: bottom is above the top`; }
   if (tbl === 'excavations' && isUnit(d) && d.unit_ew !== undefined) { const L = unitLayout(d); if (L.err) errs[L.field || 'su_size'] = L.err; }
   if (d.date && /^\d{4}-\d{2}-\d{2}$/.test(d.date) && d.date > today()) errs.date = 'Date is in the future';
   for (const [c, w] of [['cnt', 'wt'], ['cnt', 'weight']]) if (num(d[c]) > 0 && d[w] === 0) errs[w] = 'Weight 0 with a count: leave blank if not weighed';
@@ -1111,7 +1111,7 @@ function defaults(tbl, parentId) {
     d.top_cm = lastSame ? (num(lastSame.data.bgscm) ?? '') : 0;
     const th = +S.settings.level_cm || 10;
     d.excdepth = th; d.bgscm = (num(d.top_cm) ?? 0) + th;
-    if (isUnit(p?.data) && lastSame) for (const c of CORNERS) { const b = num(lastSame.data['bot_' + c]); if (b != null) { d['top_' + c] = b; d['bot_' + c] = +(b + th).toFixed(1); } }
+    if (isUnit(p?.data) && lastSame) for (const c of CORNERS) { const b = num(lastSame.data['bot_' + c]) ?? num(lastSame.data.bgscm); if (b != null) { d['top_' + c] = b; d['bot_' + c] = +(b + th).toFixed(1); } }
     d.soil_change = 0;
     if (last) { const src = lastSame || last; d.excavation_method = last.data.excavation_method; d.screen = last.data.screen; d.soil_texture = src.data.soil_texture; d.munsell = src.data.munsell; d.munsell2 = src.data.munsell2; }
     else { const exc = p; d.excavation_method = exc?.data.excavation_type === 'STP' ? 'Shovel' : 'Shovel/Trowel'; d.screen = '1/4 in'; }
@@ -1347,6 +1347,7 @@ function formView(rec, isNew, opts = {}) {
   refresh();
   const doSave = async (mode, next) => { // mode: 'finish' | 'draft'
     let nd = current();
+    const wasStatus = rec.data._status;
     const v = validate(rec.tbl, nd, rec);
     showMsgs(form, v);
     if (Object.keys(v.errs).length) { showMissing(form, completeness(rec, nd).filter(x => !AFTER.includes(x)), v.errs); return; }
@@ -1355,6 +1356,11 @@ function formView(rec, isNew, opts = {}) {
       const bags = await bagPrompt(rec, nd); if (!bags) return;
       nd.bag_qr = bags[0].code; nd._bag_contents = bags[0].contents; extraBags = bags.slice(1);
       miss = completeness(rec, nd); st = statusFor(rec, nd, miss);
+    }
+    // closing a test-unit subunit: it should end on two sterile levels, or say why not
+    if (mode === 'finish' && rec.tbl === 'levels' && nd.terminal_level && isUnit(parent?.data) && !(st === 'draft')) {
+      const why = await sterileCheck(parent, rec, nd); if (why === false) return;
+      if (why) nd.close_override = why; else delete nd.close_override;
     }
     const featAfter = rec.tbl === 'levels' && miss.includes(FEAT_MISS);
     if (featAfter && mode === 'finish') { miss = miss.filter(x => x !== FEAT_MISS); st = statusFor(rec, nd, miss); }
@@ -1385,6 +1391,8 @@ function formView(rec, isNew, opts = {}) {
     toast(nd._status === 'draft' ? '⚠ Saved UNFINISHED: not sent to the project' : nd._status === 'open' ? 'Saved: excavation open' : 'Finished ✓');
     if (rec.tbl === 'levels' && nd._status === 'complete' && newSiteDue(get(rec.parent))) { const go = await newSitePrompt(get(rec.parent)); if (go) { location.hash = go; return; } }
     if (featAfter && mode === 'finish') { toast('Level finished ✓ Now record the feature'); location.hash = `#/new/features/${rec.parent}?lv=${rec.id}`; return; }
+    if (rec.tbl === 'levels' && nd.terminal_level && nd._status === 'complete' && isUnit(parent?.data)) { location.hash = `#/closed/${rec.parent}?su=${encodeURIComponent(String(nd.excavation_unit || '').toUpperCase())}`; return; }
+    if (rec.tbl === 'excavations' && !isNew && nd._status === 'complete' && wasStatus !== 'complete') { location.hash = `#/closed/${rec.id}`; return; }
     if (next) { const h = `#/new/${rec.tbl}/${rec.parent}`; if (location.hash === h) render(); else location.hash = h; }
     else if (startedNow) {
       const unit = isUnit(nd), nm = TABLES.excavations.title(nd);
@@ -1668,7 +1676,7 @@ async function viewSettings() {
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a><button class="btn sec" id="tmoff">Leave test mode</button></div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
     <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a><a class="btn sec" href="#/offline">Offline maps (imagery)</a></div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.23 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.24 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   if ($('#s_rep')) CORE.myProfile().then(p => {
     const cb = $('#s_rep'); if (!cb || !p) return;
     cb.checked = reportsOn(p); cb.disabled = false; $('#s_rep_h').textContent = `Sent to ${p.email}.`;
@@ -1927,6 +1935,61 @@ function unitPreviewHTML(d) {
   return `<div class="card" style="margin-top:6px"><b>Layout</b> <span class="help">${L.cells.length} subunit${L.cells.length > 1 ? 's' : ''} (${L.cells.map(c => c.letter).join(', ')}), north up, ✚ = datum stake</span>
     <svg class="plan" style="max-height:200px" viewBox="${x0} ${Y(y1)} ${x1 - x0} ${y1 - y0}">${rects}<g class="datum"><circle cx="0" cy="${Y(0)}" r="0.07"/><path d="M-0.13 ${Y(0)}h0.26M0 ${Y(0) - 0.13}v0.26"/></g></svg></div>`;
 }
+/* ---- closing out: two sterile levels at the bottom of a test-unit subunit, and the "closed" screen ---- */
+function trailingSterile(levels) { let n = 0; for (const l of [...levels].sort((a, b) => num(b.data.levelno) - num(a.data.levelno))) { if (l.data.artifacts) break; n++; } return n; }
+function sterileCheck(exc, rec, nd) {
+  const eu = String(nd.excavation_unit || '').toUpperCase();
+  const lv = kids(exc.id, 'levels').filter(l => l.id !== rec.id && String(l.data.excavation_unit).toUpperCase() === eu && num(l.data.levelno) < num(nd.levelno));
+  const n = trailingSterile([...lv, { data: nd }]);
+  if (n >= 2) return Promise.resolve(null);
+  return new Promise(resolve => {
+    const m = document.createElement('div'); m.className = 'modal';
+    m.innerHTML = `<div class="card bagprompt" style="max-width:480px"><b class="t">⚠ Subunit ${esc(eu)}: ${n === 0 ? 'this level is not sterile' : 'only one sterile level'}</b>
+      <p style="margin:6px 0">Test units are closed after <b>two sterile levels</b> in a row. ${n === 0 ? 'This last level has artifacts.' : 'Only this last level is sterile; the one above it had artifacts.'} Dig another level, or close the subunit anyway and say why.</p>
+      <div class="f"><label for="ovr">Why close it now?</label><textarea id="ovr" rows="3" placeholder="e.g. hit the water table / clay subsoil reached / unit stopped by the PI">${esc(nd.close_override || '')}</textarea></div>
+      <div class="btns" style="justify-content:flex-end"><button class="btn sec" id="ovno">Keep digging</button><button class="btn bad" id="ovyes">Close it anyway</button></div></div>`;
+    document.body.append(m);
+    $('#ovno', m).onclick = () => { m.remove(); resolve(false); };
+    $('#ovyes', m).onclick = () => { const r = $('#ovr', m).value.trim(); if (!r) { toast('Say why it is being closed early'); $('#ovr', m).focus(); return; } m.remove(); resolve(r); };
+  });
+}
+function viewClosed(id, su) {
+  const e = get(id); if (!e) return notFound();
+  const unit = isUnit(e.data), nm = TABLES.excavations.title(e.data), site = get(e.site);
+  const all = kids(id, 'levels'), lv = all.filter(l => !su || String(l.data.excavation_unit).toUpperCase() === su).sort((a, b) => num(a.data.levelno) - num(b.data.levelno));
+  const deepest = lv.length ? Math.max(...lv.map(l => num(l.data.bgscm) || 0)) : num(e.data.depthcm);
+  const count = lv.reduce((a, l) => a + (num(l.data.field_count) || 0), 0), bags = lv.flatMap(l => kids(l.id, 'bags')).length;
+  const ster = trailingSterile(lv), term = lv.find(l => l.data.terminal_level), ovr = term?.data.close_override;
+  const subs = unit ? subsOf(id) : [], closedSU = s => all.some(l => String(l.data.excavation_unit).toUpperCase() === String(s.data.letter).toUpperCase() && l.data.terminal_level);
+  const stillOpen = subs.filter(s => !closedSU(s));
+  const what = su ? `Subunit ${esc(su)}` : esc(nm);
+  setTitle((su ? 'Subunit ' + su : nm) + ' closed');
+  let btns = '';
+  if (su) {
+    btns = stillOpen.map(s => `<a class="btn sec" href="#/new/levels/${id}?su=${encodeURIComponent(s.data.letter)}">Next level in ${esc(s.data.letter)}</a>`).join('')
+      + `<a class="btn sec" href="#/new/subunits/${id}">+ Add an expansion</a>`
+      + (stillOpen.length ? `<a class="btn" href="#/rec/${id}">Back to ${esc(nm)}</a>` : `<a class="btn" href="#/edit/${id}">Close out ${esc(nm)} →</a><a class="btn sec" href="#/rec/${id}">Back to ${esc(nm)}</a>`);
+  } else {
+    btns = (unit ? '' : `<a class="btn" href="#/new/excavations/${e.site}?STP">+ Next STP</a>`) + `<a class="btn ${unit ? '' : 'sec'}" href="#/site/${e.site}">Back to ${esc(site?.data.sitename || 'the site')}</a><a class="btn sec" href="#/rec/${id}">View ${esc(nm)}</a>`;
+  }
+  $('#app').innerHTML = `${crumbs(e)}
+    <div class="card closed" style="text-align:center;padding:22px 14px;margin-top:8px">
+      <div style="font-size:54px;line-height:1;color:var(--ok)">✓</div>
+      <h2 style="margin:8px 0 2px">${what} is closed</h2>
+      <div class="help">${su ? esc(nm) + ' · ' : ''}${esc(site?.data.sitename || '')}</div>
+    </div>
+    <div class="card kv" style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div><span>Levels</span><br>${lv.length}</div><div><span>Final depth</span><br>${deepest != null ? deepest + ' cmbs' : '—'}</div>
+      <div><span>Artifacts (field count)</span><br>${count || (lv.some(l => l.data.artifacts) ? '?' : 'none')}</div><div><span>Bags</span><br>${bags}</div>
+      ${unit ? `<div><span>Sterile levels at the bottom</span><br>${ster}</div>` : `<div><span>Result</span><br>${e.data.positive ? 'Positive' : 'Negative'}</div>`}
+      ${unit && !su ? `<div><span>Subunits</span><br>${subs.length} closed</div>` : ''}
+    </div>
+    ${ovr ? `<div class="check"><b>Closed with fewer than two sterile levels:</b> ${esc(ovr)}</div>` : ''}
+    ${su && stillOpen.length ? `<div class="check">Still open in ${esc(nm)}: ${stillOpen.map(s => esc(s.data.letter)).join(', ')}</div>` : ''}
+    ${su && !stillOpen.length ? `<div class="check okc">Every subunit of ${esc(nm)} is closed. Close out the unit next (final depth, photos, corner shots).</div>` : ''}
+    <div class="btns" style="margin-top:12px">${btns}</div>`;
+}
+
 /* ---- subunit editor ---- */
 function subunitEditor(rec, isNew) {
   const e = get(rec.parent); if (!e) return notFound();
@@ -2946,7 +3009,7 @@ function render() {
   const h = location.hash || '#/';
   const [path, qs] = h.slice(1).split('?');
   const seg = path.split('/').filter(Boolean);
-  const tab = { sites: 'field', site: 'field', rec: 'field', edit: 'field', new: 'field', lab: 'lab', catalog: 'lab', scan: 'scan', boxes: 'scan', labels: 'scan', daycheck: 'scan', data: 'data' }[seg[0]] || (seg.length ? '' : 'home');
+  const tab = { sites: 'field', site: 'field', rec: 'field', closed: 'field', edit: 'field', new: 'field', lab: 'lab', catalog: 'lab', scan: 'scan', boxes: 'scan', labels: 'scan', daycheck: 'scan', data: 'data' }[seg[0]] || (seg.length ? '' : 'home');
   document.querySelectorAll('#tabs a').forEach(a => a.classList.toggle('on', a.dataset.t === tab));
   if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; document.querySelectorAll('.modal').forEach(m => m.remove()); }
   stopLiveGps(); scrollTo(0, 0);
@@ -2956,6 +3019,7 @@ function render() {
     case 'sites': return viewSites();
     case 'site': return viewSite(seg[1]);
     case 'rec': return viewRec(seg[1]);
+    case 'closed': return viewClosed(seg[1], new URLSearchParams(qs || '').get('su')?.toUpperCase() || null);
     case 'edit': { const r = get(seg[1]); return !r ? notFound() : r.tbl === 'subunits' ? subunitEditor(r, false) : formView(r, false); }
     case 'new': {
       const t = seg[1], parent = seg[2] || null;
