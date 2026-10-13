@@ -125,7 +125,7 @@ table.corners{border-collapse:collapse;width:100%}table.corners th{font-size:12p
 .plan{width:100%;max-height:340px;display:block;background:var(--inp);border-radius:8px;touch-action:manipulation}
 .plan .g1{stroke:var(--line);stroke-width:.02}.plan .g2{stroke:var(--line);stroke-width:.008;stroke-dasharray:.04 .04}
 .plan .su{fill:rgba(206,24,30,.12);stroke:var(--acc);stroke-width:.03;cursor:pointer}.plan .su.sel{fill:rgba(0,151,167,.35);stroke:#0097A7}
-.plan .su.done{fill:rgba(206,24,30,.32)}.plan .su.edit{fill:rgba(163,84,43,.45);stroke:var(--acc2);stroke-width:.04;stroke-dasharray:.08 .05}
+.plan .su.done{fill:rgba(206,24,30,.32)}.plan .su.edit{fill:rgba(163,84,43,.45);stroke:var(--acc2);stroke-width:.04;stroke-dasharray:.08 .05;cursor:grab;touch-action:none}.plan .su.edit.act{fill:rgba(163,84,43,.7)}.plan.dragging .su.edit.act{cursor:grabbing;stroke-width:.07}
 .plan .sut{font:700 .32px system-ui,sans-serif;fill:var(--ink);text-anchor:middle;dominant-baseline:central;pointer-events:none}
 .plan .datum circle{fill:#b3261e}.plan .datum path{stroke:#b3261e;stroke-width:.03}
 .plan .shot{fill:var(--ok)}.plan .shot.bad{fill:var(--bad)}.plan .narrow{fill:var(--ink)}.plan .nt{font:700 .18px system-ui;fill:var(--ink);text-anchor:middle}
@@ -1668,7 +1668,7 @@ async function viewSettings() {
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a><button class="btn sec" id="tmoff">Leave test mode</button></div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
     <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a><a class="btn sec" href="#/offline">Offline maps (imagery)</a></div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.22 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.23 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   if ($('#s_rep')) CORE.myProfile().then(p => {
     const cb = $('#s_rep'); if (!cb || !p) return;
     cb.checked = reportsOn(p); cb.disabled = false; $('#s_rep_h').textContent = `Sent to ${p.email}.`;
@@ -1885,7 +1885,7 @@ function unitPlanSVG(e, o = {}) {
     body += pieces(ps, cls, s.data.letter, s.id);
     if (big) body += `<text x="${big.x + big.w / 2}" y="${Y(big.y + big.h / 2)}" class="sut">${esc(s.data.letter)}</text>`;
   }
-  if (o.parts) body += pieces(o.parts, 'su edit');
+  if (o.parts) body += o.parts.map((p, i) => `<rect x="${p.x}" y="${Y(p.y + p.h)}" width="${p.w}" height="${p.h}" class="su edit${i === (o.active ?? 0) ? ' act' : ''}" data-pi="${i}"/>`).join('');
   // datum + corner shots
   body += `<g class="datum"><circle cx="0" cy="${Y(0)}" r="0.09"/><path d="M-0.16 ${Y(0)}h0.32M0 ${Y(0) - 0.16}v0.32"/></g>`;
   if (num(e.data.azimuth) != null) for (const c of cornerChecks(e)) {
@@ -1957,9 +1957,10 @@ function subunitEditor(rec, isNew) {
   if (!isNew && L !== String(rec.data.letter).toUpperCase() && kids(e.id, 'levels').some(l => String(l.data.excavation_unit).toUpperCase() === String(rec.data.letter).toUpperCase())) errs.push('This subunit already has levels, so its letter cannot be changed');
   const presets = [[1, 1], [0.5, 1], [1, 0.5], [0.5, 0.5], [1, 2], [2, 1]];
   $('#app').innerHTML = `${crumbs(e)}<h2>${isNew ? 'New subunit' : 'Subunit ' + esc(rec.data.letter)} <span class="badge">${esc(sizeLabel(st.parts))}</span></h2>
-    <div class="card" style="margin-bottom:10px"><div id="planbox">${unitPlanSVG(e, { parts: st.parts, editId: rec.id })}</div>
+    <div class="card" style="margin-bottom:10px"><div id="planbox">${unitPlanSVG(e, { parts: st.parts, editId: rec.id, active: st.active })}</div>
       <label style="display:flex;gap:8px;align-items:center;margin-top:6px"><input type="checkbox" id="snap" ${st.snap !== false ? 'checked' : ''} style="width:22px;height:22px;min-height:0"> Snap to the edge of the existing unit</label>
-      <div class="help">Tap the plan to move the highlighted piece. With snapping on it stays against the unit's outside edge: the arrows slide it along the edge in 0.25 m steps and carry it round the corners.</div></div>
+      <div class="btns" style="margin:6px 0 0;align-items:center"><span class="help">${st.snap !== false && !(first && st.active === 0) ? 'Fine-tune along the edge:' : 'Nudge 0.25 m:'}</span>${[['←', -0.25, 0], ['→', 0.25, 0], ['↓', 0, -0.25], ['↑', 0, 0.25]].map(([t, dx, dy]) => `<button class="btn sm sec" data-nudge data-dx="${dx}" data-dy="${dy}">${t}</button>`).join('')}</div>
+      <div class="help"><b>Drag the brown piece</b> with your finger to move it (or tap where it should go). With snapping on it stays against the outside edge of the unit and follows it round the corners, in 0.25 m steps.</div></div>
     <div class="card grid" style="margin-top:10px">
       <div class="f"><label>Letter</label><div class="ro">${esc(st.letter)}</div><input type="hidden" id="su_l" value="${esc(st.letter)}"><div class="help">${isNew ? 'Next free letter (after Z: AA, AB…)' : ''}</div></div>
       <div class="f"><label>Opened</label><input id="su_o" type="date" value="${esc(st.opened)}"></div>
@@ -1974,7 +1975,7 @@ function subunitEditor(rec, isNew) {
         <div class="f"><label>SW corner x (m E of datum)</label><input data-k="x" inputmode="decimal" value="${r2(a.x)}"></div><div class="f"><label>SW corner y (m N of datum)</label><input data-k="y" inputmode="decimal" value="${r2(a.y)}"></div></div>
       ${first && i === 0 ? `<div class="f" style="margin-top:8px"><label>The datum is at this piece's…</label><div class="btns">${['SW', 'SE', 'NW', 'NE'].map(c => `<button class="btn sm ${st.datumCorner === c ? '' : 'sec'}" data-act="datum" data-c="${c}">${c} corner</button>`).join('')}</div></div>`
         : `<div class="f" style="margin-top:8px"><label>Place against</label><div class="btns">${(others.length ? others : []).map(s => `<span style="display:inline-flex;gap:4px;align-items:center"><b>${esc(s.data.letter)}</b>${['N', 'S', 'E', 'W'].map(sd => `<button class="btn sm sec" data-act="att" data-id="${s.id}" data-side="${sd}">${sd}</button>`).join('')}</span>`).join('&nbsp;&nbsp;')}${i > 0 ? `<span style="display:inline-flex;gap:4px;align-items:center"><b>Piece 1</b>${['N', 'S', 'E', 'W'].map(sd => `<button class="btn sm sec" data-act="attp" data-side="${sd}">${sd}</button>`).join('')}</span>` : ''}</div></div>`}
-      <div class="btns"><span class="help">${st.snap !== false && !(first && i === 0) ? 'Move along the edge:' : 'Nudge 0.25 m:'}</span>${[['←', -0.25, 0], ['→', 0.25, 0], ['↓', 0, -0.25], ['↑', 0, 0.25]].map(([t, dx, dy]) => `<button class="btn sm sec" data-act="nudge" data-dx="${dx}" data-dy="${dy}">${t}</button>`).join('')}</div>` : `<div class="help">${fmtM(a.w)} × ${fmtM(a.h)} m at (${r2(a.x)}, ${r2(a.y)})</div>`}
+` : `<div class="help">${fmtM(a.w)} × ${fmtM(a.h)} m at (${r2(a.x)}, ${r2(a.y)})</div>`}
     </div>`).join('')}
     <div class="btns"><button class="btn sec" id="addp">+ Add a piece (L-shape)</button></div>
     ${errs.map(m => `<div class="check" style="border-color:var(--bad)">${esc(m)}</div>`).join('')}${msgs.map(m => `<div class="check">${esc(m)}</div>`).join('')}
@@ -1996,11 +1997,6 @@ function subunitEditor(rec, isNew) {
       if (first && i === 0) { a.w = w; a.h = h; setDatum(a, st.datumCorner); } else { a.w = w; a.h = h; }
     }
     if (act === 'datum') { st.datumCorner = b.dataset.c; setDatum(a, st.datumCorner); }
-    if (act === 'nudge') {
-      const dx = +b.dataset.dx, dy = +b.dataset.dy, fixed = others.flatMap(o => partsOf(o)).concat(st.parts.filter(x => x !== a));
-      if (st.snap !== false && !(first && st.parts[0] === a) && fixed.length) { if (!stepPiece(a, fixed, Math.sign(dx), Math.sign(dy))) toast('Can’t go further that way along the edge'); }
-      else { a.x = r2(a.x + dx); a.y = r2(a.y + dy); }
-    }
     if (act === 'size' && !(first && i === 0)) doSnap(a, { x: a.x, y: a.y });
     if (act === 'att' || act === 'attp') {
       const nb = act === 'att' ? bbox(partsOf(get(b.dataset.id))) : bbox([st.parts[0]]), sd = b.dataset.side;
@@ -2010,11 +2006,46 @@ function subunitEditor(rec, isNew) {
     }
     redraw();
   });
-  const svg = $('#planbox svg');
+  $('#app').querySelectorAll('[data-nudge]').forEach(b => b.onclick = () => {
+    keep(); const a = p, dx = +b.dataset.dx, dy = +b.dataset.dy, fixed = others.flatMap(o => partsOf(o)).concat(st.parts.filter(x => x !== a));
+    if (st.snap !== false && !(first && st.parts[0] === a) && fixed.length) { if (!stepPiece(a, fixed, Math.sign(dx), Math.sign(dy))) toast('Can’t go further that way along the edge'); }
+    else { a.x = r2(a.x + dx); a.y = r2(a.y + dy); }
+    redraw();
+  });
+  // drag a piece on the plan (finger or mouse); a tap elsewhere on the plan moves the active piece there
+  const svg = $('#planbox svg'), y1 = +svg.dataset.y1;
+  const toM = ev => { const pt = svg.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY; const q = pt.matrixTransform(svg.getScreenCTM().inverse()); return { x: q.x, y: y1 - q.y }; };
+  let drag = null, dragged = false;
+  svg.querySelectorAll('rect.edit').forEach(r => r.addEventListener('touchstart', ev => ev.preventDefault(), { passive: false }));
+  svg.addEventListener('pointerdown', ev => {
+    const r = ev.target.closest && ev.target.closest('rect.edit'); if (!r) return;
+    keep(); const i = +r.dataset.pi, a = st.parts[i], m = toM(ev);
+    const was = st.active;
+    if (st.active !== i) { st.active = i; svg.querySelectorAll('rect.edit').forEach(x => x.classList.toggle('act', +x.dataset.pi === i)); }
+    drag = { was, i, a, r, gx: m.x - a.x, gy: m.y - a.y, sx: ev.clientX, sy: ev.clientY, x: a.x, y: a.y }; dragged = false;
+    try { svg.setPointerCapture(ev.pointerId); } catch (_) { }
+    svg.classList.add('dragging'); ev.preventDefault();
+  });
+  svg.addEventListener('pointermove', ev => {
+    if (!drag) return;
+    if (!dragged && Math.hypot(ev.clientX - drag.sx, ev.clientY - drag.sy) < 4) return;
+    dragged = true;
+    const m = toM(ev), a = drag.a;
+    a.x = r2(Math.round((m.x - drag.gx) * 4) / 4); a.y = r2(Math.round((m.y - drag.gy) * 4) / 4);
+    doSnap(a, { x: a.x, y: a.y });
+    drag.r.setAttribute('x', a.x); drag.r.setAttribute('y', y1 - (a.y + a.h));
+  });
+  const endDrag = () => {
+    if (!drag) return; svg.classList.remove('dragging');
+    const d = drag; drag = null;
+    if (dragged) { if (d.a.x !== d.x || d.a.y !== d.y) redraw(); else dragged = false; }
+    else if (d.was !== d.i) subunitEditor(rec, isNew); // a tap on a piece selects it
+  };
+  svg.addEventListener('pointerup', endDrag); svg.addEventListener('pointercancel', endDrag);
   svg.addEventListener('click', ev => {
-    keep(); const pt = svg.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY;
-    const q = pt.matrixTransform(svg.getScreenCTM().inverse()), y1 = +svg.dataset.y1;
-    p.x = r2(Math.floor(q.x * 4) / 4); p.y = r2(Math.floor((y1 - q.y) * 4) / 4); doSnap(p, { x: p.x, y: p.y }); redraw();
+    if (dragged || (ev.target.closest && ev.target.closest('rect.edit'))) { dragged = false; return; }
+    keep(); const q = toM(ev);
+    p.x = r2(Math.floor(q.x * 4) / 4); p.y = r2(Math.floor(q.y * 4) / 4); doSnap(p, { x: p.x, y: p.y }); redraw();
   });
   $('#addp').onclick = () => { keep(); const b = bbox(st.parts); const np = { x: b.x1, y: b.y0, w: 0.5, h: 0.5 }; st.parts.push(np); st.active = st.parts.length - 1; doSnap(np, { x: np.x, y: np.y }); redraw(); };
   $('#snap').onchange = ev => { st.snap = ev.target.checked; if (st.snap) doSnap(p, { x: p.x, y: p.y }); redraw(); };
