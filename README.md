@@ -125,3 +125,22 @@ Take a GPS point on the form: the UTM coordinates and accuracy show live. The pa
 - **Catalogue vs tabulation:** a mismatch keeps the tabulation in draft. The catalogue is treated as authoritative.
 - **History:** every change is kept in `records_history` on the server. Deletions are flagged, never erased.
 
+
+## Daily PDF reports by email
+
+The Supabase Edge Function `daily-reports` makes two PDFs for each field day:
+
+* **Daily summary**: STPs, units and levels, a plan of each unit worked (subunits opened that day in orange, subunits dug that day in green, with their levels), special finds, features, photos of the special finds and features, and what is still open.
+* **Bag check and box contents**: missing bags by who bagged them, extra labels, and which bags are in each box.
+
+They are emailed 30 minutes after the end-of-day bag check is finished. If there was fieldwork but no bag check, they go out at 9 pm and say so. A later check on the same day sends an updated set. Test-mode data gets separate "[TEST]" reports.
+
+Who gets them: each person sets **Settings → Email me the daily reports**, and the PI can change it for anyone on **People & logins**. It is on by default for PI / Co-PI and Field director / crew chief. Staff can also download the PDFs, or email them right away, from the Bag check page.
+
+### Setup (once)
+
+1. Make a free account at resend.com and create an API key.
+2. In Supabase, go to Edge Functions → Secrets and add `RESEND_API_KEY`.
+3. Deploy the function `daily-reports` from `supabase/functions/daily-reports/index.ts`, with "Verify JWT" turned **off**.
+4. Run `supabase_reports.sql` in the SQL editor. It adds the per-person switch, the send log and the 15-minute schedule.
+5. To email anyone besides the Resend account owner, verify a domain in Resend. Then add the secret `REPORT_FROM`, for example `KNF Field Data <reports@yourdomain.org>`.

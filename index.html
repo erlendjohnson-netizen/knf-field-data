@@ -1661,13 +1661,19 @@ async function viewSettings() {
       : `<form id="lf" class="grid"><div class="f w2"><label>Email</label><input id="em" type="email" autocomplete="username" value="${esc(sess?.email || '')}"></div>
       <div class="f w2"><label>Password</label><input id="pw" type="password" autocomplete="current-password"></div><div class="f w3"><button class="btn" type="submit">Sign in</button></div></form>
       <div class="help">Accounts are set up by Erlend (project director). You can enter data without signing in; it uploads after you sign in.</div>`}</div>
+    ${sess && !sess.expired ? `<div class="card" style="margin-top:8px"><label class="dcsite"><input type="checkbox" id="s_rep" disabled> <b>Email me the daily reports</b> (PDF daily summary and bag check, sent after the end-of-day bag check)</label><div class="help" id="s_rep_h">Checking…</div></div>` : ''}
     <div class="btns" style="margin-top:8px"><a class="btn sec" href="#/people">People &amp; logins${isAdmin() ? ' (add people, roles)' : ''}</a></div>
     <h3>Test mode</h3>
     <div class="card">${TESTMODE ? `<p><b>You are in TEST MODE.</b> Everything here is practice data, stored separately from the project.</p>
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a><button class="btn sec" id="tmoff">Leave test mode</button></div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
     <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a><a class="btn sec" href="#/offline">Offline maps (imagery)</a></div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.21 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.22 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+  if ($('#s_rep')) CORE.myProfile().then(p => {
+    const cb = $('#s_rep'); if (!cb || !p) return;
+    cb.checked = reportsOn(p); cb.disabled = false; $('#s_rep_h').textContent = `Sent to ${p.email}.`;
+    cb.onchange = async () => { try { await CORE.setReports(p.id, cb.checked); toast(cb.checked ? 'You will get the daily reports' : 'Daily report emails switched off'); } catch (e) { cb.checked = !cb.checked; toast(e.message); } };
+  }).catch(() => { const h = $('#s_rep_h'); if (h) h.textContent = 'Needs an internet connection.'; });
   $('#demo') && ($('#demo').onclick = loadDemo);
   $('#tmoff') && ($('#tmoff').onclick = () => switchMode(false));
   $('#tmon') && ($('#tmon').onclick = () => switchMode(true));
@@ -2479,6 +2485,7 @@ async function viewDayCheck() {
       <div class="card"><b>Sites to check</b> <span class="help">(bags not yet in a box or at the lab)</span>
         ${Object.keys(bySite).length ? Object.entries(bySite).map(([sid, l]) => `<label class="dcsite"><input type="checkbox" value="${sid}" checked> <b>${esc(get(sid)?.data.sitename || '?')}</b> · ${l.length} bag${l.length > 1 ? 's' : ''} expected</label>`).join('') : '<div class="empty">No bags waiting to be boxed on this device. Sync first, or there is nothing to check.</div>'}
         <div class="btns"><button class="btn big" id="dcstart">▣ Start: scan the box</button></div></div>
+      ${reportButtons(today())}
       <h3>Past checks</h3><div class="list">${past.map(r => rowHTML(r, `<small>${esc(r.data.checked_by || '')} · ${r.data.scanned_n ?? 0} scanned · ${r.data.missing_n ?? 0} missing · ${r.data.extra_n ?? 0} extra</small>`)).join('') || '<div class="empty">None yet</div>'}</div>`;
     $('#dcstart').onclick = async () => {
       const sites = [...document.querySelectorAll('.dcsite input:checked')].map(i => i.value);
@@ -2513,6 +2520,7 @@ async function viewDayCheck() {
     };
   }
   const sb = $('#dcsync'); if (sb) sb.onclick = async () => { await runSync(true); viewDayCheck(); };
+  bindReportButtons();
 }
 function dcReportText(d) {
   const L = [`KNF end-of-day bag check · ${d.date} · checked by ${d.checked_by}`, `Sites: ${d.sites || '—'} · Boxes: ${d.boxes || '—'}`, `${d.expected_n} expected · ${d.scanned_n} scanned · ${d.missing_n} missing · ${d.extra_n} extra`];
@@ -2538,11 +2546,38 @@ function viewDayReport(r) {
     <h3>Scanned, by box</h3>
     ${Object.entries(scannedByBox).map(([bx, l]) => `<div class="card dcgroup"><b>Box ${esc(bx)}</b> · ${l.length} bag${l.length > 1 ? 's' : ''}<ul>${l.map(x => { const b = live('bags').find(y => y.data.qr === x.code); return `<li>${esc(x.code)}${b ? ' · ' + esc(bagWhere(bagInfo(b))) : ' · (not linked)'}</li>`; }).join('')}</ul></div>`).join('') || '<div class="empty">Nothing scanned</div>'}
     <div class="card"><div class="f"><label for="dcnotes">Notes (what was done about missing bags)</label><textarea id="dcnotes" rows="3">${esc(d.notes || '')}</textarea></div><div class="btns"><button class="btn sm" id="dcsave">Save notes</button></div></div>
+    ${reportButtons(d.date)}
     <div class="btns noprint"><button class="btn" id="dcprint">⎙ Print / save as PDF</button><button class="btn sec" id="dccopy">Copy as text</button>${navigator.share ? '<button class="btn sec" id="dcshare">Share…</button>' : ''}<a class="btn sec" href="#/daycheck">New check</a></div>`;
   $('#dcprint').onclick = () => window.print();
   $('#dccopy').onclick = async () => { try { await navigator.clipboard.writeText(dcReportText(d)); toast('Report copied'); } catch (e) { toast('Copy not allowed here'); } };
   if ($('#dcshare')) $('#dcshare').onclick = () => navigator.share({ title: `Bag check ${d.date}`, text: dcReportText(d) }).catch(() => { });
   $('#dcsave').onclick = async () => { r.data = { ...r.data, notes: $('#dcnotes').value.trim() }; await save(r); toast('Notes saved'); };
+  bindReportButtons();
+}
+
+/* ---- daily PDF reports (made on the server by the daily-reports function, emailed after the bag check) ---- */
+const REPORT_DEFAULT = ['PI / Co-PI', 'Field director / crew chief'];
+const reportsOn = p => p.email_reports ?? REPORT_DEFAULT.includes(p.role);
+async function reportPreview(date) {
+  toast('Making the PDFs…');
+  try {
+    const j = await CORE.reportsCall({ action: 'preview', date });
+    j.files.forEach(f => { const bin = Uint8Array.from(atob(f.base64), ch => ch.charCodeAt(0)), url = URL.createObjectURL(new Blob([bin], { type: 'application/pdf' }));
+      const a = document.createElement('a'); a.href = url; a.download = f.name; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000); });
+    toast(`${j.files.length} PDFs downloaded`);
+  } catch (e) { toast('Could not make the PDFs: ' + e.message); }
+}
+async function reportSend(date, to) {
+  if (to === 'all' && !(await ask(`Email the ${date} daily PDFs now to everyone who has the reports switched on?`, 'Send'))) return;
+  toast('Sending…');
+  try { const j = await CORE.reportsCall({ action: 'send', date, to }); toast(`Sent to ${j.sent.join(', ')}${j.failed.length ? ` · not sent: ${j.failed.length}` : ''}`); }
+  catch (e) { toast(e.message); }
+}
+const reportButtons = date => isStaff() ? `<div class="card noprint"><b>Daily PDF reports · ${esc(date)}</b><div class="help">Daily summary (with unit plans and photos of special finds and features) and the bag check with box contents. They are emailed automatically 30 minutes after the bag check to everyone with “Email me the daily reports” on. Sync first so your records are in them.</div>
+  <div class="btns"><button class="btn sm" data-rp="${esc(date)}">📄 Download PDFs</button><button class="btn sm sec" data-rs="me" data-d="${esc(date)}">✉ Email me now</button><button class="btn sm sec" data-rs="all" data-d="${esc(date)}">✉ Email everyone on the list</button></div></div>` : '';
+function bindReportButtons() {
+  document.querySelectorAll('[data-rp]').forEach(b => b.onclick = () => reportPreview(b.dataset.rp));
+  document.querySelectorAll('[data-rs]').forEach(b => b.onclick = () => reportSend(b.dataset.d, b.dataset.rs));
 }
 
 /* ---- sign-in gate and first-time setup: the app opens only for a signed-in person with a name ---- */
@@ -2617,11 +2652,13 @@ async function viewPeople() {
     <h3>${list.length} ${list.length === 1 ? 'person' : 'people'}</h3><div class="list">
       ${list.map(p => `<div class="card"${p.disabled ? ' style="opacity:.55"' : ''}><div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><b style="flex:1">${esc(p.name || '(no name yet)')}</b>${p.disabled ? '<span class="badge">switched off</span>' : ''}<span class="help">${esc(p.email || '')}</span></div>
         ${admin ? `<div class="grid" style="margin-top:6px"><div class="f w3"><label>Role</label>${roleSel(p.id, p.role)}</div></div>
+        <label class="dcsite"><input type="checkbox" data-rep="${p.id}" ${reportsOn(p) ? 'checked' : ''}> Email daily reports</label>
         <div class="btns"><button class="btn sm sec" data-pw="${p.id}">New password</button>${p.id === S.session?.uid ? '' : `<button class="btn sm ${p.disabled ? '' : 'bad'}" data-off="${p.id}" data-on="${p.disabled ? 1 : 0}">${p.disabled ? 'Switch on' : 'Switch off'}</button>`}</div>` : `<div class="help">${esc(p.role)}</div>`}</div>`).join('')}
     </div>`;
   if (!admin) return;
   const call = async (body, ok) => { try { await CORE.adminCall(body); toast(ok); viewPeople(); } catch (e) { toast(e.message); } };
   $('#np').onsubmit = e => { e.preventDefault(); call({ action: 'create', name: $('#np_n').value.trim(), role: $('#np_r').value, email: $('#np_e').value.trim(), password: $('#np_p').value }, 'Login created'); };
+  $('#app').querySelectorAll('[data-rep]').forEach(cb => cb.onchange = async () => { try { await CORE.setReports(cb.dataset.rep, cb.checked); toast(cb.checked ? 'Daily reports on' : 'Daily reports off'); } catch (e) { cb.checked = !cb.checked; toast(e.message); } });
   $('#app').querySelectorAll('[data-role]').forEach(sel => sel.onchange = () => call({ action: 'set_role', id: sel.dataset.role, role: sel.value }, 'Role changed'));
   $('#app').querySelectorAll('[data-pw]').forEach(b => b.onclick = async () => { const np = pw(); if (await ask(`Set this person's password to:\n\n${np}\n\nWrite it down and give it to them.`, 'Set password')) call({ action: 'reset_password', id: b.dataset.pw, password: np }, 'Password changed'); });
   $('#app').querySelectorAll('[data-off]').forEach(b => b.onclick = async () => { const on = b.dataset.on === '1'; if (on || await ask('Switch off this login? They can no longer sign in or sync (their records stay).', 'Switch off')) call({ action: on ? 'enable' : 'disable', id: b.dataset.off }, on ? 'Login switched on' : 'Login switched off'); });

@@ -180,6 +180,9 @@ const CORE = (() => {
   async function setMyName(name) { const { sess } = await cfg(); return rest(`/rest/v1/profiles?id=eq.${sess.uid}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ name }) }); }
   const listProfiles = () => rest('/rest/v1/profiles?select=*&order=name.asc');
   const adminCall = body => rest('/functions/v1/admin-users', { method: 'POST', body: JSON.stringify(body) });
+  /* daily PDF reports: who gets them (null = the default for their role) and making / sending them now */
+  const setReports = (id, on) => rest(`/rest/v1/profiles?id=eq.${id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ email_reports: on }) });
+  const reportsCall = body => rest('/functions/v1/daily-reports', { method: 'POST', body: JSON.stringify({ mode: MODE === 'test' ? 'test' : 'live', ...body }) });
   /* private KNF site list (downloaded after sign-in, cached on the device) */
   async function fetchRegistry() {
     const { url, key, sess } = await cfg(); if (!url || !sess || sess.expired) return null;
@@ -189,6 +192,6 @@ const CORE = (() => {
     const j = await r.json(); if (!j[0]) return null;
     await setMeta('registry', j[0].payload); return j[0].payload;
   }
-  return { myProfile, setMyName, listProfiles, adminCall, fetchRegistry, setMode, mode: () => MODE, db, allRecs, putRec, putMany, getMeta, setMeta, dirtyRecs, sync, signIn, signOut, cfg, getBlob, putBlob, delBlob, pendingPhotos, fetchPhoto };
+  return { myProfile, setMyName, listProfiles, adminCall, setReports, reportsCall, fetchRegistry, setMode, mode: () => MODE, db, allRecs, putRec, putMany, getMeta, setMeta, dirtyRecs, sync, signIn, signOut, cfg, getBlob, putBlob, delBlob, pendingPhotos, fetchPhoto };
 })();
 if (typeof self !== 'undefined') self.CORE = CORE;
