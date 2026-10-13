@@ -88,6 +88,7 @@ header{gap:8px}
 .tgt{border-collapse:collapse;margin:6px 0;font-variant-numeric:tabular-nums}.tgt td,.tgt th{padding:4px 10px;border-bottom:1px solid var(--line);text-align:left}
 .mun{display:flex;gap:6px;align-items:center;flex-wrap:nowrap}.mun select{width:auto;min-width:0;flex:1}.mun select[data-p=hue]{flex:1.4}.mun input{flex:2}.f.locked select,.f.locked input{opacity:.6}
 table.corners{border-collapse:collapse;width:100%}table.corners th{font-size:12px;font-weight:600;padding:2px 3px;text-align:center}table.corners td{padding:2px}table.corners input{width:100%;min-width:0;padding:6px 4px;text-align:center}
+.mapbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px}.mapbar select{width:auto;flex:1;min-width:140px;min-height:34px}.sitemap.withimg .m-lab{fill:#fff;paint-order:stroke;stroke:#000;stroke-width:.4%}.imgcell{image-rendering:auto}
 .dcgroup ul{margin:4px 0 0;padding-left:18px}ul.card.dcgroup{padding-left:30px}.dcgroup li{margin:3px 0}.dcsite{display:flex;gap:8px;align-items:center;padding:8px 0;font-size:16px}.dcsite input{width:22px;height:22px;min-height:0}
 @media print{.noprint,#tabs,header,.formbar,#draftbar,#testbar{display:none!important}}
 @media (max-width:520px){.tile{min-height:150px;flex-direction:row;justify-content:flex-start;font-size:26px}.tile svg{width:60px;height:60px}.tile span{display:flex;flex-direction:column;align-items:flex-start;gap:2px}}
@@ -235,7 +236,7 @@ async function loadDemo() {
 }
 const TESTPLAN = [
   ['Setup', ['First-time setup: name, role and sign-in', 'Change your role in Settings and check it is saved', 'Install the app on this device (Add to Home Screen / Install app)', 'Load practice data']],
-  ['Sites', ['Open a Phase II site from the list', 'Create a new site with a temporary number (+ New site (temp. no.)) and check the KRD-T## / CRD-T## number', 'Rename a temporary site to a trinomial and check the temporary number is kept', 'Create a survey area (+ Survey area) and check it gets a KRD-S## number', 'Capture a GPS point on a new site or survey area and check parish and quad fill in', 'In a survey area, finish an STP level with more than 5 artifacts and create the new site from the pop-up', 'Open the new site and check the delineation targets and the link back to the survey STP', 'New site or survey area: capture GPS first and check district, parish and quad fill in', 'Survey area: Plan transects…, then open a planned STP, check How far is it?, and dig it', 'Mark a planned STP as Can’t dig with a reason', 'Import planned STPs from a CSV (transect, stp, easting, northing)', 'Add an STP: only the name, date, crew and location are asked; answer Yes to start Level 1']],
+  ['Sites', ['Open a Phase II site from the list', 'Create a new site with a temporary number (+ New site (temp. no.)) and check the KRD-T## / CRD-T## number', 'Rename a temporary site to a trinomial and check the temporary number is kept', 'Create a survey area (+ Survey area) and check it gets a KRD-S## number', 'Capture a GPS point on a new site or survey area and check parish and quad fill in', 'In a survey area, finish an STP level with more than 5 artifacts and create the new site from the pop-up', 'Open the new site and check the delineation targets and the link back to the survey STP', 'New site or survey area: capture GPS first and check district, parish and quad fill in', 'Survey area: Plan transects…, then open a planned STP, check How far is it?, and dig it', 'Mark a planned STP as Can’t dig with a reason', 'Import planned STPs from a CSV (transect, stp, easting, northing)', 'Add an STP: only the name, date, crew and location are asked; answer Yes to start Level 1', 'Site map: switch to Aerial photo / Lidar hillshade / Topo and zoom in and out', 'Offline maps: download Jefferson Parish, turn on airplane mode and check the imagery still shows']],
   ['STP', ['Start an STP and capture GPS (with the Emlid on Android if available)', 'Check the accuracy warning appears when accuracy is poor', 'Record a level with “Artifacts recovered” ticked, press Finish, and scan the bag label in the pop-up', 'Tick “Special find”: check it needs a description and a special-find photo, and scan a second bag for it', 'Press “Back to the form” in the bag pop-up and check the level is NOT finished', 'Try to scan a bag label that is already used (must be refused)', 'Try to Finish a level without a photo (must be blocked)', 'Save a level as unfinished and check the red banner and acknowledgement box', 'Try to start the next level while one is unfinished (must be blocked)', 'Finish the level from its page with “Finish now” after adding a photo', 'Close out an STP (final depth must match the deepest level)', 'Tick Feature on a level, press Finish, and check the feature form opens linked to that level']],
   ['GPS & points', ['Watch the live GPS readout on a location box (green = good for the chosen source)', 'Switch the GPS source (Emlid / Trimble / phone) and check the warning thresholds change', 'Type in coordinates from another instrument and check they show as “typed in”', 'On a site page, Take a point: walk a few boundary points with “Finish & add next” (B1, B2, B3…)', 'Check the site map shows STPs, units, points and the boundary outline', 'Tap a symbol on the site map to open it']],
   ['Test unit', ['Create a TU and capture the datum', 'Add subunit A and choose the datum corner', 'Add a 0.5 × 1 m subunit against A', 'Build an L-shaped subunit from two pieces', 'Try to overlap two subunits (must be blocked)', 'Start a level in a specific subunit and check the volume', 'Shoot a corner, choose which plan corner it is, and set the azimuth', 'Check close-out lists what is missing', 'New unit: set the size, subunit size and datum corner; check the layout preview and that the subunits are made', 'Answer Yes to start Level 1 in A', 'Check close-out asks for overview, plan view and profile photos', 'Level in a unit: enter top corner depths, change the thickness and check the bottoms and averages', 'Leave Soil change unticked (soil copied and locked), then tick it and pick a new Munsell from the drop-downs', 'Add a subunit and check it snaps to the unit edge and slides along it', 'Feature: pick Other and describe it; check it needs plan view, bisect and field-drawing photos']],
@@ -432,9 +433,9 @@ function rowHTML(r, extra = '') {
 function nextNum(list, key) { return list.reduce((m, r) => Math.max(m, num(r.data[key]) || 0), 0) + 1; }
 
 /* ================= GPS ================= */
-function toUTM(lat, lon) {
+function toUTM(lat, lon, forceZone) {
   const a = 6378137, f = 1 / 298.257223563, k0 = 0.9996, e2 = f * (2 - f), ep2 = e2 / (1 - e2);
-  const zone = Math.floor((lon + 180) / 6) + 1, lon0 = ((zone - 1) * 6 - 180 + 3) * Math.PI / 180;
+  const zone = forceZone || Math.floor((lon + 180) / 6) + 1, lon0 = ((zone - 1) * 6 - 180 + 3) * Math.PI / 180;
   const φ = lat * Math.PI / 180, λ = lon * Math.PI / 180;
   const N = a / Math.sqrt(1 - e2 * Math.sin(φ) ** 2), T = Math.tan(φ) ** 2, C = ep2 * Math.cos(φ) ** 2, A = Math.cos(φ) * (λ - lon0);
   const M = a * ((1 - e2 / 4 - 3 * e2 ** 2 / 64 - 5 * e2 ** 3 / 256) * φ - (3 * e2 / 8 + 3 * e2 ** 2 / 32 + 45 * e2 ** 3 / 1024) * Math.sin(2 * φ)
@@ -524,6 +525,107 @@ function startLiveGps(box) {
   const timer = setInterval(draw, 1000); draw();
 }
 
+/* ================= map imagery (USGS: NAIP aerial photos, 3DEP lidar hillshade, US Topo) =================
+   Imagery comes in fixed squares of a UTM 15N grid, so every device asks for the same pictures and they can be
+   saved for offline use. Level 0 = 500 m squares (about 0.5 m per pixel), 1 = 4 km, 2 = 32 km. */
+const IMG_LAYERS = {
+  naip: { name: 'Aerial photo (NAIP)', url: b => `https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPImagery/ImageServer/exportImage?bbox=${b}&bboxSR=32615&imageSR=32615&size=1024,1024&format=jpg&f=image`, kb: 300 },
+  shade: { name: 'Lidar hillshade (3DEP)', url: b => `https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer/exportImage?bbox=${b}&bboxSR=32615&imageSR=32615&size=1024,1024&format=jpg&f=image&renderingRule=${encodeURIComponent('{"rasterFunction":"Hillshade Gray"}')}`, kb: 90 },
+  topo: { name: 'USGS Topo', url: b => `https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/export?bbox=${b}&bboxSR=32615&imageSR=32615&size=1024,1024&format=jpg&f=image`, kb: 250 },
+};
+const CELL = [500, 4000, 32000];
+const IMG_CACHE = 'knf-imagery';
+const cellBox = (L, i, j) => [i * CELL[L], j * CELL[L], (i + 1) * CELL[L], (j + 1) * CELL[L]];
+const cellURL = (layer, L, i, j) => IMG_LAYERS[layer].url(cellBox(L, i, j).join(','));
+function cellsIn(L, x0, y0, x1, y1) { const s = CELL[L], out = []; for (let i = Math.floor(x0 / s); i * s < x1; i++) for (let j = Math.floor(y0 / s); j * s < y1; j++) out.push([L, i, j]); return out; }
+function mapLevel(W) { return W <= 1600 ? 0 : W <= 14000 ? 1 : 2; }
+/* <image> elements for a map showing UTM x0..x1, y0..y1 (svg x = e - x0, y = y1 - n) */
+function imageryLayerSVG(layer, x0, y0, x1, y1) {
+  if (!IMG_LAYERS[layer]) return '';
+  const L = mapLevel(x1 - x0), cells = cellsIn(L, x0, y0, x1, y1); if (cells.length > 16) return '';
+  return cells.map(([L, i, j]) => { const [a, b, c, d] = cellBox(L, i, j); return `<image href="${esc(cellURL(layer, L, i, j))}" x="${a - x0}" y="${y1 - d}" width="${c - a}" height="${d - b}" preserveAspectRatio="none" class="imgcell"/>`; }).join('');
+}
+/* ---- choosing what to save for offline ---- */
+const u15 = (lat, lon) => toUTM(lat, lon, 15);
+function ringUTM(ring) { return ring.map(([lon, lat]) => { const u = u15(lat, lon); return [u.e, u.n]; }); }
+function inPoly(x, y, rings) { return rings.some(r => inRing(x, y, r)); }
+function cellsForPolygon(L, ringsLL) {
+  const rings = ringsLL.map(ringUTM), xs = rings.flat().map(p => p[0]), ys = rings.flat().map(p => p[1]);
+  const s = CELL[L], out = [];
+  for (const [l, i, j] of cellsIn(L, Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys))) {
+    const [a, b, c, d] = cellBox(l, i, j);
+    const hit = [[a, b], [c, b], [a, d], [c, d], [(a + c) / 2, (b + d) / 2]].some(([x, y]) => inPoly(x, y, rings)) || rings.some(r => r.some(([x, y]) => x >= a && x <= c && y >= b && y <= d));
+    if (hit) out.push([l, i, j]);
+  }
+  return out;
+}
+function cellsAround(e, n, radius = 300) { return cellsIn(0, e - radius, n - radius, e + radius, n + radius); }
+function sitePlacesUTM(filter) { // every site / survey area / excavation with a position, in the app and in the KNF site list
+  const pts = [];
+  for (const s of live('sites')) { const d = s.data, p = d.utme != null ? { e: +d.utme, n: +d.utmn } : d.lat != null ? u15(d.lat, d.lon) : null; if (p) pts.push({ ...p, district: d.district, parish: d.parish }); }
+  for (const e of live('excavations')) { const d = e.data, p = d.utme != null ? { e: +d.utme, n: +d.utmn } : d.lat != null ? u15(d.lat, d.lon) : d.target_e != null ? { e: +d.target_e, n: +d.target_n } : null; if (p) pts.push({ ...p, district: get(e.site)?.data.district, parish: get(e.site)?.data.parish }); }
+  const p2 = new Set(Object.values(REG.phase2 || {}).flat()); // Phase II candidates from the KNF site list
+  for (const r of REG.list) if (r.e != null && p2.has(r.t)) pts.push({ e: r.e, n: r.n, district: r.district, parish: r.parish, reg: 1 });
+  return pts.filter(filter);
+}
+function offlineAreas() {
+  const D = typeof KNF_DISTRICTS !== 'undefined' ? KNF_DISTRICTS : {}, Pa = typeof LA_PARISHES !== 'undefined' ? LA_PARISHES : {};
+  const uniq = cells => [...new Map(cells.map(c => [c.join('/'), c])).values()];
+  const near = pts => uniq(pts.flatMap(p => cellsAround(p.e, p.n)));
+  const appPts = sitePlacesUTM(p => !p.reg);
+  return [
+    { id: 'krd', name: 'Kisatchie RD: whole district (4 km squares)', cells: () => uniq([...cellsForPolygon(1, D['Kisatchie RD'] || []), ...cellsForPolygon(2, D['Kisatchie RD'] || [])]), def: 1 },
+    { id: 'krd_sites', name: 'Kisatchie RD: around the Phase II and recorded sites (detail)', cells: () => near(sitePlacesUTM(p => p.district === 'Kisatchie RD')), def: 1 },
+    { id: 'crd', name: 'Caney RD: whole district (4 km squares)', cells: () => uniq([...cellsForPolygon(1, D['Caney RD'] || []), ...cellsForPolygon(2, D['Caney RD'] || [])]), def: 1 },
+    { id: 'crd_sites', name: 'Caney RD: around the Phase II and recorded sites (detail)', cells: () => near(sitePlacesUTM(p => p.district === 'Caney RD')), def: 1 },
+    { id: 'jeff', name: 'Jefferson Parish (testing; 4 km squares)', cells: () => uniq([...cellsForPolygon(1, Pa.Jefferson || []), ...cellsForPolygon(2, Pa.Jefferson || [])]), def: 1 },
+    { id: 'laf', name: 'Lafayette Parish (testing; 4 km squares)', cells: () => uniq([...cellsForPolygon(1, Pa.Lafayette || []), ...cellsForPolygon(2, Pa.Lafayette || [])]), def: 1 },
+    { id: 'app', name: `Around everything recorded in the app${TESTMODE ? ' (test mode)' : ''} (detail)`, cells: () => near(appPts), def: 1 },
+  ];
+}
+async function cachedSet() { try { const c = await caches.open(IMG_CACHE); return new Set((await c.keys()).map(r => r.url)); } catch (e) { return new Set(); } }
+async function saveCells(list, onProgress, stopper) {
+  const c = await caches.open(IMG_CACHE); let done = 0, failed = 0, i = 0;
+  const work = async () => {
+    while (i < list.length && !stopper.stop) {
+      const u = list[i++];
+      try { const r = await fetch(u, { mode: 'cors' }); if (!r.ok) throw new Error(r.status); await c.put(u, r); } catch (e) { failed++; }
+      done++; onProgress(done, failed);
+    }
+  };
+  await Promise.all([work(), work(), work(), work()]);
+  return { done, failed };
+}
+async function viewOffline() {
+  setTitle('Offline maps');
+  const have = await cachedSet();
+  const layers = Object.keys(IMG_LAYERS), sel = S.offSel ||= { layers: { naip: 1, shade: 1, topo: 0 }, areas: Object.fromEntries(offlineAreas().map(a => [a.id, a.def])) };
+  const areas = offlineAreas().map(a => { const cells = a.cells(); const urls = layers.filter(l => sel.layers[l]).flatMap(l => cells.map(([L, i, j]) => cellURL(l, L, i, j))); return { ...a, n: cells.length, urls, missing: urls.filter(u => !have.has(u)) }; });
+  const kb = l => IMG_LAYERS[l].kb, perCell = layers.filter(l => sel.layers[l]).reduce((a, l) => a + kb(l), 0) / Math.max(1, layers.filter(l => sel.layers[l]).length);
+  let est = null; try { est = await navigator.storage.estimate(); } catch (e) { }
+  const todo = [...new Set(areas.filter(a => sel.areas[a.id]).flatMap(a => a.missing))];
+  $('#app').innerHTML = `<h2>Offline maps</h2>
+    <div class="help">Save map imagery on this device over wifi, so the site maps show it in the field without signal. USGS public-domain imagery: NAIP aerial photos, 3DEP lidar hillshade and US Topo.</div>
+    <div class="card" style="margin-top:8px"><b>Layers to save</b>${layers.map(l => `<label class="dcsite"><input type="checkbox" data-l="${l}" ${sel.layers[l] ? 'checked' : ''}> ${esc(IMG_LAYERS[l].name)}</label>`).join('')}</div>
+    <div class="card" style="margin-top:8px"><b>Areas</b>${areas.map(a => `<label class="dcsite"><input type="checkbox" data-a="${a.id}" ${sel.areas[a.id] ? 'checked' : ''}> <span style="flex:1">${esc(a.name)}<br><small class="help">${a.n} squares · ${a.urls.length - a.missing.length} of ${a.urls.length} pictures saved</small></span></label>`).join('')}</div>
+    <div class="check" id="offmsg">${todo.length ? `${todo.length} pictures to download, about ${Math.round(todo.length * perCell / 1024)} MB.` : 'Everything selected is saved on this device ✓'}${est ? ` This device has ${Math.round((est.quota - est.usage) / 1e6).toLocaleString()} MB free for the app.` : ''}</div>
+    <div class="btns"><button class="btn big" id="offgo" ${todo.length ? '' : 'disabled'}>⬇ Download selected</button></div>
+    <div class="btns"><button class="btn sec" id="offhere">Save the area around me now</button><button class="btn sec bad" id="offclear">Delete saved imagery</button></div>
+    <div class="help">Downloading can take a while (the aerial photos are slow to produce); keep the app open. Imagery is only shown on maps when online or saved here.</div>`;
+  $('#app').querySelectorAll('[data-l]').forEach(c => c.onchange = () => { sel.layers[c.dataset.l] = c.checked ? 1 : 0; viewOffline(); });
+  $('#app').querySelectorAll('[data-a]').forEach(c => c.onchange = () => { sel.areas[c.dataset.a] = c.checked ? 1 : 0; viewOffline(); });
+  const run = async list => {
+    if (!navigator.onLine) return toast('No internet connection');
+    const stopper = { stop: false }; S.offStop = stopper;
+    const b = $('#offgo'); b.disabled = true; b.textContent = 'Downloading…';
+    const r = await saveCells(list, (d, f) => { const m = $('#offmsg'); if (m) m.textContent = `Saved ${d - f} of ${list.length}${f ? ` (${f} failed, will retry next time)` : ''}…`; }, stopper);
+    toast(`Saved ${r.done - r.failed} pictures`); if (location.hash.startsWith('#/offline')) viewOffline();
+  };
+  $('#offgo').onclick = () => run(todo);
+  $('#offhere').onclick = () => navigator.geolocation?.getCurrentPosition(p => { const u = u15(p.coords.latitude, p.coords.longitude); const urls = layers.filter(l => sel.layers[l]).flatMap(l => cellsAround(u.e, u.n, 750).map(([L, i, j]) => cellURL(l, L, i, j))).filter(x => !have.has(x)); urls.length ? run(urls) : toast('Already saved'); }, e => toast(e.message), { enableHighAccuracy: true, timeout: 30000 });
+  $('#offclear').onclick = async () => { if (await ask('Delete all saved map imagery from this device?', 'Delete')) { await caches.delete(IMG_CACHE); toast('Saved imagery deleted'); viewOffline(); } };
+}
+
 /* ================= site map (offline, no basemap) ================= */
 function sitePointsUTM(siteId) {
   const out = [], u = d => d.utme != null && d.utmn != null ? { e: +d.utme, n: +d.utmn } : d.lat != null ? (x => ({ e: x.e, n: x.n }))(toUTM(d.lat, d.lon)) : null;
@@ -541,7 +643,8 @@ function sitePointsUTM(siteId) {
 function siteMapSVG(siteId) {
   const pts = sitePointsUTM(siteId); if (!pts.length) return '<div class="empty">Nothing with a position yet.</div>';
   let x0 = Math.min(...pts.map(p => p.e)), x1 = Math.max(...pts.map(p => p.e)), y0 = Math.min(...pts.map(p => p.n)), y1 = Math.max(...pts.map(p => p.n));
-  const span = Math.max(x1 - x0, y1 - y0, 20), pad = span * 0.12, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, half = span / 2 + pad;
+  const zf = (S.mapZoom && S.mapZoom.id === siteId) ? S.mapZoom.f : 1;
+  const span = Math.max(x1 - x0, y1 - y0, 20) * zf, pad = span * 0.12, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, half = Math.max(span / 2 + pad, 15);
   x0 = cx - half; x1 = cx + half; y0 = cy - half; y1 = cy + half;
   const W = x1 - x0, Y = n => y1 - n, r = W / 90, fs = W / 38;
   const bar = [5, 10, 20, 50, 100, 200, 500, 1000].find(b => b > W / 6) || 1000;
@@ -555,13 +658,16 @@ function siteMapSVG(siteId) {
     return `<path ${link} d="M${x} ${y - r * 1.5}L${x + r * 1.3} ${y + r}L${x - r * 1.3} ${y + r}Z" class="m-pt"/>`;
   };
   const bnd = pts.filter(p => p.kind === 'Boundary');
-  return `<svg class="sitemap" viewBox="0 0 ${W} ${W}" preserveAspectRatio="xMidYMid meet">
+  const layer = S.settings.map_layer || 'plain', imgs = layer !== 'plain' ? imageryLayerSVG(layer, x0, y0, x1, y1) : '';
+  return `<div class="mapbar"><select id="maplayer" aria-label="Background"><option value="plain">Plain</option>${Object.entries(IMG_LAYERS).map(([k, l]) => `<option value="${k}" ${k === layer ? 'selected' : ''}>${esc(l.name)}</option>`).join('')}</select>
+      <button class="btn sm sec" data-zoom="0.5" aria-label="Zoom in">＋</button><button class="btn sm sec" data-zoom="2" aria-label="Zoom out">－</button><button class="btn sm sec" data-zoom="1" aria-label="Fit">Fit</button><a class="btn sm sec" href="#/offline">Offline maps</a></div>
+    <svg class="sitemap${imgs ? ' withimg' : ''}" viewBox="0 0 ${W} ${W}" preserveAspectRatio="xMidYMid meet">${imgs}
     ${bnd.length > 2 ? `<polygon points="${bnd.map(p => `${p.e - x0},${Y(p.n)}`).join(' ')}" class="m-bndline"/>` : ''}
     ${pts.map(sym).join('')}
     ${pts.filter(p => p.kind !== 'Recorded location').map(p => `<text x="${p.e - x0 + r * 1.6}" y="${Y(p.n) - r * 0.6}" style="font-size:${fs}px" class="m-lab">${esc(p.label)}</text>`).join('')}
     <g transform="translate(${W * 0.05} ${W * 0.94})"><path d="M0 0h${bar}" class="m-bar"/><text x="${bar / 2}" y="${-fs * 0.4}" style="font-size:${fs}px" class="m-lab" text-anchor="middle">${bar} m</text></g>
     <g transform="translate(${W * 0.93} ${W * 0.09})"><path d="M0 ${-fs * 1.4}L${fs * 0.5} ${fs * 0.2}L0 ${-fs * 0.2}L${-fs * 0.5} ${fs * 0.2}Z" class="m-n"/><text y="${fs * 1.2}" style="font-size:${fs}px" text-anchor="middle" class="m-lab">N</text></g>
-  </svg>${pts.farReg ? `<div class="check">The recorded location of this site is ${(pts.farReg / 1000).toFixed(1)} km from the points taken here. Check you are at the right site.</div>` : ''}<div class="help">● STP (filled = positive) · ○ planned STP · ■ unit · ▲ point · ◆ boundary · ⊕ recorded site location. UTM 15N grid north. Tap a symbol to open it.</div>`;
+  </svg>${pts.farReg ? `<div class="check">The recorded location of this site is ${(pts.farReg / 1000).toFixed(1)} km from the points taken here. Check you are at the right site.</div>` : ''}<div class="help">● STP (filled = positive) · ○ planned STP · ■ unit · ▲ point · ◆ boundary · ⊕ recorded site location. UTM 15N grid north. Tap a symbol to open it.${layer !== 'plain' ? ' Imagery: USGS (shown when online or saved under Offline maps).' : ''}</div>`;
 }
 
 /* ================= forms ================= */
@@ -1343,7 +1449,11 @@ function viewSite(id) {
   const s = get(id); if (!s) return notFound();
   setTimeout(() => { if (isSurvey(s)) bindSurveyCard(s); }, 0);
   setTitle(s.data.sitename);
-  setTimeout(() => { const m = $('#app .sitemap'); if (m) m.addEventListener('click', ev => { const g = ev.target.closest('[data-go]'); if (g) location.hash = '#/rec/' + g.dataset.go; }); }, 0);
+  setTimeout(() => {
+    const m = $('#app .sitemap'); if (m) m.addEventListener('click', ev => { const g = ev.target.closest('[data-go]'); if (g) location.hash = '#/rec/' + g.dataset.go; });
+    const ml = $('#maplayer'); if (ml) ml.onchange = async () => { S.settings.map_layer = ml.value; await CORE.setMeta('settings', S.settings); viewSite(id); };
+    $('#app').querySelectorAll('[data-zoom]').forEach(b => b.onclick = () => { const z = +b.dataset.zoom, cur = S.mapZoom?.id === id ? S.mapZoom.f : 1; S.mapZoom = { id, f: z === 1 ? 1 : Math.min(64, Math.max(0.05, cur * z)) }; const y = scrollY; viewSite(id); scrollTo(0, y); });
+  }, 0);
   const ex = kids(id, 'excavations').sort((a, b) => (TYPE_CODE[a.data.excavation_type] || '9').localeCompare(TYPE_CODE[b.data.excavation_type] || '9') || (a.data.seq - b.data.seq));
   const feats = live('features').filter(r => r.site === id), samps = live('samples').filter(r => r.site === id), bags = live('bags').filter(r => r.site === id);
   const pos = ex.filter(e => e.data.positive).length;
@@ -1556,8 +1666,8 @@ async function viewSettings() {
     <div class="card">${TESTMODE ? `<p><b>You are in TEST MODE.</b> Everything here is practice data, stored separately from the project.</p>
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a><button class="btn sec" id="tmoff">Leave test mode</button></div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
-    <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a></div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.19 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a><a class="btn sec" href="#/offline">Offline maps (imagery)</a></div>
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.20 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   $('#demo') && ($('#demo').onclick = loadDemo);
   $('#tmoff') && ($('#tmoff').onclick = () => switchMode(false));
   $('#tmon') && ($('#tmon').onclick = () => switchMode(true));
@@ -2500,6 +2610,7 @@ function viewHome() {
       <a class="mini" href="#/scan">▣ Scan a label</a>
       <a class="mini" href="#/data">⟳ Sync${dc ? ` <span class="badge nogps">${dc} draft${dc > 1 ? 's' : ''}</span>` : ''}</a>
       <a class="mini" href="#/labels">⎙ Print labels</a>
+      <a class="mini" href="#/offline">🗺 Offline maps</a>
       <a class="mini" href="#/settings">⚙ Settings</a>
       ${isAdmin() ? '<a class="mini" href="#/people">👥 People &amp; logins</a>' : ''}
       ${TESTMODE ? '<a class="mini" href="#/testplan">🧪 Test checklist</a>' : ''}
@@ -2775,6 +2886,7 @@ function render() {
     case 'drafts': return viewDrafts();
     case 'daycheck': return viewDayCheck();
     case 'parishes': return viewParishKey();
+    case 'offline': return viewOffline();
     case 'setup': return viewSetup();
     case 'people': return viewPeople();
     case 'testplan': return viewTestPlan();

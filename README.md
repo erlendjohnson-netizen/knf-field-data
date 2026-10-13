@@ -62,6 +62,11 @@ Add a PostgreSQL connection to the Supabase database (Project Settings → Datab
 ## Points and site map
 On a site page, **+ Take a point** records any GPS point: boundary, site datum, isolated find, feature, photo point, landmark or road. **Finish & add next** keeps the same kind and counts the label up (B1, B2, B3…). The **site map** draws STPs (filled = positive), units, points and a boundary outline with a scale bar, and works offline without a basemap. It also warns if the site's recorded location is more than 500 m from the points being taken. In QGIS the points are in `mappoints_pts`.
 
+## Map imagery and offline maps
+The site map can show a background: **Aerial photo** (USGS NAIP, about 0.6 m), **Lidar hillshade** (USGS 3DEP, good for landforms under the trees) or **USGS Topo**, picked above the map, with zoom buttons. All are USGS public-domain imagery in UTM 15N, so they line up with the points exactly.
+
+Imagery needs internet unless it has been saved: Home → **Offline maps** (or Settings). Pick layers and areas: each district as a whole (4 km squares), detail around the Phase II and recorded sites, Jefferson and Lafayette parishes for testing, and detail around everything recorded in the app. It shows how many pictures and megabytes that is; download on wifi with the app open. *Save the area around me now* stores about 1.5 km around the phone. Each device saves its own copy.
+
 ## Test mode
 Settings → *Switch to test mode* gives a practice copy of the app with a purple TEST MODE banner. Practice records use their own storage on the device and their own server table (`records_test`), so they never mix with project data. In test mode, *Load practice data* adds a practice site (KRD-T99) with a finished STP, an STP in progress, a test unit with subunits, bags and a box. The *Test checklist* lists everything to try.
 
