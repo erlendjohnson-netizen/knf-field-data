@@ -143,7 +143,8 @@ function bagInfo(D: Day, code: string) {
 }
 
 // ---------- a small PDF table writer (letter size) ----------
-const GREEN = rgb(0.184, 0.29, 0.165), LIGHT = rgb(0.933, 0.949, 0.918), GRID = rgb(0.67, 0.71, 0.65), RED = rgb(0.69, 0.19, 0.19), GREY = rgb(0.4, 0.4, 0.4);
+// the app's colours: crimson #CE181E, dark crimson #610B0E, warm greys
+const GREEN = rgb(0.380, 0.043, 0.055), ACC = rgb(0.808, 0.094, 0.118), LIGHT = rgb(0.969, 0.957, 0.949), GRID = rgb(0.847, 0.800, 0.784), RED = rgb(0.702, 0.149, 0.118), GREY = rgb(0.365, 0.333, 0.333);
 const EXTRA = '–—‘’“”•…€™‚„†‡ˆ‰Š‹ŒŽ˜šœžŸ';
 const clean = (s: any) => String(s ?? '').replace(/→/g, '->').replace(/✓/g, 'OK').replace(/[⚠]/g, '!').replace(/[^\n\x20-\x7e\xa0-\xff]/g, ch => EXTRA.includes(ch) ? ch : '?');
 async function newPdf(title: string, mode: string, made: string) {
@@ -164,8 +165,8 @@ async function newPdf(title: string, mode: string, made: string) {
     L.forEach(l => { room(sz * 1.35); pg.drawText(l, { x: M, y: y - sz, size: sz, font: f, color: o.color || rgb(0, 0, 0) }); y -= sz * 1.35; });
     y -= o.gap ?? 2;
   };
-  const h1 = (t: string) => { room(60); text(t, { sz: 16, bold: true, gap: 2 }); if (mode === 'test') text('TEST MODE DATA', { sz: 9, bold: true, color: RED, gap: 4 }); };
-  const h2 = (t: string) => { room(75); y -= 6; text(t, { sz: 11.5, bold: true, color: GREEN, gap: 3 }); };
+  const h1 = (t: string) => { room(60); pg.drawRectangle({ x: M, y: y - 4, width: W - 2 * M, height: 3, color: ACC }); y -= 10; text(t, { sz: 16, bold: true, color: GREEN, gap: 2 }); if (mode === 'test') text('TEST MODE DATA', { sz: 9, bold: true, color: RED, gap: 4 }); };
+  const h2 = (t: string) => { room(75); y -= 6; text(t, { sz: 11.5, bold: true, color: ACC, gap: 3 }); };
   const table = (head: string[], rows: string[][], widths: number[], hl: Record<number, any> = {}) => {
     const tot = widths.reduce((a, b) => a + b, 0), cw = widths.map(w => w / tot * (W - 2 * M)), sz = 8.3, lh = sz * 1.3, pad = 3;
     const rowH = (cells: string[], f: any) => Math.max(...cells.map((c, i) => lines(c, f, sz, cw[i] - 2 * pad).length)) * lh + 2 * pad;
