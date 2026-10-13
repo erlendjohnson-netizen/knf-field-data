@@ -729,7 +729,9 @@ const isSTPLevel = r => r?.tbl === 'levels' && get(r.parent)?.data.excavation_ty
 /* unit close-out requirements */
 const WALL_KINDS = ['Wall profile – North', 'Wall profile – South', 'Wall profile – East', 'Wall profile – West'];
 const MSG_STERILE = 'At least one subunit ending in two sterile levels (dig a ¼-unit window if needed)';
-const MSG_OVERVIEW = 'Overview photo of the unit', MSG_WALLS = 'Photos of two walls (wall profiles)', MSG_FLOOR = 'Photo of the unit floor', MSG_DRAW = 'Photo of the field drawing(s)';
+const MSG_OVERVIEW = 'Overview photo of the unit', MSG_WALLS = 'Photos of two walls (wall profiles)', MSG_FLOOR = 'Photo of the unit floor';
+const MSG_AZ = 'Unit orientation (0° if it was laid out to grid north)', MSG_DRAW_LIST = 'List the field drawings (at least one)';
+const DRAWING_KINDS = ['Plan view (floor)', 'North wall profile', 'South wall profile', 'East wall profile', 'West wall profile', 'Feature plan', 'Feature profile', 'Other'];
 function unitPhotoState(e) {
   const k = photosOf(e.id).map(p => p.data.kind);
   const walls = WALL_KINDS.filter(w => k.includes(w)); if (k.includes('Profile') && walls.length < 2) walls.push('Profile');
@@ -924,10 +926,11 @@ function completeness(rec, d) {
         else if (!sl.some(l => l.data.terminal_level)) m.push(`Mark the terminal level in subunit ${s.data.letter}`);
       }
       if (subs.length && !subs.some(s => trailingSterile(chainLevels(rec, s)) >= 2)) m.push(MSG_STERILE);
-      if (num(d.azimuth) == null) m.push('Unit azimuth (shoot a corner, then “Set azimuth”)');
-      const cc = cornerChecks(rec);
-      if (!cc.length) m.push('At least one GPS corner shot');
-      for (const c of cc) if (c.misfit != null && c.misfit > CORNER_TOL) m.push(`Corner shot ${c.m.data.label || c.m.data.corner} is ${(c.misfit * 100).toFixed(0)} cm off the plan: re-shoot it or check the subunit layout`);
+      if (num(d.azimuth) == null) m.push(MSG_AZ);
+      // GPS corner shots are optional (useful with the RTK); a phone GPS is too rough to check a 1 m unit
+      const dws = Array.isArray(d.drawings) ? d.drawings : [];
+      if (!dws.length) m.push(MSG_DRAW_LIST);
+      dws.forEach((w, i) => { if (!w.kind) m.push(`Drawing ${i + 1}: what it shows`); if (!photosOf(rec.id).some(p => p.data.drawing === w.id)) m.push(`Drawing ${i + 1}: photo of the drawing`); });
     }
     if (d.excavation_type === 'STP') {
       if (!hasPhoto(STP_WALL) && !kids(rec.id, 'levels').some(l => photosOf(l.id).some(p => STP_WALL.includes(p.data.kind)))) m.push('Photo of the STP wall (profile)');
@@ -940,8 +943,7 @@ function completeness(rec, d) {
       if (!ph.overview) m.push(MSG_OVERVIEW);
       if (ph.walls.length < 2) m.push(MSG_WALLS);
       if (!ph.floor) m.push(MSG_FLOOR);
-      if (!ph.drawing) m.push(MSG_DRAW);
-      need('profile_drawing_1', 'Profile drawing no.');
+
     }
   }
   if (t === 'sites' && d.record_kind && d.record_kind !== 'Previously recorded site' && d.lat == null && blank(d.utme)) { LABELKEY['Location (take a GPS point)'] = '_gps'; m.push('Location (take a GPS point)'); }
@@ -1069,16 +1071,18 @@ function photoStripHTML(rec) {
     <label class="btn sm sec">From files<input type="file" accept="image/*" multiple hidden class="pfile"></label></div>
     <div class="thumbs"></div></div>`;
 }
-async function addPhotoFiles(rec, files, kind) {
+async function addPhotoFiles(rec, files, kind, extra = {}) {
+  const made = [];
   for (const f of files) {
     const { blob, width, height } = await resizeImage(f);
     const p = mk('photos', rec.id, {}); p.site = rec.tbl === 'sites' ? rec.id : rec.site;
     const sn = (get(p.site)?.data.sitename || 'nosite').replace(/[^\w-]/g, '');
-    p.data = { kind, caption: photoCaption(rec, kind), path: `${sn}/${rec.id}/${p.id}.jpg`, taken_at: new Date(f.lastModified || Date.now()).toISOString(), width, height, bytes: blob.size };
+    p.data = { kind, caption: photoCaption(rec, kind), path: `${sn}/${rec.id}/${p.id}.jpg`, taken_at: new Date(f.lastModified || Date.now()).toISOString(), width, height, bytes: blob.size, ...extra };
     await CORE.putBlob(p.id, { blob, uploaded: 0 });
-    await save(p);
+    await save(p); made.push(p);
   }
   toast(files.length > 1 ? `${files.length} photos added` : 'Photo added');
+  return made;
 }
 async function bindPhotos(box, rec, onChange) {
   if (!box) return;
@@ -1715,7 +1719,7 @@ async function viewSettings() {
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a><button class="btn sec" id="tmoff">Leave test mode</button></div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
     <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a><a class="btn sec" href="#/offline">Offline maps (imagery)</a></div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.27 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.28 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   if ($('#s_rep')) CORE.myProfile().then(p => {
     const cb = $('#s_rep'); if (!cb || !p) return;
     cb.checked = reportsOn(p); cb.disabled = false; $('#s_rep_h').textContent = `Sent to ${p.email}.`;
@@ -2045,9 +2049,16 @@ function viewUnitCloseout(id) {
   });
   const sterOk = rows.some(r => r.closed && r.ster >= 2);
   const ph = unitPhotoState(e);
-  const auto = { depthcm: deepest, positive: all.some(l => l.data.artifacts) ? 1 : 0 }; // filled in at close-out
+  // depth to sterile: top of the two sterile levels at the bottom of the first subunit that has them
+  const sterRow = rows.find(r => r.closed && r.ster >= 2), sterLv = sterRow ? chainLevels(e, sterRow.s).sort((a, b) => num(b.data.levelno) - num(a.data.levelno))[sterRow.ster - 1] : null;
+  const auto = { depthcm: deepest, positive: all.some(l => l.data.artifacts) ? 1 : 0, depthsterile: sterLv ? num(sterLv.data.top_cm) : e.data.depthsterile ?? null }; // filled in at close-out
+  const dws = Array.isArray(e.data.drawings) ? e.data.drawings : [], dwPhoto = w => photosOf(id).find(p => p.data.drawing === w.id);
+  const cc = cornerChecks(e), suggestAz = cc.filter(c => c.az != null), suggestAzV = suggestAz.length ? (suggestAz.reduce((a, c) => a + c.az, 0) / suggestAz.length).toFixed(1) : null;
+  const nFeat = kids(id, 'features').length, nSamp = kids(id, 'samples').length;
   const miss = completeness(e, { ...e.data, ...auto });
-  const known = new Set([MSG_STERILE, MSG_OVERVIEW, MSG_WALLS, MSG_FLOOR, MSG_DRAW, 'Some levels are still drafts', 'At least one subunit on the unit plan',
+  const known = new Set([MSG_STERILE, MSG_OVERVIEW, MSG_WALLS, MSG_FLOOR, MSG_AZ, MSG_DRAW_LIST, 'Some levels are still drafts', 'At least one subunit on the unit plan', 'Location (GPS capture or UTM)', 'Excavators',
+    'Feature box ticked but no feature record', 'Dateable material ticked but no sample record', 'Marked positive but no level has artifacts', 'Levels have artifacts but the excavation is not marked positive',
+    ...dws.flatMap((w, i) => [`Drawing ${i + 1}: what it shows`, `Drawing ${i + 1}: photo of the drawing`]),
     ...subs.flatMap(s => [`Subunit ${s.data.letter} has no levels`, `Mark the terminal level in subunit ${s.data.letter}`])]);
   const other = miss.filter(m => !known.has(m) && !/^Final depth/.test(m));
   const ok = !miss.length;
@@ -2076,12 +2087,54 @@ function viewUnitCloseout(id) {
       <div style="display:flex;gap:6px;align-items:center;padding:4px 0;flex-wrap:wrap">${tick(ph.walls.length >= 2)}<span style="flex:1">Two walls${ph.walls.length ? ` <span class="help">(done: ${ph.walls.map(w => esc(w.replace('Wall profile – ', ''))).join(', ')})</span>` : ''}</span>
         ${ph.walls.length >= 2 ? '' : WALL_KINDS.filter(w => !ph.walls.includes(w)).map(w => photoBtn(w, w.replace('Wall profile – ', '') + ' wall')).join('')}</div>
       <div style="display:flex;gap:6px;align-items:center;padding:4px 0">${tick(ph.floor)}<span style="flex:1">Floor of the unit</span>${ph.floor ? '' : photoBtn('Floor (final)', 'Floor')}</div>
-      <div style="display:flex;gap:6px;align-items:center;padding:4px 0">${tick(ph.drawing)}<span style="flex:1">Field drawing(s)</span>${photoBtn('Field drawing', ph.drawing ? 'Add another' : 'Drawing')}</div>
     </div>
-    <h3>4 · Everything else</h3><div class="card"><div style="display:flex;gap:6px">${tick(!other.length)}<div style="flex:1">${other.length ? `<ul style="margin:0;padding-left:18px">${other.map(m => `<li>${esc(m)}</li>`).join('')}</ul><div class="btns"><a class="btn sm sec" href="#/edit/${id}">Edit unit details</a><a class="btn sm sec" href="#/rec/${id}">Unit page (corner shots, plan)</a></div>` : 'Unit details, corner shots, features and samples all check out.'}</div></div>
-      <div class="kv" style="margin-top:8px"><div><span>Final depth (deepest level)</span><br>${deepest != null ? deepest + ' cmbs' : '—'}</div><div><span>Positive?</span><br>${auto.positive ? 'Yes (artifacts found)' : 'No'}</div></div><div class="help">Final depth and positive/negative are filled in for you when the unit is closed.</div></div>
+    </div>
+    <h3>4 · Field drawings</h3><div class="card">
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${tick(dws.length && dws.every(w => w.kind && dwPhoto(w)))}<span style="flex:1">How many drawings were made?</span>
+        <button class="btn sm sec" id="dwminus" ${dws.length ? '' : 'disabled'}>−</button><b style="min-width:24px;text-align:center">${dws.length}</b><button class="btn sm sec" id="dwplus">+</button></div>
+      ${dws.map((w, i) => `<div class="grid" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--line)" data-dw="${w.id}">
+        <div class="f w3" style="display:flex;gap:6px;align-items:center">${tick(w.kind && dwPhoto(w))}<b style="flex:1">Drawing ${i + 1}</b>${dwPhoto(w) ? '<span class="help">photo ✓</span>' : ''}<label class="btn sm ${dwPhoto(w) ? 'sec' : ''}">📷 ${dwPhoto(w) ? 'Replace photo' : 'Photo of the drawing'}<input type="file" accept="image/*" capture="environment" hidden data-dwph="${w.id}"></label></div>
+        <div class="f"><label>Shows</label><select data-dwk="${w.id}"><option value=""></option>${DRAWING_KINDS.map(k => `<option ${k === w.kind ? 'selected' : ''}>${esc(k)}</option>`).join('')}</select></div>
+        <div class="f"><label>Drawing no.</label><input data-dwn="${w.id}" value="${esc(w.no || '')}" placeholder="e.g. 12"></div>
+        <div class="f"><label>Description</label><input data-dwd="${w.id}" value="${esc(w.desc || '')}" placeholder="e.g. floor at 30 cmbs, Fea. 4"></div></div>`).join('')}
+      ${dws.length ? '' : '<div class="help" style="margin-top:6px">Press + for each drawing (plan of the floor, wall profiles, features). Each one needs a photo.</div>'}</div>
+    <h3>5 · Orientation &amp; location</h3><div class="card">
+      <div style="display:flex;gap:6px">${tick(e.data.lat != null || e.data.utme != null)}<div style="flex:1">Unit datum location: ${e.data.utme != null ? `${esc(e.data.utme)} E, ${esc(e.data.utmn)} N${e.data.gps_acc_m != null ? ' (±' + esc(e.data.gps_acc_m) + ' m)' : ''}` : '<b>not recorded</b> <a class="btn sm" href="#/edit/' + id + '">Take the datum GPS</a>'}</div></div>
+      <div style="display:flex;gap:6px;margin-top:8px">${tick(num(e.data.azimuth) != null)}<div style="flex:1"><b>Orientation</b> <span class="help">(the compass bearing the unit’s north wall faces)</span>
+        <div style="display:flex;gap:6px;align-items:center;margin-top:4px"><input id="coaz" inputmode="decimal" value="${esc(e.data.azimuth ?? '')}" style="max-width:110px"> ° <button class="btn sm sec" id="coaz0">Laid out to grid north (0°)</button></div>
+        <div class="help">Only used to draw the unit and its subunits in the right place on the maps and in QGIS. If the unit was laid out N–S/E–W, it is 0. If it was turned, take a compass bearing along the west wall (looking north) and enter it.${suggestAz.length ? '' : ' With the RTK you can also shoot a corner and the app works it out.'}</div>
+        ${suggestAz.length ? `<div class="btns"><button class="btn sm sec" id="coazs" data-az="${suggestAzV}">Use ${suggestAzV}° from the RTK corner shot${suggestAz.length > 1 ? 's' : ''}</button></div>` : ''}
+        <div class="btns"><a class="btn sm sec" href="#/new/mappoints/${id}?corner">+ Shoot a corner (optional, RTK)</a></div></div></div></div>
+    <h3>6 · Features, samples &amp; notes</h3><div class="card grid">
+      <div class="f w3" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${tick(!(e.data.feature && !nFeat))}<label style="flex:1;display:flex;gap:6px;align-items:center"><input type="checkbox" id="cofe" ${e.data.feature ? 'checked' : ''} style="width:22px;height:22px;min-height:0"> Feature(s) found</label><span class="help">${nFeat} feature record${nFeat === 1 ? '' : 's'}</span><a class="btn sm sec" href="#/new/features/${id}">+ Feature</a></div>
+      <div class="f w3" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${tick(!(e.data.dateablematerial && !nSamp))}<label style="flex:1;display:flex;gap:6px;align-items:center"><input type="checkbox" id="coda" ${e.data.dateablematerial ? 'checked' : ''} style="width:22px;height:22px;min-height:0"> Dateable material collected</label><span class="help">${nSamp} sample${nSamp === 1 ? '' : 's'}</span><a class="btn sm sec" href="#/new/samples/${id}">+ Sample</a></div>
+      <div class="f w3"><label for="cocrew">Excavators</label><input id="cocrew" value="${esc(e.data.crew || '')}"></div>
+      <div class="f w3"><label for="cocom">Comments (optional)</label><textarea id="cocom" rows="2">${esc(e.data.comments || '')}</textarea></div>
+    </div>
+    ${other.length ? `<h3>7 · Also needed</h3><div class="card"><div style="display:flex;gap:6px">${tick(false)}<div style="flex:1"><ul style="margin:0;padding-left:18px">${other.map(m => `<li>${esc(m)}</li>`).join('')}</ul><div class="btns"><a class="btn sm sec" href="#/edit/${id}">Edit unit details</a><a class="btn sm sec" href="#/rec/${id}">Unit page</a></div></div></div></div>` : ''}
+    <div class="card kv" style="margin-top:10px"><div><span>Final depth (deepest level)</span><br>${deepest != null ? deepest + ' cmbs' : '—'}</div><div><span>Depth to sterile</span><br>${auto.depthsterile != null ? auto.depthsterile + ' cmbs' : '—'}</div><div><span>Positive?</span><br>${auto.positive ? 'Yes (artifacts found)' : 'No'}</div></div>
+    <div class="help">Final depth, depth to sterile and positive/negative are filled in for you when the unit is closed.</div>
     <div class="formbar"><button class="btn" id="cofin" ${ok ? '' : 'disabled'}>${ok ? `Close out ${esc(nm)} ✓` : `${miss.length} thing${miss.length > 1 ? 's' : ''} left before closing`}</button><a class="btn sec" href="#/rec/${id}">Back</a></div>`;
   $('#app').querySelectorAll('[data-pk]').forEach(inp => inp.onchange = async () => { const f = [...inp.files]; if (f.length) { await addPhotoFiles(e, f, inp.dataset.pk); viewUnitCloseout(id); } });
+  const saveE = async patch => { e.data = { ...e.data, ...patch }; const m = completeness(e, e.data); if (e.data._status === 'complete' && m.length) e.data._status = 'open'; e.data._missing = m; await save(e); viewUnitCloseout(id); };
+  const setDw = (dwid, patch) => saveE({ drawings: dws.map(w => w.id === dwid ? { ...w, ...patch } : w) });
+  $('#dwplus').onclick = () => saveE({ drawings: [...dws, { id: Math.random().toString(36).slice(2, 9), kind: '', no: '', desc: '' }] });
+  $('#dwminus').onclick = async () => { const w = dws[dws.length - 1]; if (!w) return; if ((w.kind || w.no || w.desc || dwPhoto(w)) && !(await ask(`Remove drawing ${dws.length}${w.kind ? ' (' + w.kind + ')' : ''}?`, 'Remove'))) return; const p = dwPhoto(w); if (p) await softDelete(p); saveE({ drawings: dws.slice(0, -1) }); };
+  $('#app').querySelectorAll('[data-dwk]').forEach(x => x.onchange = () => setDw(x.dataset.dwk, { kind: x.value }));
+  $('#app').querySelectorAll('[data-dwn]').forEach(x => x.onchange = () => setDw(x.dataset.dwn, { no: x.value.trim() }));
+  $('#app').querySelectorAll('[data-dwd]').forEach(x => x.onchange = () => setDw(x.dataset.dwd, { desc: x.value.trim() }));
+  $('#app').querySelectorAll('[data-dwph]').forEach(inp => inp.onchange = async () => {
+    const f = [...inp.files]; if (!f.length) return; const w = dws.find(x => x.id === inp.dataset.dwph), old = dwPhoto(w);
+    await addPhotoFiles(e, f.slice(0, 1), 'Field drawing', { drawing: w.id, caption: `${photoCaption(e, 'Field drawing')}${w.no ? ' no. ' + w.no : ''}${w.kind ? ' – ' + w.kind : ''}${w.desc ? ' – ' + w.desc : ''}` });
+    if (old) await softDelete(old); viewUnitCloseout(id);
+  });
+  $('#coaz').onchange = () => { const v = num($('#coaz').value.replace(',', '.')); if (v != null && (v < -360 || v > 360)) return toast('Enter a bearing in degrees'); saveE({ azimuth: v }); };
+  $('#coaz0').onclick = () => saveE({ azimuth: 0 });
+  if ($('#coazs')) $('#coazs').onclick = () => saveE({ azimuth: +$('#coazs').dataset.az });
+  $('#cofe').onchange = () => saveE({ feature: $('#cofe').checked ? 1 : 0 });
+  $('#coda').onchange = () => saveE({ dateablematerial: $('#coda').checked ? 1 : 0 });
+  $('#cocrew').onchange = () => saveE({ crew: $('#cocrew').value.trim() });
+  $('#cocom').onchange = () => saveE({ comments: $('#cocom').value.trim() });
   $('#app').querySelectorAll('[data-closelv]').forEach(b => b.onclick = () => { S._closeIt = b.dataset.closelv; location.hash = '#/edit/' + b.dataset.closelv; });
   $('#app').querySelectorAll('[data-delsu]').forEach(b => b.onclick = async () => {
     const su = get(b.dataset.delsu); if (!su) return; if (!canDelete(su)) return toast(noDeleteMsg);

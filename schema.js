@@ -144,8 +144,8 @@ const TABLES = {
       { k: 'dateablematerial', l: 'Dateable material', t: 'bool' },
       { k: 'not_excavated_reason', l: 'Not excavated / truncated because', t: 'text', w: 2 }, // new
       { k: 'photos', l: 'Photo nos.', t: 'text' }, // new
-      { k: 'plan_drawing_1', l: 'Plan drawing', t: 'text' },
-      { k: 'profile_drawing_1', l: 'Profile drawing', t: 'text' },
+      { k: 'plan_drawing_1', l: 'Plan drawing', t: 'text', show: r => !isUnit(r) },
+      { k: 'profile_drawing_1', l: 'Profile drawing', t: 'text', show: r => !isUnit(r) },
       { k: 'comments', l: 'Comments', t: 'area', w: 3 },
     ],
   },
