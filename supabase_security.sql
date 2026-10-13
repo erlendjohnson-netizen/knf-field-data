@@ -2,13 +2,16 @@
 
 -- 1. PostGIS's map-projection table (spatial_ref_sys) is public reference data, not project data.
 --    Make it read-only through the API, and switch on RLS if Supabase lets us (it belongs to PostGIS).
-revoke insert, update, delete, truncate on public.spatial_ref_sys from anon, authenticated;
 do $$ begin
-  alter table public.spatial_ref_sys enable row level security;
-  drop policy if exists read_all on public.spatial_ref_sys;
-  create policy read_all on public.spatial_ref_sys for select using (true);
-exception when insufficient_privilege then
-  raise notice 'spatial_ref_sys belongs to the PostGIS extension: RLS not switched on, but it is now read-only for the API';
+  if to_regclass('public.spatial_ref_sys') is null then return; end if;   -- PostGIS already moved to the "extensions" schema
+  revoke insert, update, delete, truncate on public.spatial_ref_sys from anon, authenticated;
+  begin
+    alter table public.spatial_ref_sys enable row level security;
+    drop policy if exists read_all on public.spatial_ref_sys;
+    create policy read_all on public.spatial_ref_sys for select using (true);
+  exception when insufficient_privilege then
+    raise notice 'spatial_ref_sys belongs to the PostGIS extension: run supabase_move_extensions.sql to move it out of public';
+  end;
 end $$;
 
 -- 2. The data tables: only signed-in accounts with a profile that is switched ON (not just "anyone signed in").
