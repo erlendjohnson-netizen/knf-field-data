@@ -238,7 +238,7 @@ async function loadDemo() {
 const TESTPLAN = [
   ['Setup', ['First-time setup: name, role and sign-in', 'Change your role in Settings and check it is saved', 'Install the app on this device (Add to Home Screen / Install app)', 'Load practice data']],
   ['Sites', ['Open a Phase II site from the list', 'Create a new site with a temporary number (+ New site (temp. no.)) and check the KRD-T## / CRD-T## number', 'Rename a temporary site to a trinomial and check the temporary number is kept', 'Create a survey area (+ Survey area) and check it gets a KRD-S## number', 'Capture a GPS point on a new site or survey area and check parish and quad fill in', 'In a survey area, finish an STP level with more than 5 artifacts and create the new site from the pop-up', 'Open the new site and check the delineation targets and the link back to the survey STP', 'New site or survey area: capture GPS first and check district, parish and quad fill in', 'Survey area: Plan transects…, then open a planned STP, check How far is it?, and dig it', 'Mark a planned STP as Can’t dig with a reason', 'Import planned STPs from a CSV (transect, stp, easting, northing)', 'Add an STP: only the name, date, crew and location are asked; answer Yes to start Level 1', 'Site map: switch to Aerial photo / Lidar hillshade / Topo and zoom in and out', 'Offline maps: download Jefferson Parish, turn on airplane mode and check the imagery still shows']],
-  ['STP', ['Start an STP and capture GPS (with the Emlid on Android if available)', 'Check the accuracy warning appears when accuracy is poor', 'Record a level with “Artifacts recovered” ticked, press Finish, and scan the bag label in the pop-up', 'Tick “Special find”: check it needs a description and a special-find photo, and scan a second bag for it', 'Press “Back to the form” in the bag pop-up and check the level is NOT finished', 'Try to scan a bag label that is already used (must be refused)', 'Try to Finish a level without a photo (must be blocked)', 'Save a level as unfinished and check the red banner and acknowledgement box', 'Try to start the next level while one is unfinished (must be blocked)', 'Finish the level from its page with “Finish now” after adding a photo', 'Close out an STP (final depth must match the deepest level)', 'Tick Feature on a level, press Finish, and check the feature form opens linked to that level']],
+  ['STP', ['Start an STP and capture GPS (with the Emlid on Android if available)', 'Check the accuracy warning appears when accuracy is poor', 'Record a level with “Artifacts recovered” ticked, press Finish, and scan the bag label in the pop-up', 'Tick “Special find”: check it needs a description and a special-find photo, and scan a second bag for it', 'Press “Back to the form” in the bag pop-up and check the level is NOT finished', 'Try to scan a bag label that is already used (must be refused)', 'STP level photos: only Special find, In situ find and Wall profile are offered; a level without a special find finishes without a photo', 'Save a level as unfinished and check the red banner and acknowledgement box', 'Try to start the next level while one is unfinished (must be blocked)', 'Finish the level from its page with “Finish now” after adding a photo', 'Close out an STP (final depth must match the deepest level, and it needs a wall photo)', 'Tick Feature on a level, press Finish, and check the feature form opens linked to that level']],
   ['GPS & points', ['Watch the live GPS readout on a location box (green = good for the chosen source)', 'Switch the GPS source (Emlid / Trimble / phone) and check the warning thresholds change', 'Type in coordinates from another instrument and check they show as “typed in”', 'On a site page, Take a point: walk a few boundary points with “Finish & add next” (B1, B2, B3…)', 'Check the site map shows STPs, units, points and the boundary outline', 'Tap a symbol on the site map to open it']],
   ['Test unit', ['Create a TU and capture the datum', 'Add subunit A and choose the datum corner', 'Add a 0.5 × 1 m subunit against A', 'Build an L-shaped subunit from two pieces', 'Try to overlap two subunits (must be blocked)', 'Start a level in a specific subunit and check the volume', 'Shoot a corner, choose which plan corner it is, and set the azimuth', 'Check close-out lists what is missing', 'New unit: set the size, subunit size and datum corner; check the layout preview and that the subunits are made', 'Answer Yes to start Level 1 in A', 'Check close-out asks for overview, plan view and profile photos', 'Level in a unit: enter top corner depths, change the thickness and check the bottoms and averages', 'Leave Soil change unticked (soil copied and locked), then tick it and pick a new Munsell from the drop-downs', 'Add a subunit and check it snaps to the unit edge and slides along it', 'Feature: pick Other and describe it; check it needs plan view, bisect and field-drawing photos']],
   ['Bags & boxes', ['Print a sheet of bag labels and a sheet of box labels', 'Scan a bag with the app and with the phone’s own camera app', 'Hand over a bag and check the custody log', 'Register a box and scan bags into it', 'Remove a bag from a box', 'Scan an unassigned bag label and assign it to a level']],
@@ -723,6 +723,9 @@ function fieldHTML(f, v, d) {
 }
 const CORNERS = ['nw', 'ne', 'sw', 'se'];
 const CORNER_KEYS = CORNERS.flatMap(c => ['top_' + c, 'bot_' + c]);
+/* STPs: photos of the wall (profile), special finds and in situ finds only; older 'Soil profile' / 'Profile' photos still count as the wall */
+const STP_WALL = ['Wall profile', 'Soil profile', 'Profile'];
+const isSTPLevel = r => r?.tbl === 'levels' && get(r.parent)?.data.excavation_type === 'STP';
 /* unit close-out requirements */
 const WALL_KINDS = ['Wall profile – North', 'Wall profile – South', 'Wall profile – East', 'Wall profile – West'];
 const MSG_STERILE = 'At least one subunit ending in two sterile levels (dig a ¼-unit window if needed)';
@@ -927,7 +930,7 @@ function completeness(rec, d) {
       for (const c of cc) if (c.misfit != null && c.misfit > CORNER_TOL) m.push(`Corner shot ${c.m.data.label || c.m.data.corner} is ${(c.misfit * 100).toFixed(0)} cm off the plan: re-shoot it or check the subunit layout`);
     }
     if (d.excavation_type === 'STP') {
-      if (!hasPhoto(['Soil profile', 'Profile'])) m.push('Photo of the STP profile (Soil profile)');
+      if (!hasPhoto(STP_WALL) && !kids(rec.id, 'levels').some(l => photosOf(l.id).some(p => STP_WALL.includes(p.data.kind)))) m.push('Photo of the STP wall (profile)');
       for (const l of kids(rec.id, 'levels')) if (l.data.special_find && !photosOf(l.id).some(p => ['Special find', 'In situ find'].includes(p.data.kind))) m.push(`Photo of the special find in level ${l.data.levelno}`);
     }
     if (d.feature && !kids(rec.id, 'features').length) m.push('Feature box ticked but no feature record');
@@ -946,7 +949,7 @@ function completeness(rec, d) {
     if (d.artifacts) need('field_count', 'Field artifact count');
     if (d.excavation_method !== 'Not excavated') { need('munsell', 'Munsell'); need('soil_texture', 'Soil texture'); need('excavation_method', 'Method'); need('screen', 'Screen'); }
     if (d.special_find) { need('special_find_desc', 'Special find description'); if (!hasPhoto(['Special find', 'In situ find'])) m.push('Photo of the special find'); }
-    if (!hasPhoto()) m.push('Photo of the level (floor or profile)');
+    if (!isSTPLevel(rec) && !hasPhoto()) m.push('Photo of the level (floor or profile)');
     if (d.artifacts && !kids(rec.id, 'bags').length && blank(d.bag_qr)) m.push(BAG_MISS);
     if (d.feature && !featuresOfLevel(rec).length) m.push(FEAT_MISS);
   }
@@ -1059,7 +1062,7 @@ async function photoURL(p) {
   const u = URL.createObjectURL(b); urlCache.set(p.id, u); return u;
 }
 function photoStripHTML(rec) {
-  const kinds = rec.tbl === 'excavations' && rec.data?.excavation_type === 'STP' ? ['Soil profile', 'Overview', 'Other'] : PHOTO_KINDS[rec.tbl]; if (!kinds) return '';
+  const kinds = rec.tbl === 'excavations' && rec.data?.excavation_type === 'STP' ? ['Wall profile'] : isSTPLevel(rec) ? ['Special find', 'In situ find', 'Wall profile'] : PHOTO_KINDS[rec.tbl]; if (!kinds) return '';
   return `<div class="photos" data-photos="${rec.id}"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="flex:1">Photos</b>
     <select class="pkind" style="width:auto;min-height:36px;padding:4px 8px">${kinds.map(k => `<option>${esc(k)}</option>`).join('')}</select>
     <label class="btn sm">📷 Take / add<input type="file" accept="image/*" capture="environment" hidden class="pcam"></label>
@@ -1712,7 +1715,7 @@ async function viewSettings() {
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a><button class="btn sec" id="tmoff">Leave test mode</button></div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
     <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a><a class="btn sec" href="#/offline">Offline maps (imagery)</a></div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.25 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.26 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   if ($('#s_rep')) CORE.myProfile().then(p => {
     const cb = $('#s_rep'); if (!cb || !p) return;
     cb.checked = reportsOn(p); cb.disabled = false; $('#s_rep_h').textContent = `Sent to ${p.email}.`;
