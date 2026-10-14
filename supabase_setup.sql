@@ -30,6 +30,7 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text, name text default '', role text not null default 'Volunteer', disabled boolean not null default false,
   created_at timestamptz default now(), updated_at timestamptz default now());
+alter table public.profiles add column if not exists must_change_pw boolean not null default false;  -- set when the PI makes a login or gives a new password
 alter table public.profiles enable row level security;
 create or replace function public.my_role() returns text language sql stable security definer set search_path = public as $f$
   select role from public.profiles where id = auth.uid() and not disabled $f$;

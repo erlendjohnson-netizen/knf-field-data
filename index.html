@@ -1772,7 +1772,7 @@ async function viewSettings() {
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a><button class="btn sec" id="tmoff">Leave test mode</button></div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
     <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a><a class="btn sec" href="#/offline">Offline maps (imagery)</a></div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.34 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.35 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   if ($('#s_rep')) CORE.myProfile().then(p => {
     const cb = $('#s_rep'); if (!cb || !p) return;
     cb.checked = reportsOn(p); cb.disabled = false; $('#s_rep_h').textContent = `Sent to ${p.email}.`;
@@ -3034,14 +3034,37 @@ function bindReportButtons() {
   document.querySelectorAll('[data-rs]').forEach(b => b.onclick = () => reportSend(b.dataset.d, b.dataset.rs));
 }
 
+/* ---- install the web app on the device (home-screen / desktop app) ---- */
+let installEvt = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; document.querySelectorAll('.installcard').forEach(c => c.outerHTML = installHTML()); bindInstall(); });
+window.addEventListener('appinstalled', () => { installEvt = null; document.querySelectorAll('.installcard').forEach(c => c.remove()); toast('Installed ✓ Open KNF Field Data from your home screen or apps'); });
+const isInstalled = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+function installHTML(force) {
+  if (isInstalled()) return '';
+  if (!force && localStorage.getItem('knf-install-dismissed')) return '';
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const how = ios ? 'In Safari, tap the <b>Share</b> button (square with an arrow), then <b>Add to Home Screen</b>.'
+    : /android/i.test(navigator.userAgent) ? 'In Chrome, tap the <b>⋮</b> menu, then <b>Install app</b> (or <b>Add to Home screen</b>).'
+    : 'In Chrome or Edge, click the <b>install</b> icon at the right end of the address bar (or the ⋮ menu → <b>Install KNF Field Data</b>).';
+  return `<div class="card installcard" style="margin-top:10px;border:2px solid var(--acc)"><b>📲 Install the app on this device</b>
+    <div class="help" style="margin:4px 0">It then opens from its own icon, full screen, and works offline in the field.</div>
+    ${installEvt ? '<div class="btns"><button class="btn" data-install>Install now</button></div>' : `<div class="help">${how}</div>`}
+    <div class="btns"><button class="btn sm sec" data-install-later>Not now</button></div></div>`;
+}
+function bindInstall() {
+  document.querySelectorAll('[data-install]').forEach(b => b.onclick = async () => { if (!installEvt) return; installEvt.prompt(); const r = await installEvt.userChoice.catch(() => null); if (r?.outcome === 'accepted') installEvt = null; });
+  document.querySelectorAll('[data-install-later]').forEach(b => b.onclick = () => { try { localStorage.setItem('knf-install-dismissed', '1'); } catch (e) { } b.closest('.installcard')?.remove(); });
+}
+
 /* ---- sign-in gate and first-time setup: the app opens only for a signed-in person with a name ---- */
-const needsSetup = () => !S.session || S.session.expired || !String(S.settings.name || '').trim() || /@/.test(S.settings.name) || !S.settings.role;
+const needsSetup = () => !S.session || S.session.expired || !!S.settings.must_pw || !String(S.settings.name || '').trim() || /@/.test(S.settings.name) || !S.settings.role;
 async function applyProfile(p) {
   if (!p) return;
   if (p.disabled) { await CORE.signOut(); S.session = null; toast('This account has been switched off. Ask Erlend.'); render(); return; }
   const s = S.settings; let ch = false;
   if (p.role && p.role !== s.role) { s.role = p.role; ch = true; }
   if (p.name && p.name !== s.name) { s.name = p.name; ch = true; }
+  if (typeof p.must_change_pw === 'boolean' && p.must_change_pw !== !!s.must_pw) { s.must_pw = p.must_change_pw; ch = true; } // set when the PI makes the login or gives a new password
   if (ch) await CORE.setMeta('settings', s);
 }
 async function refreshProfile() { try { await applyProfile(await CORE.myProfile()); } catch (e) { } }
@@ -3065,8 +3088,32 @@ function viewSetup() {
         const p = await CORE.myProfile().catch(() => null);
         if (p?.disabled) { await CORE.signOut(); S.session = null; return toast('This account has been switched off. Ask Erlend.'); }
         s.role = p?.role || 'Volunteer'; if (p?.name) s.name = p.name; else if (/@/.test(s.name || '')) s.name = '';
+        s.must_pw = !!p?.must_change_pw;
         await CORE.setMeta('settings', s); updatePill(); runSync(true); render();
       } catch (err) { toast(err.message); }
+    };
+    return;
+  }
+  if (s.must_pw) {
+    $('#app').innerHTML = `<h2>Choose your own password</h2>
+      <div class="help">You signed in with a password Erlend gave you. Pick your own now; you’ll use it from here on.</div>
+      <form id="pw" class="card grid" style="margin-top:8px" novalidate>
+        <div class="f w3"><label for="pw1">New password</label><input id="pw1" type="password" autocomplete="new-password"><div class="help">At least 8 characters.</div></div>
+        <div class="f w3"><label for="pw2">Type it again</label><input id="pw2" type="password" autocomplete="new-password"><div class="msg"></div></div>
+        <div class="f w3"><button class="btn big" type="submit">Save my password</button></div>
+      </form>${installHTML(true)}`;
+    bindInstall();
+    $('#pw').onsubmit = async e => {
+      e.preventDefault();
+      const a = $('#pw1').value, b = $('#pw2').value, m = $('#pw2').closest('.f').querySelector('.msg');
+      if (a.length < 8) { m.textContent = 'At least 8 characters'; return; }
+      if (a !== b) { m.textContent = 'The two passwords don’t match'; return; }
+      if (!navigator.onLine) return toast('No internet: changing the password needs a connection');
+      try {
+        await CORE.changePassword(a);
+        await CORE.setMustChange(sess.uid, false).catch(() => { });
+        s.must_pw = false; await CORE.setMeta('settings', s); toast('Password saved ✓'); render();
+      } catch (err) { m.textContent = /same|different/i.test(err.message) ? 'Pick a password different from the one you were given' : err.message; }
     };
     return;
   }
@@ -3076,7 +3123,8 @@ function viewSetup() {
       <div class="f w3"><label for="su_n">Your name *</label><input id="su_n" value="${esc(/@/.test(s.name || '') ? '' : s.name || '')}" placeholder="First Last" autocomplete="name"><div class="msg"></div></div>
       <div class="f w3"><label>Your role</label><div class="ro">${esc(s.role || 'Volunteer')}</div><div class="help">Set by Erlend. Ask him if it is wrong.</div></div>
       <div class="f w3"><button class="btn big" type="submit">Continue ✓</button></div>
-    </form>`;
+    </form>${installHTML(true)}`;
+  bindInstall();
   $('#su').onsubmit = async e => {
     e.preventDefault();
     const n = $('#su_n').value.trim().replace(/\s+/g, ' ');
@@ -3102,7 +3150,7 @@ async function viewPeople() {
       <div class="f"><label>Role</label><select id="np_r">${LISTS.role.map(r => `<option ${r === 'Student' ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select></div>
       <div class="f w2"><label>Email</label><input id="np_e" type="email" autocomplete="off"></div>
       <div class="f"><label>Starting password</label><input id="np_p" value="${pw()}" autocomplete="off"></div>
-      <div class="f w3"><button class="btn" type="submit">Create login</button><div class="help">Give them the app link, their email and this password (they can sign in straight away).</div></div></form>` : ''}
+      <div class="f w3"><button class="btn" type="submit">Create login</button><div class="help">Give them the app link, their email and this starting password. The first screen they see after signing in asks them to choose their own password.</div></div></form>` : ''}
     <h3>${list.length} ${list.length === 1 ? 'person' : 'people'}</h3><div class="list">
       ${list.map(p => `<div class="card"${p.disabled ? ' style="opacity:.55"' : ''}><div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><b style="flex:1">${esc(p.name || '(no name yet)')}</b>${p.disabled ? '<span class="badge">switched off</span>' : ''}<span class="help">${esc(p.email || '')}</span></div>
         ${admin ? `<div class="grid" style="margin-top:6px"><div class="f w3"><label>Role</label>${roleSel(p.id, p.role)}</div></div>
@@ -3111,10 +3159,15 @@ async function viewPeople() {
     </div>`;
   if (!admin) return;
   const call = async (body, ok) => { try { await CORE.adminCall(body); toast(ok); viewPeople(); } catch (e) { toast(e.message); } };
-  $('#np').onsubmit = e => { e.preventDefault(); call({ action: 'create', name: $('#np_n').value.trim(), role: $('#np_r').value, email: $('#np_e').value.trim(), password: $('#np_p').value }, 'Login created'); };
+  $('#np').onsubmit = async e => {
+    e.preventDefault();
+    try { const r = await CORE.adminCall({ action: 'create', name: $('#np_n').value.trim(), role: $('#np_r').value, email: $('#np_e').value.trim(), password: $('#np_p').value });
+      if (r?.id) await CORE.setMustChange(r.id, true).catch(() => { }); toast('Login created: they choose their own password when they first sign in'); viewPeople(); } catch (err) { toast(err.message); }
+  };
   $('#app').querySelectorAll('[data-rep]').forEach(cb => cb.onchange = async () => { try { await CORE.setReports(cb.dataset.rep, cb.checked); toast(cb.checked ? 'Daily reports on' : 'Daily reports off'); } catch (e) { cb.checked = !cb.checked; toast(e.message); } });
   $('#app').querySelectorAll('[data-role]').forEach(sel => sel.onchange = () => call({ action: 'set_role', id: sel.dataset.role, role: sel.value }, 'Role changed'));
-  $('#app').querySelectorAll('[data-pw]').forEach(b => b.onclick = async () => { const np = pw(); if (await ask(`Set this person's password to:\n\n${np}\n\nWrite it down and give it to them.`, 'Set password')) call({ action: 'reset_password', id: b.dataset.pw, password: np }, 'Password changed'); });
+  $('#app').querySelectorAll('[data-pw]').forEach(b => b.onclick = async () => { const np = pw(); if (!(await ask(`Set this person's password to:\n\n${np}\n\nWrite it down and give it to them. They will be asked to choose their own password the next time they sign in.`, 'Set password'))) return;
+    try { await CORE.adminCall({ action: 'reset_password', id: b.dataset.pw, password: np }); await CORE.setMustChange(b.dataset.pw, true).catch(() => { }); toast('Temporary password set'); viewPeople(); } catch (err) { toast(err.message); } });
   $('#app').querySelectorAll('[data-off]').forEach(b => b.onclick = async () => { const on = b.dataset.on === '1'; if (on || await ask('Switch off this login? They can no longer sign in or sync (their records stay).', 'Switch off')) call({ action: on ? 'enable' : 'disable', id: b.dataset.off }, on ? 'Login switched on' : 'Login switched off'); });
 }
 function viewParishKey() {
@@ -3143,7 +3196,9 @@ function viewHome() {
       ${isAdmin() ? '<a class="mini" href="#/people">👥 People &amp; logins</a>' : ''}
       ${TESTMODE ? '<a class="mini" href="#/testplan">🧪 Test checklist</a>' : ''}
     </div>
+    ${installHTML()}
     <footer class="legal">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.</footer>`;
+  bindInstall();
 }
 
 async function viewScan(code) {

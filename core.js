@@ -179,6 +179,15 @@ const CORE = (() => {
   async function myProfile() { const { sess } = await cfg(); if (!sess?.uid) return null; const j = await rest(`/rest/v1/profiles?id=eq.${sess.uid}&select=*`); return j && j[0] || null; }
   async function setMyName(name) { const { sess } = await cfg(); return rest(`/rest/v1/profiles?id=eq.${sess.uid}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ name }) }); }
   const listProfiles = () => rest('/rest/v1/profiles?select=*&order=name.asc');
+  /* first-sign-in password change: the user's own new password, then the "must change" flag is cleared */
+  async function changePassword(password) {
+    const { url, key } = await cfg(); const tok = await token(); if (!tok) throw new Error('Not signed in');
+    const r = await fetch(`${url}/auth/v1/user`, { method: 'PUT', headers: { apikey: key, Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ password }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.msg || j.message || j.error_description || 'Could not change the password');
+    return true;
+  }
+  const setMustChange = (id, on) => rest(`/rest/v1/profiles?id=eq.${id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ must_change_pw: on }) });
   const adminCall = body => rest('/functions/v1/admin-users', { method: 'POST', body: JSON.stringify(body) });
   /* daily PDF reports: who gets them (null = the default for their role) and making / sending them now */
   const setReports = (id, on) => rest(`/rest/v1/profiles?id=eq.${id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ email_reports: on }) });
@@ -192,6 +201,6 @@ const CORE = (() => {
     const j = await r.json(); if (!j[0]) return null;
     await setMeta('registry', j[0].payload); return j[0].payload;
   }
-  return { myProfile, setMyName, listProfiles, adminCall, setReports, reportsCall, fetchRegistry, setMode, mode: () => MODE, db, allRecs, putRec, putMany, getMeta, setMeta, dirtyRecs, sync, signIn, signOut, cfg, getBlob, putBlob, delBlob, pendingPhotos, fetchPhoto };
+  return { myProfile, setMyName, listProfiles, changePassword, setMustChange, adminCall, setReports, reportsCall, fetchRegistry, setMode, mode: () => MODE, db, allRecs, putRec, putMany, getMeta, setMeta, dirtyRecs, sync, signIn, signOut, cfg, getBlob, putBlob, delBlob, pendingPhotos, fetchPhoto };
 })();
 if (typeof self !== 'undefined') self.CORE = CORE;
