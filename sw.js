@@ -1,5 +1,5 @@
 /* Service worker: offline app shell + background upload (Chrome/Edge on Android and Windows). */
-const VERSION = 'knf-v1.35.0';
+const VERSION = 'knf-v1.36.0';
 const SHELL = ['./', './index.html', './schema.js', './core.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './vendor/qrcode.js', './vendor/jsQR.js', './vendor/la_parishes.js', './vendor/knf_districts.js'];
 importScripts('./core.js');
 
@@ -16,7 +16,7 @@ self.addEventListener('fetch', e => {
   if (e.request.method === 'GET' && IMG_HOSTS.includes(u.hostname)) {
     e.respondWith(caches.open('knf-imagery').then(async c => {
       const hit = await c.match(e.request.url); if (hit) return hit;
-      try { const r = await fetch(new Request(e.request.url, { mode: 'cors' })); if (r.ok) c.put(e.request.url, r.clone()); return r; }
+      try { const r = await fetch(new Request(e.request.url, { mode: 'cors' })); if (r.ok && /^image\//.test(r.headers.get('content-type') || '')) c.put(e.request.url, r.clone()); return r; } // only real images are kept
       catch (err) { return new Response('', { status: 504 }); }
     }));
     return;
