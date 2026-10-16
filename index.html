@@ -78,12 +78,12 @@ table.cat{border-collapse:collapse;width:100%;font-size:14px;background:var(--ca
 .hidden{display:none!important}
 header .hbtn{color:inherit;display:flex;padding:4px}
 header{gap:8px}
-.home{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:8px 0 14px}
+.home{display:grid;grid-template-columns:1fr;gap:14px;margin:8px 0 14px} /* Field, Artifact custody, Lab, stacked */
 @media (max-width:520px){.home{grid-template-columns:1fr}}
 .tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:190px;border-radius:18px;text-decoration:none;color:#fff;font-size:28px;font-weight:800;letter-spacing:.02em;padding:18px;text-align:center}
 .tile span{display:flex;flex-direction:column;align-items:center;gap:4px}.tile svg{width:76px;height:76px}.tile small{font-size:14px;font-weight:500;opacity:.9;letter-spacing:0}
 .tile.field{background:#CE181E}.tile.lab{background:#610B0E}
-.tile.bagchk{background:#0A0203;grid-column:1/-1;order:3;min-height:110px;flex-direction:row;font-size:24px}.tile.bagchk svg{width:56px;height:56px}.tile.bagchk span{display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+.tile.bagchk{background:#0A0203;min-height:110px;flex-direction:row;font-size:24px}.tile.bagchk svg{width:56px;height:56px}.tile.bagchk span{display:flex;flex-direction:column;align-items:flex-start;gap:2px}
 .dcstats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0}.dcstats div{background:var(--card);border-radius:10px;padding:8px;text-align:center;font-size:13px;border:1px solid var(--line,#ddd)}.dcstats b{display:block;font-size:26px}.dcstats .ok b{color:var(--ok)}.dcstats .bad{border:2px solid var(--bad)}.dcstats .bad b{color:var(--bad)}.dcstats .warn b{color:#b8860b}
 .tgt{border-collapse:collapse;margin:6px 0;font-variant-numeric:tabular-nums}.tgt td,.tgt th{padding:4px 10px;border-bottom:1px solid var(--line);text-align:left}
 .mun{display:flex;gap:6px;align-items:center;flex-wrap:nowrap}.mun select{width:auto;min-width:0;flex:1}.mun select[data-p=hue]{flex:1.4}.mun input{flex:2}.f.locked select,.f.locked input{opacity:.6}
@@ -1805,7 +1805,7 @@ async function viewSettings() {
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a><button class="btn sec" id="tmoff">Leave test mode</button></div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
     <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a><a class="btn sec" href="#/offline">Offline maps (imagery)</a></div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.38 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.39 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   if ($('#s_rep')) CORE.myProfile().then(p => {
     const cb = $('#s_rep'); if (!cb || !p) return;
     cb.checked = reportsOn(p); cb.disabled = false; $('#s_rep_h').textContent = `Sent to ${p.email}.`;
