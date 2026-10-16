@@ -281,7 +281,7 @@ const now = () => new Date().toISOString();
 const today = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
 const pad = (n, w) => String(n ?? '').padStart(w, '0');
 const me = () => S.settings.name || S.session?.email || 'unknown';
-const DEF = { name: '', role: '', level_cm: 10, gps_secs: 10, gps_max_acc: 2, gps_source: 'Phone/tablet built-in GPS', datum: 'WGS84 / ITRF (device)', theme: 'auto', sb_url: 'https://xmvzhxlqagstuvqvcyhc.supabase.co', sb_key: 'sb_publishable_SUcJNMK83_q6eTAVWLr-Rw_cVItt_6b' };
+const DEF = { name: '', role: '', level_cm: 10, gps_secs: 10, gps_max_acc: 2, gps_source: 'Phone/tablet built-in GPS', datum: 'WGS84 / ITRF (device)', theme: 'auto', scan_sound: 'on', sb_url: 'https://xmvzhxlqagstuvqvcyhc.supabase.co', sb_key: 'sb_publishable_SUcJNMK83_q6eTAVWLr-Rw_cVItt_6b' };
 
 function live(tbl) { return [...S.recs.values()].filter(r => r.tbl === tbl && !r.deleted); }
 function kids(parent, tbl) { return live(tbl).filter(r => r.parent === parent); }
@@ -1786,6 +1786,7 @@ async function viewSettings() {
       <div class="f"><label>GPS averaging (seconds)</label><input id="s_gps_secs" inputmode="numeric" value="${esc(s.gps_secs)}"></div>
       <div class="f w2"><label>Usual GPS source on this device</label><select id="s_gps_source">${GPS_SOURCES.map(g => `<option ${g.k === srcInfo(s.gps_source).k ? 'selected' : ''}>${esc(g.k)}</option>`).join('')}</select><div class="help">Can be changed for each capture. Accuracy warnings follow the source.</div></div>
       <div class="f w2"><label>Datum / reference frame label</label><input id="s_datum" value="${esc(s.datum)}"><div class="help">Phone/browser coordinates are WGS84. With Emlid RTK, use the frame of your correction source.</div></div>
+      <div class="f"><label>Scan sounds</label><select id="s_scan_sound">${['on', 'off'].map(t => `<option ${(s.scan_sound || 'on') === t ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
       <div class="f"><label>Theme</label><select id="s_theme">${['auto', 'light', 'dark'].map(t => `<option ${s.theme === t ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
       <div class="grp">Server (Supabase)</div>
       <div class="f w2"><label>Project URL</label><input id="s_sb_url" value="${esc(s.sb_url)}" placeholder="https://xxxx.supabase.co"></div>
@@ -1804,7 +1805,7 @@ async function viewSettings() {
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a><button class="btn sec" id="tmoff">Leave test mode</button></div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
     <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a><a class="btn sec" href="#/offline">Offline maps (imagery)</a></div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.37 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.38 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   if ($('#s_rep')) CORE.myProfile().then(p => {
     const cb = $('#s_rep'); if (!cb || !p) return;
     cb.checked = reportsOn(p); cb.disabled = false; $('#s_rep_h').textContent = `Sent to ${p.email}.`;
@@ -2703,7 +2704,7 @@ function openScanner(title = 'Scan label') {
               const r = jsQR(cx.getImageData(0, 0, w, h).data, w, h, { inversionAttempts: 'attemptBoth' }); if (r) txt = r.data;
             }
           } catch (e) { }
-          if (txt) { const c = parseCode(txt); if (c) { navigator.vibrate?.(60); return done(c); } msg.textContent = 'That QR code is not a KNF label.'; }
+          if (txt) { const c = parseCode(txt); if (c) { return done(c); } msg.textContent = 'That QR code is not a KNF label.'; }
         }
         setTimeout(loop, 120);
       };
@@ -2931,12 +2932,12 @@ async function dcScanBags() {
   for (;;) {
     const s = dcSummary(S.dc);
     const code = await openScanner(`Box ${S.dc.box} · ${s.okN} of ${s.exp.length} bags scanned · Cancel when done`); if (!code) break;
-    if (code.startsWith('X-')) { await dcSetBox(code); toast(`Now filling box ${code}`); continue; }
-    if (S.dc.scanned.some(x => x.code === code)) { toast(`${code} was already scanned`); continue; }
+    if (code.startsWith('X-')) { await dcSetBox(code); scanFeedback('ok'); toast(`Now filling box ${code}`); continue; }
+    if (S.dc.scanned.some(x => x.code === code)) { scanFeedback('bad'); toast(`${code} was already scanned`); continue; }
     const c = dcClassify(S.dc, code), st = itemState(code);
     await custodyEvent(code, 'bag', 'Placed in box', { from_person: st.holder, box_qr: S.dc.box, location: 'Box ' + S.dc.box, notes: 'End-of-day bag check' });
     S.dc.scanned.push({ code, box: S.dc.box, time: now() }); await saveDC();
-    navigator.vibrate?.(c.ok ? 60 : [60, 80, 60]);
+    scanFeedback(c.ok ? 'ok' : 'bad');
     toast(c.ok ? `✓ ${code} · ${bagWhere(bagInfo(c.b))}` : `⚠ EXTRA ${code}: ${c.b ? 'from another site' : 'not linked to a level'}`);
   }
   viewDayCheck();
@@ -3345,6 +3346,21 @@ async function viewScan(code) {
     viewScan(code);
   });
 }
+/* scan feedback: a beep + green flash for a good scan, a low double buzz + red flash for a problem (so crews can scan without reading) */
+let _actx = null;
+function scanFeedback(kind) {
+  const ok = kind === 'ok';
+  if (S.settings.scan_sound !== 'off') try {
+    _actx ||= new (window.AudioContext || window.webkitAudioContext)();
+    const t = _actx.currentTime, tones = ok ? [[1320, 0, 0.09]] : [[200, 0, 0.14], [200, 0.2, 0.14]];
+    for (const [f, d, len] of tones) { const o = _actx.createOscillator(), g = _actx.createGain(); o.type = ok ? 'sine' : 'square'; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t + d); g.gain.exponentialRampToValueAtTime(ok ? 0.3 : 0.2, t + d + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + d + len); o.connect(g).connect(_actx.destination); o.start(t + d); o.stop(t + d + len + 0.02); }
+  } catch (e) { }
+  navigator.vibrate?.(ok ? 40 : [90, 60, 90, 60, 90]);
+  const f = document.createElement('div');
+  f.style.cssText = `position:fixed;inset:0;z-index:9999;pointer-events:none;background:${ok ? 'rgba(46,160,90,.45)' : 'rgba(206,24,30,.55)'};transition:opacity .45s`;
+  document.body.append(f); requestAnimationFrame(() => setTimeout(() => { f.style.opacity = '0'; setTimeout(() => f.remove(), 500); }, 120));
+}
+
 /* ================= Artifact custody hub: look anything up, move things, bag checks ================= */
 function custodyWhat(code) {
   const bag = live('bags').find(b => b.data.qr === code), box = live('boxes').find(b => b.data.qr === code);
@@ -3410,21 +3426,25 @@ async function viewMove() {
   $('#app').innerHTML = `<div class="crumbs"><a href="#/custody">Artifact custody</a></div><h2>Move items</h2>
     <div class="card" style="border:2px solid var(--acc)"><div class="help">Going to</div><div style="font-size:18px">${target}</div>
       <div class="btns"><button class="btn big" id="mvscan">📷 Scan items</button><button class="btn sec" id="mvchg">Change destination</button></div>
-      <div class="help">The camera stays open for the next item after each scan. Press Cancel when you’re done.</div></div>
+      <div class="help">The camera stays open for the next item after each scan. Press Cancel when you’re done.${M.kind === 'box' ? ' <b>Packing several boxes?</b> Just scan the next box’s label and carry on scanning bags: they go into the new box.' : ''} A beep and green flash means it’s logged; a buzz and red flash means look at the screen.</div></div>
     <h3>Moved this time (${M.moved.length})</h3>
-    <div class="card hist">${M.moved.slice().reverse().map((x, i) => `<div>✓ <b class="code">${esc(x.code)}</b> · ${esc(custodyWhat(x.code))}${i === 0 ? ' <button class="btn sm sec" id="mvundo">Undo</button>' : ''}</div>`).join('') || '<div class="help">Nothing yet</div>'}</div>
+    <div class="card hist">${M.moved.slice().reverse().map((x, i) => `<div>✓ <b class="code">${esc(x.code)}</b>${x.box ? ' → box ' + esc(x.box) : ''} · ${esc(custodyWhat(x.code))}${i === 0 ? ' <button class="btn sm sec" id="mvundo">Undo</button>' : ''}</div>`).join('') || '<div class="help">Nothing yet</div>'}</div>
     <div class="formbar"><button class="btn" id="mvdone">Done</button></div>`;
   const log = async code => {
     const isBox = code.startsWith('X-'), item = isBox ? 'box' : 'bag', st = itemState(code);
-    if (!isBox && !live('bags').some(b => b.data.qr === code)) return toast(`${code} is not linked to a level yet: open it from Look up to assign it`), null;
-    if (isBox && M.kind === 'box') return toast('That is a box. Scan the bags going into it'), null;
-    if (M.moved.some(x => x.code === code)) return toast(`${code} is already on this list`), null;
+    if (!isBox && !live('bags').some(b => b.data.qr === code)) return scanFeedback('bad'), toast(`${code} is not linked to a level yet: open it from Look up to assign it`), null;
+    if (isBox && M.kind === 'box') {   // scanning another box label switches to filling that box
+      if (code === M.box) return scanFeedback('bad'), toast('That is the box you are already filling'), null;
+      if (!live('boxes').find(r => r.data.qr === code)) { const r = mk('boxes', null, { qr: code, box_no: String(nextNum(live('boxes'), 'box_no')), box_kind: 'Field box', location: '', _status: 'complete', _missing: [] }); await save(r); }
+      M.box = code; scanFeedback('ok'); toast(`Now filling box ${code}`); return 'box';
+    }
+    if (M.moved.some(x => x.code === code)) return scanFeedback('bad'), toast(`${code} is already on this list`), null;
     let ev;
-    if (M.kind === 'box') { if (st.box === M.box) return toast(`${code} is already in this box`), null; ev = await custodyEvent(code, item, 'Placed in box', { from_person: st.holder, box_qr: M.box, location: 'Box ' + M.box }); }
+    if (M.kind === 'box') { if (st.box === M.box) return scanFeedback('bad'), toast(`${code} is already in this box`), null; ev = await custodyEvent(code, item, 'Placed in box', { from_person: st.holder, box_qr: M.box, location: 'Box ' + M.box }); }
     if (M.kind === 'person') ev = await custodyEvent(code, item, 'Transferred', { from_person: st.holder, ...M.to });
     if (M.kind === 'lab') ev = await custodyEvent(code, item, 'Received at lab', { from_person: st.holder, location: 'Lab' });
     if (M.kind === 'storage') ev = await custodyEvent(code, item, 'Returned to storage', { from_person: st.holder, location: st.box ? 'In box ' + st.box : 'Storage', box_qr: st.box || '' });
-    M.moved.push({ code, ev: ev?.id }); navigator.vibrate?.(60); toast(`✓ ${code}`); return true;
+    M.moved.push({ code, ev: ev?.id, box: M.kind === 'box' ? M.box : null }); scanFeedback('ok'); toast(`✓ ${code}${M.kind === 'box' ? ' → ' + M.box : ''}`); return true;
   };
   $('#mvscan').onclick = async () => { for (;;) { const c = await openScanner(`${d.t}: scan item ${M.moved.length + 1} (Cancel when done)`); if (!c) break; await log(c); } viewMove(); };
   $('#mvchg').onclick = () => { S.mv = null; viewMove(); };
@@ -3521,12 +3541,12 @@ function viewStorage() {
   $('#stscan').onclick = async () => {
     for (let n = 0; ; n++) {
       const c = await openScanner(`Box ${box.data.box_no}: scan bag ${n + 1} (Cancel when done)`); if (!c) break;
-      if (c.startsWith('X-')) { toast('That is a box label. Scan the bags'); continue; }
+      if (c.startsWith('X-')) { scanFeedback('bad'); toast('That is a box label. Scan the bags'); continue; }
       const bg = live('bags').find(r => r.data.qr === c);
-      if (!bg) { toast(`${c} is not linked to a level yet`); continue; }
-      if (itemState(c).box === code) { toast(`${c} is already in this box`); continue; }
+      if (!bg) { scanFeedback('bad'); toast(`${c} is not linked to a level yet`); continue; }
+      if (itemState(c).box === code) { scanFeedback('bad'); toast(`${c} is already in this box`); continue; }
       await custodyEvent(c, 'bag', 'Placed in box', { from_person: itemState(c).holder, box_qr: code, location: `Box ${box.data.box_no} (final storage)`, notes: 'Final storage' });
-      navigator.vibrate?.(60); toast(`✓ ${c} → ${box.data.box_no}`);
+      scanFeedback('ok'); toast(`✓ ${c} → ${box.data.box_no}`);
     }
     viewStorage();
   };
