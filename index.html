@@ -179,10 +179,21 @@ let TESTMODE = false;
 try { TESTMODE = localStorage.getItem('knf-mode') === 'test'; } catch (e) { }
 CORE.setMode(TESTMODE ? 'test' : 'live');
 async function switchMode(test) {
+  if (!test && S.settings?.test_only) return toast('Your account is in test mode for now. Erlend will switch it to project data.');
   if (!test && draftCount() && !(await ask('Leaving test mode. Your practice records stay in test mode; nothing is copied to the project.', 'Leave test mode'))) return;
   if (test && !(await ask('Switch to TEST MODE?\n\nPractice data is kept completely separate from project data: its own storage on this device and its own table on the server. You stay signed in; practice records upload to the test table.', 'Switch to test mode'))) return;
   try { localStorage.setItem('knf-mode', test ? 'test' : 'live'); } catch (e) { toast('This browser blocks storage; test mode cannot be saved'); return; }
   S.formDirty = false; location.hash = '#/'; location.reload();
+}
+// accounts marked "test mode only" by the PI (profiles.test_only) are kept in test mode; the server also refuses their project records
+function enforceTestOnly(on) {
+  let forced = false; try { forced = localStorage.getItem('knf-forced') === '1'; } catch (e) { }
+  try {
+    if (on && !TESTMODE) { localStorage.setItem('knf-mode', 'test'); localStorage.setItem('knf-forced', '1'); localStorage.setItem('knf-msg', 'Your account starts in TEST MODE: try everything out, nothing goes into the project data. Erlend will switch you to project data later.'); }
+    else if (!on && TESTMODE && forced) { localStorage.setItem('knf-mode', 'live'); localStorage.removeItem('knf-forced'); localStorage.setItem('knf-msg', 'Erlend has switched your account to PROJECT DATA. What you record now goes into the project. (Your practice records stay in test mode.)'); }
+    else { if (!on && forced) localStorage.removeItem('knf-forced'); return false; }
+  } catch (e) { return false; }
+  S.formDirty = false; location.hash = '#/'; location.reload(); return true;
 }
 function tinyJPEG(label, color) {
   const c = document.createElement('canvas'); c.width = 640; c.height = 480; const x = c.getContext('2d');
@@ -422,7 +433,7 @@ function toast(m) { const t = document.createElement('div'); t.className = 'toas
 function ask(msg, ok = 'OK', cancel = 'Cancel') {
   return new Promise(res => {
     const m = document.createElement('div'); m.className = 'modal';
-    m.innerHTML = `<div class="card"><div style="white-space:pre-line">${esc(msg)}</div><div class="btns" style="justify-content:flex-end"><button class="btn sec" data-v="0">${esc(cancel)}</button><button class="btn" data-v="1">${esc(ok)}</button></div></div>`;
+    m.innerHTML = `<div class="card"><div style="white-space:pre-line">${esc(msg)}</div><div class="btns" style="justify-content:flex-end">${cancel ? `<button class="btn sec" data-v="0">${esc(cancel)}</button>` : ''}<button class="btn" data-v="1">${esc(ok)}</button></div></div>`;
     m.addEventListener('click', e => { const v = e.target.dataset.v; if (v != null) { m.remove(); res(v === '1'); } });
     document.body.append(m);
   });
@@ -1802,10 +1813,11 @@ async function viewSettings() {
     <div class="btns" style="margin-top:8px"><a class="btn sec" href="#/people">People &amp; logins${isAdmin() ? ' (add people, roles)' : ''}</a></div>
     <h3>Test mode</h3>
     <div class="card">${TESTMODE ? `<p><b>You are in TEST MODE.</b> Everything here is practice data, stored separately from the project.</p>
-      <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a><button class="btn sec" id="tmoff">Leave test mode</button></div>`
+      ${s.test_only ? '<div class="check">Your account is in <b>test mode only</b> for now, so you can try everything without adding to the project data. Erlend will switch you to project data when the season starts.</div>' : ''}
+      <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a>${s.test_only ? '' : '<button class="btn sec" id="tmoff">Leave test mode</button>'}</div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
     <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a><a class="btn sec" href="#/offline">Offline maps (imagery)</a></div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.40 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.41 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   if ($('#s_rep')) CORE.myProfile().then(p => {
     const cb = $('#s_rep'); if (!cb || !p) return;
     cb.checked = reportsOn(p); cb.disabled = false; $('#s_rep_h').textContent = `Sent to ${p.email}.`;
@@ -3098,7 +3110,9 @@ async function applyProfile(p) {
   if (p.role && p.role !== s.role) { s.role = p.role; ch = true; }
   if (p.name && p.name !== s.name) { s.name = p.name; ch = true; }
   if (typeof p.must_change_pw === 'boolean' && p.must_change_pw !== !!s.must_pw) { s.must_pw = p.must_change_pw; ch = true; } // set when the PI makes the login or gives a new password
+  if (typeof p.test_only === 'boolean' && p.test_only !== !!s.test_only) { s.test_only = p.test_only; ch = true; }
   if (ch) await CORE.setMeta('settings', s);
+  if (typeof p.test_only === 'boolean') enforceTestOnly(p.test_only);
 }
 async function refreshProfile() { try { await applyProfile(await CORE.myProfile()); } catch (e) { } }
 function viewSetup() {
@@ -3121,8 +3135,10 @@ function viewSetup() {
         const p = await CORE.myProfile().catch(() => null);
         if (p?.disabled) { await CORE.signOut(); S.session = null; return toast('This account has been switched off. Ask Erlend.'); }
         s.role = p?.role || 'Volunteer'; if (p?.name) s.name = p.name; else if (/@/.test(s.name || '')) s.name = '';
-        s.must_pw = !!p?.must_change_pw;
-        await CORE.setMeta('settings', s); updatePill(); runSync(true); render();
+        s.must_pw = !!p?.must_change_pw; s.test_only = p?.test_only === true;  // column missing (SQL not run yet) = not test-only
+        await CORE.setMeta('settings', s);
+        if (enforceTestOnly(s.test_only)) return;
+        updatePill(); runSync(true); render();
       } catch (err) { toast(err.message); }
     };
     return;
@@ -3173,7 +3189,8 @@ async function viewPeople() {
   setTitle('People & logins');
   $('#app').innerHTML = '<h2>People &amp; logins</h2><div class="help">Loading…</div>';
   let list = [];
-  try { list = await CORE.listProfiles(); } catch (e) { $('#app').innerHTML = `<h2>People &amp; logins</h2><div class="check">Needs an internet connection (${esc(e.message)}).</div>`; return; }
+  let newTest = true;
+  try { list = await CORE.listProfiles(); newTest = await CORE.newUsersTestOnly().catch(() => true); } catch (e) { $('#app').innerHTML = `<h2>People &amp; logins</h2><div class="check">Needs an internet connection (${esc(e.message)}).</div>`; return; }
   const admin = isAdmin(), roleSel = (id, cur) => `<select data-role="${id}">${LISTS.role.map(r => `<option ${r === cur ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select>`;
   const pw = () => { const a = 'abcdefghjkmnpqrstuvwxyz23456789'; return Array.from(crypto.getRandomValues(new Uint8Array(10)), b => a[b % a.length]).join(''); };
   $('#app').innerHTML = `<h2>People &amp; logins</h2>
@@ -3184,10 +3201,15 @@ async function viewPeople() {
       <div class="f w2"><label>Email</label><input id="np_e" type="email" autocomplete="off"></div>
       <div class="f"><label>Starting password</label><input id="np_p" value="${pw()}" autocomplete="off"></div>
       <div class="f w3"><button class="btn" type="submit">Create login</button><div class="help">Give them the app link, their email and this starting password. The first screen they see after signing in asks them to choose their own password.</div></div></form>` : ''}
+    ${admin ? `<div class="card" style="margin-top:8px"><b>Test mode for new people</b>
+      <label class="dcsite"><input type="checkbox" id="pp_newtest" ${newTest ? 'checked' : ''}> New logins start in <b>test mode only</b> (they can try everything; nothing they enter goes into the project data)</label>
+      <div class="help">${list.filter(p => p.test_only).length} of ${list.length} people are in test mode only. Switch people one by one below, or everyone at once:</div>
+      <div class="btns"><button class="btn sm" id="pp_alllive">Switch everyone to project data</button></div></div>` : ''}
     <h3>${list.length} ${list.length === 1 ? 'person' : 'people'}</h3><div class="list">
-      ${list.map(p => `<div class="card"${p.disabled ? ' style="opacity:.55"' : ''}><div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><b style="flex:1">${esc(p.name || '(no name yet)')}</b>${p.disabled ? '<span class="badge">switched off</span>' : ''}<span class="help">${esc(p.email || '')}</span></div>
+      ${list.map(p => `<div class="card"${p.disabled ? ' style="opacity:.55"' : ''}><div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><b style="flex:1">${esc(p.name || '(no name yet)')}</b>${p.disabled ? '<span class="badge">switched off</span>' : ''}${p.test_only ? '<span class="badge" style="background:#5b2a86;color:#fff">🧪 test only</span>' : ''}<span class="help">${esc(p.email || '')}</span></div>
         ${admin ? `<div class="grid" style="margin-top:6px"><div class="f w3"><label>Role</label>${roleSel(p.id, p.role)}</div></div>
         <label class="dcsite"><input type="checkbox" data-rep="${p.id}" ${reportsOn(p) ? 'checked' : ''}> Email daily reports</label>
+        ${p.id === S.session?.uid ? '' : `<label class="dcsite"><input type="checkbox" data-tonly="${p.id}" ${p.test_only ? 'checked' : ''}> Test mode only (cannot add project data)</label>`}
         <div class="btns"><button class="btn sm sec" data-pw="${p.id}">New password</button>${p.id === S.session?.uid ? '' : `<button class="btn sm ${p.disabled ? '' : 'bad'}" data-off="${p.id}" data-on="${p.disabled ? 1 : 0}">${p.disabled ? 'Switch on' : 'Switch off'}</button>`}</div>` : `<div class="help">${esc(p.role)}</div>`}</div>`).join('')}
     </div>`;
   if (!admin) return;
@@ -3198,6 +3220,12 @@ async function viewPeople() {
       if (r?.id) await CORE.setMustChange(r.id, true).catch(() => { }); toast('Login created: they choose their own password when they first sign in'); viewPeople(); } catch (err) { toast(err.message); }
   };
   $('#app').querySelectorAll('[data-rep]').forEach(cb => cb.onchange = async () => { try { await CORE.setReports(cb.dataset.rep, cb.checked); toast(cb.checked ? 'Daily reports on' : 'Daily reports off'); } catch (e) { cb.checked = !cb.checked; toast(e.message); } });
+  $('#app').querySelectorAll('[data-tonly]').forEach(cb => cb.onchange = async () => { try { await CORE.setTestOnly(cb.dataset.tonly, cb.checked); toast(cb.checked ? 'Test mode only: their app switches to test mode' : 'Switched to project data: their app changes over at their next sync'); viewPeople(); } catch (e) { cb.checked = !cb.checked; toast(e.message); } });
+  $('#pp_newtest').onchange = async e => { const cb = e.target; try { await CORE.setNewUsersTestOnly(cb.checked); toast(cb.checked ? 'New logins start in test mode' : 'New logins start on project data'); } catch (err) { cb.checked = !cb.checked; toast(err.message); } };
+  $('#pp_alllive').onclick = async () => {
+    if (!(await ask('Switch EVERYONE to project data?\n\nEveryone who is in test mode only can then record project data; their apps change over at their next sync. New logins will also start on project data (you can change that with the checkbox above).', 'Switch everyone'))) return;
+    try { await CORE.setTestOnly(null, false); await CORE.setNewUsersTestOnly(false); toast('Everyone is on project data now'); viewPeople(); } catch (e) { toast(e.message); }
+  };
   $('#app').querySelectorAll('[data-role]').forEach(sel => sel.onchange = () => call({ action: 'set_role', id: sel.dataset.role, role: sel.value }, 'Role changed'));
   $('#app').querySelectorAll('[data-pw]').forEach(b => b.onclick = async () => { const np = pw(); if (!(await ask(`Set this person's password to:\n\n${np}\n\nWrite it down and give it to them. They will be asked to choose their own password the next time they sign in.`, 'Set password'))) return;
     try { await CORE.adminCall({ action: 'reset_password', id: b.dataset.pw, password: np }); await CORE.setMustChange(b.dataset.pw, true).catch(() => { }); toast('Temporary password set'); viewPeople(); } catch (err) { toast(err.message); } });
@@ -3746,7 +3774,9 @@ addEventListener('beforeunload', e => { if (S.formDirty || draftCount()) { e.pre
   S.lastSync = await CORE.getMeta('last_sync');
   await reload(); applyTheme(); updatePill(); await loadRegistry(false); await migrateCodes();
   if (TESTMODE) { $('#testbar').classList.remove('hidden'); }
+  if (TESTMODE && S.settings.test_only) $('#testbar').textContent = '🧪 TEST MODE (your account, for now): practice data only, not project data';
   render();
+  try { const m = localStorage.getItem('knf-msg'); if (m) { localStorage.removeItem('knf-msg'); setTimeout(() => ask(m, 'OK', ''), 300); } } catch (e) { }
   try { if (navigator.storage?.persist) S.persisted = await navigator.storage.persist(); } catch (e) { }
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     navigator.serviceWorker.register('sw.js').then(async reg => {
@@ -3755,6 +3785,7 @@ addEventListener('beforeunload', e => { if (S.formDirty || draftCount()) { e.pre
     navigator.serviceWorker.addEventListener('message', async e => { if (e.data?.type === 'synced') { await reload(); updatePill(); } });
   }
   if (draftCount()) setTimeout(async () => { if (await ask(`⚠ ${draftCount()} UNFINISHED record(s) on this device are NOT sent to the project. Finish them now?`, 'Show me', 'Later')) location.hash = '#/drafts'; }, 600);
+  if (S.session && !S.session.expired && navigator.onLine) await Promise.race([refreshProfile(), new Promise(r => setTimeout(r, 6000))]);
   runSync();
 })();
 </script>

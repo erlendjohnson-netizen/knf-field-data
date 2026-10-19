@@ -190,6 +190,10 @@ const CORE = (() => {
   const setMustChange = (id, on) => rest(`/rest/v1/profiles?id=eq.${id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ must_change_pw: on }) });
   const adminCall = body => rest('/functions/v1/admin-users', { method: 'POST', body: JSON.stringify(body) });
   /* daily PDF reports: who gets them (null = the default for their role) and making / sending them now */
+  // test-mode-only accounts (PI only): id null = everyone who is still test-only
+  const setTestOnly = (id, on) => rest(`/rest/v1/profiles?${id ? 'id=eq.' + id : 'test_only=eq.true'}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ test_only: on }) });
+  const newUsersTestOnly = async () => { const j = await rest('/rest/v1/app_config?key=eq.new_users_test_only&select=value'); return !(j && j[0] && j[0].value === false); };
+  const setNewUsersTestOnly = on => rest('/rest/v1/app_config?on_conflict=key', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify({ key: 'new_users_test_only', value: !!on }) });
   const setReports = (id, on) => rest(`/rest/v1/profiles?id=eq.${id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ email_reports: on }) });
   const reportsCall = body => rest('/functions/v1/daily-reports', { method: 'POST', body: JSON.stringify({ mode: MODE === 'test' ? 'test' : 'live', ...body }) });
   /* private KNF site list (downloaded after sign-in, cached on the device) */
@@ -201,6 +205,6 @@ const CORE = (() => {
     const j = await r.json(); if (!j[0]) return null;
     await setMeta('registry', j[0].payload); return j[0].payload;
   }
-  return { myProfile, setMyName, listProfiles, changePassword, setMustChange, adminCall, setReports, reportsCall, fetchRegistry, setMode, mode: () => MODE, db, allRecs, putRec, putMany, getMeta, setMeta, dirtyRecs, sync, signIn, signOut, cfg, getBlob, putBlob, delBlob, pendingPhotos, fetchPhoto };
+  return { myProfile, setMyName, listProfiles, changePassword, setMustChange, adminCall, setReports, setTestOnly, newUsersTestOnly, setNewUsersTestOnly, reportsCall, fetchRegistry, setMode, mode: () => MODE, db, allRecs, putRec, putMany, getMeta, setMeta, dirtyRecs, sync, signIn, signOut, cfg, getBlob, putBlob, delBlob, pendingPhotos, fetchPhoto };
 })();
 if (typeof self !== 'undefined') self.CORE = CORE;

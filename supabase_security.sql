@@ -15,9 +15,12 @@ do $$ begin
 end $$;
 
 -- 2. The data tables: only signed-in accounts with a profile that is switched ON (not just "anyone signed in").
-drop policy if exists crew_rw on public.records;
-create policy crew_rw on public.records for all to authenticated
-  using ((select public.my_role()) is not null) with check ((select public.my_role()) is not null);
+do $$ begin   -- once supabase_testonly.sql has run, it owns the records policies (test-only people cannot write project data)
+  if to_regprocedure('public.my_test_only()') is not null then return; end if;
+  drop policy if exists crew_rw on public.records;
+  create policy crew_rw on public.records for all to authenticated
+    using ((select public.my_role()) is not null) with check ((select public.my_role()) is not null);
+end $$;
 drop policy if exists crew_rw on public.records_test;
 create policy crew_rw on public.records_test for all to authenticated
   using ((select public.my_role()) is not null) with check ((select public.my_role()) is not null);
