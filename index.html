@@ -1817,7 +1817,7 @@ async function viewSettings() {
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a>${s.test_only ? '' : '<button class="btn sec" id="tmoff">Leave test mode</button>'}</div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
     <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a><a class="btn sec" href="#/offline">Offline maps (imagery)</a></div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.41 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.42 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   if ($('#s_rep')) CORE.myProfile().then(p => {
     const cb = $('#s_rep'); if (!cb || !p) return;
     cb.checked = reportsOn(p); cb.disabled = false; $('#s_rep_h').textContent = `Sent to ${p.email}.`;
@@ -3081,18 +3081,22 @@ function bindReportButtons() {
 
 /* ---- install the web app on the device (home-screen / desktop app) ---- */
 let installEvt = null;
-window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; document.querySelectorAll('.installcard').forEach(c => c.outerHTML = installHTML()); bindInstall(); });
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; document.querySelectorAll('.installcard').forEach(c => c.outerHTML = installHTML(true, c.dataset.first === '1')); bindInstall(); });
 window.addEventListener('appinstalled', () => { installEvt = null; document.querySelectorAll('.installcard').forEach(c => c.remove()); toast('Installed ✓ Open KNF Field Data from your home screen or apps'); });
 const isInstalled = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-function installHTML(force) {
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isMobile = () => isIOS() || /android|mobile/i.test(navigator.userAgent);
+function installHTML(force, first) {
   if (isInstalled()) return '';
   if (!force && localStorage.getItem('knf-install-dismissed')) return '';
   const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const how = ios ? 'In Safari, tap the <b>Share</b> button (square with an arrow), then <b>Add to Home Screen</b>.'
     : /android/i.test(navigator.userAgent) ? 'In Chrome, tap the <b>⋮</b> menu, then <b>Install app</b> (or <b>Add to Home screen</b>).'
     : 'In Chrome or Edge, click the <b>install</b> icon at the right end of the address bar (or the ⋮ menu → <b>Install KNF Field Data</b>).';
-  return `<div class="card installcard" style="margin-top:10px;border:2px solid var(--acc)"><b>📲 Install the app on this device</b>
+  return `<div class="card installcard" data-first="${first ? 1 : 0}" style="margin-top:10px;border:2px solid var(--acc)"><b>📲 Install the app on this device</b>
     <div class="help" style="margin:4px 0">It then opens from its own icon, full screen, and works offline in the field.</div>
+    ${first && ios ? '<div class="check" style="margin:6px 0"><b>Do this first, before signing in.</b> On iPhone and iPad the installed app keeps its own storage, separate from Safari: after installing, open KNF Field Data from the new home-screen icon and sign in there.</div>' : ''}
+    ${first && !ios ? '<div class="help" style="margin:4px 0">Best done now, before you sign in. Then open the app from its icon.</div>' : ''}
     ${installEvt ? '<div class="btns"><button class="btn" data-install>Install now</button></div>' : `<div class="help">${how}</div>`}
     <div class="btns"><button class="btn sm sec" data-install-later>Not now</button></div></div>`;
 }
@@ -3120,13 +3124,14 @@ function viewSetup() {
   const s = S.settings, sess = S.session && !S.session.expired ? S.session : null;
   if (!sess) {
     $('#app').innerHTML = `<h2>KNF Field Data</h2>
-      ${S.session?.expired ? '<div class="check">Your sign-in has expired. Sign in again; nothing on this device is lost.</div>' : '<div class="help">Sign in with the email and password Erlend gave you. No login yet? Ask Erlend (project director).</div>'}
+      ${S.session?.expired ? '<div class="check">Your sign-in has expired. Sign in again; nothing on this device is lost.</div>' : (isMobile() ? installHTML(true, true) : '') + '<div class="help" style="margin-top:8px">Sign in with the email and password Erlend gave you. No login yet? Ask Erlend (project director).</div>'}
       <form id="li" class="card grid" style="margin-top:8px" novalidate>
         <div class="f w3"><label for="li_e">Email</label><input id="li_e" type="email" autocomplete="username" value="${esc(S.session?.email || '')}"></div>
         <div class="f w3"><label for="li_p">Password</label><input id="li_p" type="password" autocomplete="current-password"></div>
         <div class="f w3"><button class="btn big" type="submit">Sign in</button></div>
         <div class="help w3">Sign in once while you have signal; after that the app works offline in the field.</div>
       </form>`;
+    bindInstall();
     $('#li').onsubmit = async e => {
       e.preventDefault();
       if (!navigator.onLine) return toast('No internet: signing in needs a connection');
