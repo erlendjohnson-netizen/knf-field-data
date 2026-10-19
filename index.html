@@ -482,7 +482,7 @@ function gpsCapture(box, d, onDone) {
   out.textContent = 'Waiting for position…';
   const finish = () => {
     LIVE.subs.delete(gpsWatch); gpsWatch = null; btn.textContent = 'Capture position';
-    if (!fixes.length) { out.textContent = 'No position received. Check that location is on and the receiver is connected and streaming. ' + (srcInfo(src).hint || ''); return; }
+    if (!fixes.length) { out.textContent = 'No position received. Check that location is on and the receiver is connected and streaming. ' + (srcInfo(src).hint || ''); gpsHelp('none', () => btn.click(), src); return; }
     const best = fixes.filter(f => f.acc <= Math.min(...fixes.map(x => x.acc)) * 1.5);
     const lat = best.reduce((a, f) => a + f.lat, 0) / best.length, lon = best.reduce((a, f) => a + f.lon, 0) / best.length;
     const alts = best.filter(f => f.alt != null), alt = alts.length ? alts.reduce((a, f) => a + f.alt, 0) / alts.length : null;
@@ -494,7 +494,7 @@ function gpsCapture(box, d, onDone) {
     onDone && onDone();
   };
   const onFix = (f, err) => {
-    if (err) { out.textContent = $('.gpslive', box) && err.code === 1 ? 'Location is blocked: see the steps above.' : gpsErrText(err); LIVE.subs.delete(gpsWatch); gpsWatch = null; btn.textContent = 'Capture position'; return; }
+    if (err) { out.textContent = $('.gpslive', box) && err.code === 1 ? 'Location is blocked: see the steps above.' : gpsErrText(err); LIVE.subs.delete(gpsWatch); gpsWatch = null; btn.textContent = 'Capture position'; gpsHelp(err, () => btn.click(), src); return; }
     fixes.push(f);
     out.textContent = `${fixes.length} fixes · ±${f.acc.toFixed(2)} m · ${Math.max(0, secs - Math.round((Date.now() - t0) / 1000))} s left`;
     if (Date.now() - t0 >= secs * 1000) finish();
@@ -525,6 +525,38 @@ function gpsErrText(e) {
   if (e?.code === 2) return 'No position available: check that Location is switched on in the phone settings' + (ios ? '' : ' (and Google Location Accuracy is on)') + ', and step outside if you are indoors.';
   if (e?.code === 3) return 'Still waiting for a position (indoors or a weak signal can take a minute)…';
   return e?.message || 'Location error';
+}
+// pop-up with the fix when the GPS fails; web apps cannot open the phone's settings themselves, so it gives the exact taps
+let gpsHelpOpen = false;
+function gpsHelp(e, retry, src) {
+  if (gpsHelpOpen) return; gpsHelpOpen = true;
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const kind = e === 'none' ? 'none' : e?.code === 1 ? 'blocked' : e?.code === 2 ? 'off' : 'slow';
+  const steps = kind === 'blocked' ? (ios ? [
+      'Open the iPhone <b>Settings</b> app → <b>Privacy &amp; Security</b> → <b>Location Services</b>: switch it <b>on</b>.',
+      'On the same screen scroll down to <b>Safari Websites</b> → choose <b>While Using the App</b> and switch <b>Precise Location</b> on.',
+      'If you tapped “Don’t Allow” earlier: open the app’s page in Safari, tap <b>aA</b> in the address bar → <b>Website Settings</b> → <b>Location</b> → <b>Allow</b>.',
+      'Come back here, close the app fully (swipe it away) and open it again.']
+    : [
+      'Swipe down from the top of the screen and make sure the <b>Location</b> tile is <b>on</b>.',
+      'Phone <b>Settings</b> → <b>Apps</b> → <b>Chrome</b> → <b>Permissions</b> → <b>Location</b> → <b>Allow only while using the app</b>, and switch <b>Use precise location</b> on.',
+      'In Chrome, open the app’s page, tap the icon left of the web address → <b>Permissions</b> (or Site settings) → <b>Location</b> → <b>Allow</b>.',
+      'Come back here and tap <b>Try again</b> (if nothing changes, close the app fully and reopen it).'])
+    : kind === 'off' ? [
+      ios ? 'Open <b>Settings</b> → <b>Privacy &amp; Security</b> → <b>Location Services</b> and switch it <b>on</b>.' : 'Swipe down from the top of the screen and switch the <b>Location</b> tile <b>on</b> (Settings → Location → Location services → <b>Google Location Accuracy</b> on helps too).',
+      'Step outside or near a window: phones often get no fix indoors.', 'Tap <b>Try again</b>.']
+    : [ srcInfo(src).k.startsWith('Phone') || !src ? 'Step outside, away from buildings and heavy canopy, and hold the phone still for a minute.' : `Check the receiver: it is on, connected, and its app is sending the position to the phone. ${srcInfo(src).hint || ''}`,
+      ios ? 'Check Settings → Privacy &amp; Security → Location Services is on, with Safari Websites set to <b>While Using the App</b> and <b>Precise Location</b> on.' : 'Check the <b>Location</b> tile is on and Chrome is allowed <b>precise</b> location (Settings → Apps → Chrome → Permissions → Location).',
+      'Tap <b>Try again</b>.'];
+  const title = kind === 'blocked' ? '📍 Location is blocked for this app' : kind === 'off' ? '📍 Location is switched off' : '📍 No GPS position yet';
+  const m = document.createElement('div'); m.className = 'modal'; m.id = 'gpshelp';
+  m.innerHTML = `<div class="card"><b style="font-size:17px">${title}</b>
+    <div class="help" style="margin:4px 0 8px">The app needs your phone's location to record points. A web app cannot open the phone's settings for you, so do this:</div>
+    <ol style="margin:0 0 8px 18px;padding:0;line-height:1.45">${steps.map(x => `<li style="margin-bottom:6px">${x}</li>`).join('')}</ol>
+    <div class="help">You can also type the coordinates in from another GPS (they are marked “typed in”).</div>
+    <div class="btns" style="justify-content:flex-end"><button class="btn sec" data-v="0">Close</button>${retry ? '<button class="btn" data-v="1">Try again</button>' : ''}</div></div>`;
+  m.addEventListener('click', ev => { const v = ev.target.dataset.v; if (v == null) return; m.remove(); gpsHelpOpen = false; if (v === '1' && retry) { stopLiveGps(); retry(); } });
+  document.body.append(m);
 }
 function ensureLive() {
   if (liveWatch != null || !navigator.geolocation) return;
@@ -686,7 +718,7 @@ async function viewOffline() {
   };
   $('#app').querySelectorAll('[data-one]').forEach(x => x.onclick = () => { const a = areas.find(y => y.id === x.dataset.one); if (a) run(a.missing); });
   $('#offgo').onclick = () => run(todo);
-  $('#offhere').onclick = () => navigator.geolocation?.getCurrentPosition(p => { const u = u15(p.coords.latitude, p.coords.longitude); const urls = layers.filter(l => sel.layers[l]).flatMap(l => cellsAround(u.e, u.n, 750).map(([L, i, j]) => cellURL(l, L, i, j))).filter(x => !have.has(x)); urls.length ? run(urls) : toast('Already saved'); }, e => toast(gpsErrText(e)), { enableHighAccuracy: true, timeout: 30000 });
+  $('#offhere').onclick = () => navigator.geolocation?.getCurrentPosition(p => { const u = u15(p.coords.latitude, p.coords.longitude); const urls = layers.filter(l => sel.layers[l]).flatMap(l => cellsAround(u.e, u.n, 750).map(([L, i, j]) => cellURL(l, L, i, j))).filter(x => !have.has(x)); urls.length ? run(urls) : toast('Already saved'); }, e => gpsHelp(e), { enableHighAccuracy: true, timeout: 30000 });
   $('#offclear').onclick = async () => { if (await ask('Delete all saved map imagery from this device?', 'Delete')) { await caches.delete(IMG_CACHE); toast('Saved imagery deleted'); viewOffline(); } };
 }
 
@@ -1672,7 +1704,7 @@ function viewExc(e) {
   bindFinish(e); bindUnitSection(e);
   if (d.planned) {
     $('#pcant').onclick = async () => { if (await cantDigModal(e)) { toast('Recorded as not dug'); viewExc(get(e.id)); } };
-    $('#pfind').onclick = () => navigator.geolocation?.getCurrentPosition(p => { const u = toUTM(p.coords.latitude, p.coords.longitude), dx = d.target_e - u.e, dy = d.target_n - u.n, b = (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360; $('#pdist').innerHTML = `<b>${Math.round(Math.hypot(dx, dy))} m ${bearingName(b)}</b> (${Math.round(b)}° grid) from you · your position ±${Math.round(p.coords.accuracy)} m`; }, er => toast(gpsErrText(er)), { enableHighAccuracy: true, timeout: 30000, maximumAge: 3000 });
+    $('#pfind').onclick = () => navigator.geolocation?.getCurrentPosition(p => { const u = toUTM(p.coords.latitude, p.coords.longitude), dx = d.target_e - u.e, dy = d.target_n - u.n, b = (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360; $('#pdist').innerHTML = `<b>${Math.round(Math.hypot(dx, dy))} m ${bearingName(b)}</b> (${Math.round(b)}° grid) from you · your position ±${Math.round(p.coords.accuracy)} m`; }, er => gpsHelp(er), { enableHighAccuracy: true, timeout: 30000, maximumAge: 3000 });
   }
   const nsd = $('#nsdecide'); if (nsd) nsd.onclick = async () => { const go = await newSitePrompt(e); if (go) location.hash = go; else viewExc(get(e.id)); };
 }
@@ -1831,7 +1863,7 @@ async function viewSettings() {
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a>${s.test_only ? '' : '<button class="btn sec" id="tmoff">Leave test mode</button>'}</div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
     <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a><a class="btn sec" href="#/offline">Offline maps (imagery)</a></div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.43 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.44 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   if ($('#s_rep')) CORE.myProfile().then(p => {
     const cb = $('#s_rep'); if (!cb || !p) return;
     cb.checked = reportsOn(p); cb.disabled = false; $('#s_rep_h').textContent = `Sent to ${p.email}.`;
@@ -2790,7 +2822,7 @@ function planTransectsModal(site) {
     };
     const upd = () => { const r = build(); $('#pok', m).disabled = !r || r.length > 2000; $('#pmsg', m).textContent = r ? `${r.length} planned STPs on ${v('pt')} transects (T${v('pf')}–T${v('pf') + v('pt') - 1}), covering about ${Math.round((v('pk') - 1) * v('pi'))} × ${Math.round((v('pt') - 1) * v('pts'))} m.` : 'Fill in the start point (UTM 15N) and the layout.'; };
     m.addEventListener('input', upd); m.addEventListener('change', upd);
-    $('#pme', m).onclick = () => navigator.geolocation?.getCurrentPosition(p => { const u = toUTM(p.coords.latitude, p.coords.longitude); $('#pe', m).value = u.e; $('#pn', m).value = u.n; upd(); toast(`Position ±${Math.round(p.coords.accuracy)} m`); }, e => toast(gpsErrText(e)), { enableHighAccuracy: true, timeout: 30000 });
+    $('#pme', m).onclick = () => navigator.geolocation?.getCurrentPosition(p => { const u = toUTM(p.coords.latitude, p.coords.longitude); $('#pe', m).value = u.e; $('#pn', m).value = u.n; upd(); toast(`Position ±${Math.round(p.coords.accuracy)} m`); }, e => gpsHelp(e), { enableHighAccuracy: true, timeout: 30000 });
     $('#px', m).onclick = () => { m.remove(); resolve(0); };
     $('#pok', m).onclick = async () => { const r = build(); m.remove(); resolve(await addPlanned(site, r)); };
   });
@@ -2825,7 +2857,7 @@ function nearestPlanned(siteId) {
       <div class="btns" style="justify-content:flex-end"><button class="btn sec" id="nx">Close</button></div></div>`;
     m.onclick = e => { if (e.target === m || e.target.id === 'nx' || e.target.closest('a')) m.remove(); };
     document.body.append(m);
-  }, e => toast(gpsErrText(e)), { enableHighAccuracy: true, timeout: 30000, maximumAge: 5000 });
+  }, e => gpsHelp(e), { enableHighAccuracy: true, timeout: 30000, maximumAge: 5000 });
 }
 function cantDigModal(exc) {
   return new Promise(resolve => {
