@@ -494,7 +494,7 @@ function gpsCapture(box, d, onDone) {
     onDone && onDone();
   };
   const onFix = (f, err) => {
-    if (err) { out.textContent = 'Location error: ' + err.message; LIVE.subs.delete(gpsWatch); gpsWatch = null; btn.textContent = 'Capture position'; return; }
+    if (err) { out.textContent = $('.gpslive', box) && err.code === 1 ? 'Location is blocked: see the steps above.' : gpsErrText(err); LIVE.subs.delete(gpsWatch); gpsWatch = null; btn.textContent = 'Capture position'; return; }
     fixes.push(f);
     out.textContent = `${fixes.length} fixes · ±${f.acc.toFixed(2)} m · ${Math.max(0, secs - Math.round((Date.now() - t0) / 1000))} s left`;
     if (Date.now() - t0 >= secs * 1000) finish();
@@ -516,13 +516,27 @@ function renderGps(box, d) {
 let liveWatch = null;
 const LIVE = { last: null, subs: new Set(), err: null };
 function stopLiveGps() { if (liveWatch != null) { navigator.geolocation?.clearWatch(liveWatch); liveWatch = null; } LIVE.subs.clear(); LIVE.last = null; }
+// plain-language fix for a location error (the browser's own messages are cryptic)
+function gpsErrText(e) {
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (e?.code === 1) return ios
+    ? 'Location is blocked for this app. iPhone: Settings → Privacy & Security → Location Services ON → Safari Websites → "While Using the App" and Precise Location ON. In Safari you can also tap aA → Website Settings → Location → Allow. Then reload the app.'
+    : 'Location is blocked for this app. Android: turn Location on (swipe down, Location tile); Settings → Apps → Chrome → Permissions → Location → Allow, with "Use precise location" ON; in Chrome tap the icon left of the address → Permissions → Location → Allow. Then reload the app.';
+  if (e?.code === 2) return 'No position available: check that Location is switched on in the phone settings' + (ios ? '' : ' (and Google Location Accuracy is on)') + ', and step outside if you are indoors.';
+  if (e?.code === 3) return 'Still waiting for a position (indoors or a weak signal can take a minute)…';
+  return e?.message || 'Location error';
+}
 function ensureLive() {
   if (liveWatch != null || !navigator.geolocation) return;
   liveWatch = navigator.geolocation.watchPosition(p => {
     LIVE.err = null;
     LIVE.last = { lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy, alt: p.coords.altitude, altAcc: p.coords.altitudeAccuracy, t: p.timestamp, rt: Date.now() };
     LIVE.subs.forEach(f => f(LIVE.last));
-  }, e => { LIVE.err = e.message; LIVE.subs.forEach(f => f(null, e)); }, { enableHighAccuracy: true, maximumAge: 0, timeout: 60000 });
+  }, e => {
+    if (e.code === 3) { LIVE.err = LIVE.last ? null : gpsErrText(e); return; }   // timeout: keep watching
+    LIVE.err = gpsErrText(e); LIVE.subs.forEach(f => f(null, e));
+    if (e.code === 1) { navigator.geolocation.clearWatch(liveWatch); liveWatch = null; }  // so it can try again after the person allows location
+  }, { enableHighAccuracy: true, maximumAge: 0, timeout: 60000 });
 }
 function startLiveGps(box) {
   const el = $('.gpslive', box); if (!el || !navigator.geolocation) { if (el) el.textContent = 'No location on this device'; return; }
@@ -672,7 +686,7 @@ async function viewOffline() {
   };
   $('#app').querySelectorAll('[data-one]').forEach(x => x.onclick = () => { const a = areas.find(y => y.id === x.dataset.one); if (a) run(a.missing); });
   $('#offgo').onclick = () => run(todo);
-  $('#offhere').onclick = () => navigator.geolocation?.getCurrentPosition(p => { const u = u15(p.coords.latitude, p.coords.longitude); const urls = layers.filter(l => sel.layers[l]).flatMap(l => cellsAround(u.e, u.n, 750).map(([L, i, j]) => cellURL(l, L, i, j))).filter(x => !have.has(x)); urls.length ? run(urls) : toast('Already saved'); }, e => toast(e.message), { enableHighAccuracy: true, timeout: 30000 });
+  $('#offhere').onclick = () => navigator.geolocation?.getCurrentPosition(p => { const u = u15(p.coords.latitude, p.coords.longitude); const urls = layers.filter(l => sel.layers[l]).flatMap(l => cellsAround(u.e, u.n, 750).map(([L, i, j]) => cellURL(l, L, i, j))).filter(x => !have.has(x)); urls.length ? run(urls) : toast('Already saved'); }, e => toast(gpsErrText(e)), { enableHighAccuracy: true, timeout: 30000 });
   $('#offclear').onclick = async () => { if (await ask('Delete all saved map imagery from this device?', 'Delete')) { await caches.delete(IMG_CACHE); toast('Saved imagery deleted'); viewOffline(); } };
 }
 
@@ -1658,7 +1672,7 @@ function viewExc(e) {
   bindFinish(e); bindUnitSection(e);
   if (d.planned) {
     $('#pcant').onclick = async () => { if (await cantDigModal(e)) { toast('Recorded as not dug'); viewExc(get(e.id)); } };
-    $('#pfind').onclick = () => navigator.geolocation?.getCurrentPosition(p => { const u = toUTM(p.coords.latitude, p.coords.longitude), dx = d.target_e - u.e, dy = d.target_n - u.n, b = (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360; $('#pdist').innerHTML = `<b>${Math.round(Math.hypot(dx, dy))} m ${bearingName(b)}</b> (${Math.round(b)}° grid) from you · your position ±${Math.round(p.coords.accuracy)} m`; }, er => toast(er.message), { enableHighAccuracy: true, timeout: 30000, maximumAge: 3000 });
+    $('#pfind').onclick = () => navigator.geolocation?.getCurrentPosition(p => { const u = toUTM(p.coords.latitude, p.coords.longitude), dx = d.target_e - u.e, dy = d.target_n - u.n, b = (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360; $('#pdist').innerHTML = `<b>${Math.round(Math.hypot(dx, dy))} m ${bearingName(b)}</b> (${Math.round(b)}° grid) from you · your position ±${Math.round(p.coords.accuracy)} m`; }, er => toast(gpsErrText(er)), { enableHighAccuracy: true, timeout: 30000, maximumAge: 3000 });
   }
   const nsd = $('#nsdecide'); if (nsd) nsd.onclick = async () => { const go = await newSitePrompt(e); if (go) location.hash = go; else viewExc(get(e.id)); };
 }
@@ -1817,7 +1831,7 @@ async function viewSettings() {
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a>${s.test_only ? '' : '<button class="btn sec" id="tmoff">Leave test mode</button>'}</div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
     <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a><a class="btn sec" href="#/offline">Offline maps (imagery)</a></div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.42 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.43 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   if ($('#s_rep')) CORE.myProfile().then(p => {
     const cb = $('#s_rep'); if (!cb || !p) return;
     cb.checked = reportsOn(p); cb.disabled = false; $('#s_rep_h').textContent = `Sent to ${p.email}.`;
@@ -2776,7 +2790,7 @@ function planTransectsModal(site) {
     };
     const upd = () => { const r = build(); $('#pok', m).disabled = !r || r.length > 2000; $('#pmsg', m).textContent = r ? `${r.length} planned STPs on ${v('pt')} transects (T${v('pf')}–T${v('pf') + v('pt') - 1}), covering about ${Math.round((v('pk') - 1) * v('pi'))} × ${Math.round((v('pt') - 1) * v('pts'))} m.` : 'Fill in the start point (UTM 15N) and the layout.'; };
     m.addEventListener('input', upd); m.addEventListener('change', upd);
-    $('#pme', m).onclick = () => navigator.geolocation?.getCurrentPosition(p => { const u = toUTM(p.coords.latitude, p.coords.longitude); $('#pe', m).value = u.e; $('#pn', m).value = u.n; upd(); toast(`Position ±${Math.round(p.coords.accuracy)} m`); }, e => toast(e.message), { enableHighAccuracy: true, timeout: 30000 });
+    $('#pme', m).onclick = () => navigator.geolocation?.getCurrentPosition(p => { const u = toUTM(p.coords.latitude, p.coords.longitude); $('#pe', m).value = u.e; $('#pn', m).value = u.n; upd(); toast(`Position ±${Math.round(p.coords.accuracy)} m`); }, e => toast(gpsErrText(e)), { enableHighAccuracy: true, timeout: 30000 });
     $('#px', m).onclick = () => { m.remove(); resolve(0); };
     $('#pok', m).onclick = async () => { const r = build(); m.remove(); resolve(await addPlanned(site, r)); };
   });
@@ -2811,7 +2825,7 @@ function nearestPlanned(siteId) {
       <div class="btns" style="justify-content:flex-end"><button class="btn sec" id="nx">Close</button></div></div>`;
     m.onclick = e => { if (e.target === m || e.target.id === 'nx' || e.target.closest('a')) m.remove(); };
     document.body.append(m);
-  }, e => toast(e.message), { enableHighAccuracy: true, timeout: 30000, maximumAge: 5000 });
+  }, e => toast(gpsErrText(e)), { enableHighAccuracy: true, timeout: 30000, maximumAge: 5000 });
 }
 function cantDigModal(exc) {
   return new Promise(resolve => {
