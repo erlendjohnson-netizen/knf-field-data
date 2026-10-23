@@ -1077,7 +1077,7 @@ function completeness(rec, d) {
       if (!dws.length) m.push(MSG_DRAW_LIST);
       dws.forEach((w, i) => { if (!w.kind) m.push(`Drawing ${i + 1}: what it shows`); if (!photosOf(rec.id).some(p => p.data.drawing === w.id)) m.push(`Drawing ${i + 1}: photo of the drawing`); });
     }
-    if (d.excavation_type === 'STP') {
+    if (d.excavation_type === 'STP' && !(blank(d.not_excavated_reason) === false && !kids(rec.id, 'levels').length)) {
       if (!hasPhoto(STP_WALL) && !kids(rec.id, 'levels').some(l => photosOf(l.id).some(p => STP_WALL.includes(p.data.kind)))) m.push('Photo of the STP wall (profile)');
       for (const l of kids(rec.id, 'levels')) if (l.data.special_find && !photosOf(l.id).some(p => ['Special find', 'In situ find'].includes(p.data.kind))) m.push(`Photo of the special find in level ${l.data.levelno}`);
     }
@@ -1408,6 +1408,7 @@ function formView(rec, isNew, opts = {}) {
     <div class="formbar">
       <button class="btn" type="submit" id="fin">Finish ✓</button>
       ${hasNext ? `<button class="btn sec" type="button" id="saveNext">Finish &amp; add next</button>` : ''}
+      ${isExc && !kids(rec.id, 'levels').length ? `<button class="btn sec bad" type="button" id="nodig">🚫 Can’t dig here…</button>` : ''}
       <button class="btn warnbtn" type="button" id="draft">Save unfinished…</button>
       <button class="btn sec" type="button" id="cancel">Cancel</button>
       ${!isNew && canDelete(rec) ? `<span style="flex:1"></span><button class="btn bad" type="button" id="del">Delete</button>` : ''}
@@ -1477,6 +1478,7 @@ function formView(rec, isNew, opts = {}) {
     fin.textContent = isExc ? (headOnly ? `Save ${cur.excavation_type === 'STP' ? 'STP' : isUnit(cur) ? 'unit' : 'excavation'} ✓` : st === 'complete' ? 'Close out ✓' : 'Save & upload (open)') : bagNext ? 'Finish → scan bag ✓' : 'Finish ✓';
     if ($('#saveNext')) $('#saveNext').textContent = bagNext ? 'Finish → scan bag & add next' : 'Finish & add next';
     const sfb = $('#sfphoto', form); if (sfb) sfb.classList.toggle('hidden', !cur.special_find);
+    const ndb = $('#nodig', form); if (ndb) ndb.classList.toggle('hidden', isUnit(cur));
     $('#finhelp').textContent = canFin ? (isExc && headOnly ? 'Saved and sent to the project. Depth, positive/negative and the rest are filled in when it is finished.' : isExc && st === 'open' ? 'The excavation uploads as open; close it out when all checks pass.' : 'Finished records upload automatically.')
       : `Can’t finish yet: ${errs ? errs + ' field error' + (errs > 1 ? 's' : '') + (miss.length ? ' and ' : '') : ''}${miss.length ? miss.length + ' item' + (miss.length > 1 ? 's' : '') + ' missing' : ''}. Tap Finish to see what’s missing. “Save unfinished” keeps it on this device only.`;
     if (canFin && isExc && !headOnly && st === 'open' && miss.length) $('#finhelp').textContent += ` To close it out, still needed: ${miss.join('; ')}.`;
@@ -1625,6 +1627,14 @@ function formView(rec, isNew, opts = {}) {
   };
   form.onsubmit = e => { e.preventDefault(); doSave('finish'); };
   $('#saveNext') && ($('#saveNext').onclick = () => doSave('finish', true));
+  $('#nodig') && ($('#nodig').onclick = async () => {
+    const nd = current(), v = validate(rec.tbl, nd, rec);
+    const head = excHeaderMissing(nd).filter(x => !(nd.planned && /^Location/.test(x)));   // a planned point already has coordinates
+    if (Object.keys(v.errs).length || head.length) { showMissing(form, head, v.errs); toast('Fill in the location and the other required fields first'); return; }
+    fields.filter(f => f.virtual).forEach(f => delete nd[f.k]);
+    if (!(await cantDigModal(rec, nd))) return;
+    S.formDirty = false; toast('Recorded as not dug ✓'); location.hash = '#/rec/' + rec.id;
+  });
   $('#draft').onclick = async () => {
     const miss = completeness(rec, current());
     if (!(await confirmUnfinished(def.label.toLowerCase(), miss))) return;
@@ -1720,6 +1730,7 @@ function viewExc(e) {
     ${unfinishedBox(e)}
     ${d.planned ? `<div class="card plancard"><b class="t">Planned STP: not dug yet</b><div>Target: <b>${d.target_e} E, ${d.target_n} N</b> (zone ${d.target_zone || 15})${d.transect ? ' · transect ' + esc(d.transect) : ''}</div><div id="pdist" class="help"></div>
       <div class="btns"><button class="btn sec" id="pfind">📍 How far is it?</button><a class="btn" href="#/edit/${e.id}">Dig it: record location &amp; start</a><button class="btn sec" id="pcant">Can’t dig…</button></div></div>` : ''}
+    ${!d.planned && d.not_excavated_reason && !levels.length ? `<div class="card" style="border-left:4px solid var(--bad)"><b>🚫 Not dug</b>${d.transect ? ` <span class="help">transect ${esc(d.transect)}</span>` : ''}<div>${esc(d.not_excavated_reason)}</div></div>` : ''}
     ${newSiteDue(e) ? `<div class="unfinbox"><b class="t">🆕 ${stpCount(e)} artifacts: this looks like a new site</b>More than 5 artifacts in a survey STP. <div class="btns"><button class="btn" id="nsdecide">Decide now</button></div></div>` : ''}
     ${d.new_site && get(d.new_site) ? `<div class="check okc">This STP found new site <a href="#/site/${d.new_site}"><b>${esc(get(d.new_site).data.sitename)}</b></a>.</div>` : d.site_decision && d.site_decision.startsWith('Not') ? `<div class="check">${esc(d.site_decision)}</div>` : ''}
     <div class="card kv">
@@ -1733,7 +1744,7 @@ function viewExc(e) {
     ${e.data._status === 'draft' || d.planned ? '' : checklistHTML(e)}
     ${levels.some(l => l.data._status === 'draft') ? `<div class="unfinbox"><b class="t">⚠ ${levels.filter(l => l.data._status === 'draft').length} level(s) UNFINISHED</b>Finish ${levels.filter(l => l.data._status === 'draft').map(l => 'EU ' + esc(l.data.excavation_unit) + ' Lvl ' + esc(l.data.levelno)).join(', ')} before starting another level.</div>` : ''}
     <div class="card" style="margin-top:8px">${photoStripHTML(e)}</div>
-    <div class="btns${d.planned ? ' hidden' : ''}">${isUnit(d) ? '' : `<a class="btn" href="#/new/levels/${e.id}">+ Next level</a>`}${isUnit(d) ? `<a class="btn" href="#/closeout/${e.id}">Close out unit…</a><a class="btn sec" href="#/edit/${e.id}">Edit details</a>` : `<a class="btn sec" href="#/edit/${e.id}">Edit / close out</a>`}
+    <div class="btns${d.planned ? ' hidden' : ''}">${isUnit(d) ? '' : d.not_excavated_reason && !levels.length ? `<button class="btn sec" id="nodigx">Change the reason</button>` : `<a class="btn" href="#/new/levels/${e.id}">+ Next level</a>${levels.length ? '' : '<button class="btn sec bad" id="nodigx">🚫 Can’t dig here…</button>'}`}${isUnit(d) ? `<a class="btn" href="#/closeout/${e.id}">Close out unit…</a><a class="btn sec" href="#/edit/${e.id}">Edit details</a>` : `<a class="btn sec" href="#/edit/${e.id}">Edit / close out</a>`}
       <a class="btn sec" href="#/new/features/${e.id}">+ Feature</a><a class="btn sec" href="#/new/samples/${e.id}">+ Sample</a></div>
     ${unitSectionHTML(e)}
     <h3>Levels</h3><div class="list">${levels.map(l => {
@@ -1742,6 +1753,8 @@ function viewExc(e) {
     }).join('') || '<div class="empty">No levels yet</div>'}</div>
     ${feats.length ? `<h3>Features</h3><div class="list">${feats.map(f => rowHTML(f)).join('')}</div>` : ''}
     ${samps.length ? `<h3>Samples</h3><div class="list">${samps.map(f => rowHTML(f)).join('')}</div>` : ''}`;
+  $('#nodigx') && ($('#nodigx').onclick = async () => { if (await cantDigModal(e)) { toast('Recorded as not dug ✓'); viewExc(get(e.id)); } });
+  if (d.no_dig && !d.not_excavated_reason && !levels.length) setTimeout(() => $('#nodigx')?.click(), 200);
   const bindCl = () => { bindDepthFix(() => viewExc(get(e.id))); document.querySelectorAll('[data-cogo]').forEach(x => x.onclick = () => { S._coGo = x.dataset.cogo; }); };
   bindCl();
   bindPhotos($('[data-photos]'), e, () => { const c = $('#cl'); if (c) c.outerHTML = checklistHTML(e); bindCl(); });
@@ -1907,7 +1920,7 @@ async function viewSettings() {
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a>${s.test_only ? '' : '<button class="btn sec" id="tmoff">Leave test mode</button>'}</div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
     <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a><a class="btn sec" href="#/offline">Offline maps (imagery)</a></div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.48 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.49 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   if ($('#s_rep')) CORE.myProfile().then(p => {
     const cb = $('#s_rep'); if (!cb || !p) return;
     cb.checked = reportsOn(p); cb.disabled = false; $('#s_rep_h').textContent = `Sent to ${p.email}.`;
@@ -2908,21 +2921,33 @@ function nearestPlanned(siteId) {
     document.body.append(m);
   }, e => gpsHelp(e), { enableHighAccuracy: true, timeout: 30000, maximumAge: 5000 });
 }
-function cantDigModal(exc) {
+const NODIG_REASONS = ['Standing water / inundated', 'Wetland / stream channel', 'Slope too steep (over 20%)', 'Thick undergrowth / dense vegetation', 'Tree fall / large roots', 'Exposed bedrock / gravel / rock', 'Road, trail or disturbed ground', 'Pipeline, utility or modern structure', 'Unsafe (wildlife, hazard)', 'Other'];
+/* "can't dig here": records why the point was not excavated and closes it out. For a planned point the planned
+   coordinates are used unless a position was captured; otherwise the position already on the record is kept. */
+function cantDigModal(exc, data) {
   return new Promise(resolve => {
+    const d0 = data || exc.data, prev = String(d0.not_excavated_reason || ''), prevR = NODIG_REASONS.find(r => prev.startsWith(r)) || '';
     const m = document.createElement('div'); m.className = 'modal';
-    m.innerHTML = `<div class="card" style="max-width:460px"><b class="t">Can’t dig ${esc(TABLES.excavations.title(exc.data))}</b>
-      <div class="f"><label for="cdr">Why?</label><select id="cdr"><option></option><option>Slope over 20%</option><option>Standing water / inundated</option><option>Road or disturbed ground</option><option>Exposed bedrock / gravel</option><option>Inaccessible / dense vegetation</option><option>Other</option></select></div>
-      <div class="f"><label for="cdn">Note</label><input id="cdn" placeholder="optional"></div>
-      <div class="btns" style="justify-content:flex-end"><button class="btn sec" id="cdx">Cancel</button><button class="btn" id="cdok">Record as not dug</button></div></div>`;
+    m.innerHTML = `<div class="card" style="max-width:460px"><b class="t" style="font-size:17px">🚫 Can’t dig ${esc(TABLES.excavations.title(d0))}</b>
+      <div class="help" style="margin:4px 0 8px">The point is recorded and closed out as <b>not excavated</b>. No levels, bags or photos are needed${d0.transect ? ` (transect ${esc(d0.transect)})` : ''}.</div>
+      <div class="f"><label for="cdr">Why can’t it be dug? *</label><select id="cdr"><option></option>${NODIG_REASONS.map(r => `<option ${r === prevR ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select></div>
+      <div class="f" style="margin-top:6px"><label for="cdn">Note <span class="help" id="cdnh">(optional)</span></label><input id="cdn" value="${esc(prevR ? prev.slice(prevR.length).replace(/^:\s*/, '') : prev)}" placeholder="e.g. 30 cm of water, palmetto thicket"></div>
+      <div class="help" style="margin-top:6px">A photo of the spot is useful but not required (add it on the STP page).</div>
+      <div class="btns" style="justify-content:flex-end"><button class="btn sec" id="cdx">Cancel</button><button class="btn" id="cdok">Record as not dug ✓</button></div></div>`;
     document.body.append(m);
+    const sync = () => { $('#cdnh', m).textContent = $('#cdr', m).value === 'Other' ? '* (say what)' : '(optional)'; };
+    $('#cdr', m).onchange = sync; sync();
     $('#cdx', m).onclick = () => { m.remove(); resolve(false); };
     $('#cdok', m).onclick = async () => {
       const r = $('#cdr', m).value, n = $('#cdn', m).value.trim(); if (!r) return toast('Pick a reason');
-      const d = exc.data, g = fromUTM(d.target_e, d.target_n, d.target_zone || 15);
-      exc.data = { ...d, planned: 0, not_excavated_reason: r + (n ? ': ' + n : ''), date: today(), crew: me(), utme: d.target_e, utmn: d.target_n, utmzone: d.target_zone || 15, lat: +g.lat.toFixed(8), lon: +g.lon.toFixed(8), gps_entry: 'planned point (not dug)', gps_source: 'Plan', depthcm: 0, positive: 0 };
-      const miss = completeness(exc, exc.data); exc.data._status = statusFor(exc, exc.data, miss); exc.data._missing = miss;
-      await save(exc); m.remove(); resolve(true);
+      if (r === 'Other' && !n) return toast('Say why in the note');
+      let d = { ...d0, not_excavated_reason: r + (n ? ': ' + n : ''), date: d0.date || today(), crew: d0.crew || me(), depthcm: 0, positive: 0, no_dig: 1 };
+      if (d.planned) {
+        if (d.lat == null && blank(d.utme)) { const g = fromUTM(d.target_e, d.target_n, d.target_zone || 15); Object.assign(d, { utme: d.target_e, utmn: d.target_n, utmzone: d.target_zone || 15, lat: +g.lat.toFixed(8), lon: +g.lon.toFixed(8), gps_entry: 'planned point (not dug)', gps_source: 'Plan' }); }
+        d.planned = 0;
+      }
+      const miss = completeness(exc, d); d._status = statusFor(exc, d, miss); d._missing = miss;
+      exc.data = d; await save(exc); m.remove(); resolve(true);
     };
   });
 }
