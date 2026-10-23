@@ -467,7 +467,7 @@ function toUTM(lat, lon, forceZone) {
    warn = accuracy (m) above which the app warns for that source. */
 const GPS_SOURCES = [
   { k: 'Emlid Reach RX2 (RTK via Emlid Flow)', warn: 0.1, hint: 'Android: Emlid Flow set as the mock location app, with an RTK fix.' },
-  { k: 'Trimble TDC600 (RTX via Trimble Mobile Manager)', warn: 1, hint: 'Open this app on the TDC600 itself; set Trimble Mobile Manager as the mock location app.' },
+  { k: 'Trimble DA2 / Catalyst (via Trimble Mobile Manager)', warn: 1, hint: 'Trimble Mobile Manager must be the mock location app (Settings → Developer options → Select mock location app) and connected to the DA2. If this readout differs from the accuracy shown in Mobile Manager, the phone is still using its own GPS.' },
   { k: 'Phone/tablet built-in GPS', warn: 4, hint: 'Accepted at ±4 m or better: wait for the readout to turn green. Fine for STPs, too coarse for unit datums and corners.' },
   { k: 'Other receiver (mock location)', warn: 2, hint: '' },
 ];
@@ -1873,7 +1873,7 @@ async function viewSettings() {
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a>${s.test_only ? '' : '<button class="btn sec" id="tmoff">Leave test mode</button>'}</div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
     <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a><a class="btn sec" href="#/offline">Offline maps (imagery)</a></div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.46 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.47 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   if ($('#s_rep')) CORE.myProfile().then(p => {
     const cb = $('#s_rep'); if (!cb || !p) return;
     cb.checked = reportsOn(p); cb.disabled = false; $('#s_rep_h').textContent = `Sent to ${p.email}.`;
