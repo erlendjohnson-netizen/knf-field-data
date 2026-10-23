@@ -1006,6 +1006,41 @@ const diagCat = m => (String(m).match(/^Bag for (.+?) \(scan its label/) || [])[
 const isAfter = x => AFTER.includes(x) || !!diagCat(x);
 const onlyBag = miss => miss.length > 0 && miss.every(x => x === BAG_MISS);
 const featuresOfLevel = l => live('features').filter(f => f.data.level_id === l.id || (!f.data.level_id && f.parent === l.parent && String(f.data.levelno) === String(l.data.levelno) && String(f.data.excavation_unit || 'A').toUpperCase() === String(l.data.excavation_unit || 'A').toUpperCase()));
+/* levels whose top does not meet the bottom of the level above (same subunit) */
+function depthGaps(exc) {
+  const eus = {}, out = [];
+  kids(exc.id, 'levels').forEach(l => (eus[l.data.excavation_unit || 'A'] ||= []).push(l));
+  for (const [eu, ls] of Object.entries(eus)) {
+    ls.sort((a, b) => a.data.levelno - b.data.levelno);
+    for (let i = 1; i < ls.length; i++) {
+      const t = num(ls[i].data.top_cm), b = num(ls[i - 1].data.bgscm);
+      if (t == null || b == null || Math.abs(t - b) > 0.05) out.push({ eu, prev: ls[i - 1], cur: ls[i], msg: `EU ${eu}: level ${ls[i].data.levelno} top doesn't meet level ${ls[i - 1].data.levelno} bottom` });
+    }
+  }
+  return out;
+}
+// one-tap fix: start the level at the bottom of the level above (each corner too, for test units)
+async function matchLevelTop(prev, cur) {
+  const exc = get(cur.parent), d = { ...cur.data };
+  if (exc && isUnit(exc.data)) for (const c of CORNERS) { const b = num(prev.data['bot_' + c]) ?? num(prev.data.bgscm); if (b != null) d['top_' + c] = b; }
+  d.top_cm = num(prev.data.bgscm);
+  const d2 = compute('levels', d, { parentRec: exc });
+  if (num(d2.bgscm) != null && num(d2.top_cm) != null && num(d2.bgscm) <= num(d2.top_cm)) { toast(`Level ${cur.data.levelno}'s bottom (${d2.bgscm}) would be above its new top: open the level and fix its depths`); return false; }
+  cur.data = d2; cur.data._missing = completeness(cur, cur.data); await save(cur);
+  if (exc) { const m = completeness(exc, isUnit(exc.data) ? { ...exc.data, ...unitAutoVals(exc) } : exc.data); exc.data._missing = m; if (exc.data._status === 'complete' && m.length) exc.data._status = 'open'; await save(exc); }
+  return true;
+}
+const fmtCm = v => v == null || v === '' ? '?' : v;
+function depthGapHTML(g) {
+  const unit = isUnit(get(g.cur.parent)?.data), pb = fmtCm(g.prev.data.bgscm), ct = fmtCm(g.cur.data.top_cm);
+  return `<div style="padding:6px 0;border-top:1px solid var(--line)"><b>EU ${esc(g.eu)}:</b> level ${esc(g.prev.data.levelno)} ends at <b>${esc(pb)} cmbs</b>, but level ${esc(g.cur.data.levelno)} starts at <b>${esc(ct)} cmbs</b>${unit ? ' <span class="help">(average of its corner tops)</span>' : ''}.
+    <div class="btns" style="margin-top:4px"><button class="btn sm" data-fixtop="${g.cur.id}" data-prev="${g.prev.id}">Start level ${esc(g.cur.data.levelno)} at ${esc(pb)} cmbs</button>
+    <a class="btn sm sec" href="#/edit/${g.prev.id}">Open level ${esc(g.prev.data.levelno)}</a><a class="btn sm sec" href="#/edit/${g.cur.id}">Open level ${esc(g.cur.data.levelno)}</a></div>
+    <div class="help">Use the first button if level ${esc(g.prev.data.levelno)}'s bottom is right${unit ? ' (each corner top is set to the corner bottom above)' : ''}. If level ${esc(g.prev.data.levelno)}'s bottom is the mistake, open it and fix its ${unit ? 'corner bottoms' : 'bottom'}.</div></div>`;
+}
+function bindDepthFix(after) {
+  document.querySelectorAll('[data-fixtop]').forEach(b => b.onclick = async () => { const cur = get(b.dataset.fixtop), prev = get(b.dataset.prev); if (!cur || !prev) return; if (await matchLevelTop(prev, cur)) { toast(`Level ${cur.data.levelno} now starts at ${prev.data.bgscm} cmbs ✓`); after(); } });
+}
 function completeness(rec, d) {
   if (rec.tbl === 'excavations' && isUnit(d) && rec.id) d = { ...d, ...unitAutoVals(rec) }; // a unit's final depth, depth to sterile and positive are worked out, never typed
   const t = rec.tbl, m = t === 'excavations' ? excHeaderMissing(d) : requiredMissing(rec, d), need = (k, label) => { LABELKEY[label] = k; if (blank(d[k]) && !m.includes(label)) m.push(label); };
@@ -1019,10 +1054,7 @@ function completeness(rec, d) {
       const deepest = Math.max(...lv.map(l => num(l.data.bgscm) || 0));
       if (num(d.depthcm) != null && deepest && num(d.depthcm) !== deepest) m.push(`Final depth (${d.depthcm}) ≠ deepest level bottom (${deepest})`);
       const eus = {}; lv.forEach(l => (eus[l.data.excavation_unit || 'A'] ||= []).push(l));
-      for (const [eu, ls] of Object.entries(eus)) {
-        ls.sort((a, b) => a.data.levelno - b.data.levelno);
-        for (let i = 1; i < ls.length; i++) if (num(ls[i].data.top_cm) !== num(ls[i - 1].data.bgscm)) m.push(`EU ${eu}: level ${ls[i].data.levelno} top doesn't meet level ${ls[i - 1].data.levelno} bottom`);
-      }
+      for (const g of depthGaps(rec)) m.push(g.msg);
       const withArt = lv.filter(l => l.data.artifacts);
       if (d.positive && !withArt.length) m.push('Marked positive but no level has artifacts');
       if (!d.positive && withArt.length) m.push('Levels have artifacts but the excavation is not marked positive');
@@ -1710,7 +1742,9 @@ function viewExc(e) {
     }).join('') || '<div class="empty">No levels yet</div>'}</div>
     ${feats.length ? `<h3>Features</h3><div class="list">${feats.map(f => rowHTML(f)).join('')}</div>` : ''}
     ${samps.length ? `<h3>Samples</h3><div class="list">${samps.map(f => rowHTML(f)).join('')}</div>` : ''}`;
-  bindPhotos($('[data-photos]'), e, () => { const c = $('#cl'); if (c) c.outerHTML = checklistHTML(e); });
+  const bindCl = () => { bindDepthFix(() => viewExc(get(e.id))); document.querySelectorAll('[data-cogo]').forEach(x => x.onclick = () => { S._coGo = x.dataset.cogo; }); };
+  bindCl();
+  bindPhotos($('[data-photos]'), e, () => { const c = $('#cl'); if (c) c.outerHTML = checklistHTML(e); bindCl(); });
   bindFinish(e); bindUnitSection(e);
   if (d.planned) {
     $('#pcant').onclick = async () => { if (await cantDigModal(e)) { toast('Recorded as not dug'); viewExc(get(e.id)); } };
@@ -1721,9 +1755,9 @@ function viewExc(e) {
 function bindFinish(r) { const b = $('#finnow'); if (b) b.onclick = () => finishNow(r); }
 function checklistHTML(r) {
   const miss = completeness(r, isUnit(r.data) ? { ...r.data, ...unitAutoVals(r) } : r.data);
-  if (isUnit(r.data) && r.data._status !== 'complete') return `<div id="cl">${miss.length ? `<div class="check"><b>To close out (${miss.length} left):</b><ul style="margin:4px 0 0;padding-left:18px">${miss.map(x => `<li>${esc(x)}</li>`).join('')}</ul><div class="btns"><a class="btn sm" href="#/closeout/${r.id}">Open the close-out checklist</a></div></div>` : `<div class="check okc">All checks pass. Press “Close out unit…” to close it.</div>`}</div>`;
+  if (isUnit(r.data) && r.data._status !== 'complete') return `<div id="cl">${miss.length ? `<div class="check"><b>To close out (${miss.length} left):</b> <span class="help">tap an item to fix it</span><ul style="margin:4px 0 0;padding-left:18px">${miss.map(x => `<li><a href="#/closeout/${r.id}" data-cogo="${closeoutSection(x)[0]}">${esc(x)}</a></li>`).join('')}</ul>${depthGaps(r).map(depthGapHTML).join('')}<div class="btns"><a class="btn sm" href="#/closeout/${r.id}">Open the close-out checklist</a></div></div>` : `<div class="check okc">All checks pass. Press “Close out unit…” to close it.</div>`}</div>`;
   const stale = (r.data._status === 'complete') !== !miss.length;
-  return `<div id="cl">${miss.length ? `<div class="check"><b>${r.data._status === 'complete' ? 'Now incomplete' : 'To close out'}:</b><ul style="margin:4px 0 0;padding-left:18px">${miss.map(x => `<li>${esc(x)}</li>`).join('')}</ul>${stale ? '' : ''}</div>`
+  return `<div id="cl">${miss.length ? `<div class="check"><b>${r.data._status === 'complete' ? 'Now incomplete' : 'To close out'}:</b><ul style="margin:4px 0 0;padding-left:18px">${miss.map(x => `<li>${esc(x)}</li>`).join('')}</ul>${r.tbl === 'excavations' ? depthGaps(r).map(depthGapHTML).join('') : ''}</div>`
     : `<div class="check okc">All checks pass${r.data._status !== 'complete' ? (isUnit(r.data) ? '. Press “Close out unit…” to close it.' : '. Open “Edit / close out” and save to mark it complete.') : ' ✓'}</div>`}</div>`;
 }
 function labSection(l) {
@@ -1873,7 +1907,7 @@ async function viewSettings() {
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a>${s.test_only ? '' : '<button class="btn sec" id="tmoff">Leave test mode</button>'}</div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
     <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a><a class="btn sec" href="#/offline">Offline maps (imagery)</a></div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.47 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.48 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   if ($('#s_rep')) CORE.myProfile().then(p => {
     const cb = $('#s_rep'); if (!cb || !p) return;
     cb.checked = reportsOn(p); cb.disabled = false; $('#s_rep_h').textContent = `Sent to ${p.email}.`;
@@ -2210,6 +2244,7 @@ function closeoutSection(m) {
   if (m === MSG_DRAW_LIST || /^Drawing \d+:/.test(m)) return ['co-draw', 'Drawings'];
   if (m === MSG_AZ || /^Location/.test(m)) return ['co-orient', 'Orientation & location'];
   if (/^Feature box|^Dateable|^Excavators|positive/.test(m)) return ['co-feat', 'Features, samples & notes'];
+  if (/top doesn't meet level/.test(m)) return ['co-depth', 'Level depths'];
   return ['co-also', 'Also needed'];
 }
 function viewUnitCloseout(id) {
@@ -2234,7 +2269,8 @@ function viewUnitCloseout(id) {
     'Feature box ticked but no feature record', 'Dateable material ticked but no sample record', 'Marked positive but no level has artifacts', 'Levels have artifacts but the excavation is not marked positive',
     ...dws.flatMap((w, i) => [`Drawing ${i + 1}: what it shows`, `Drawing ${i + 1}: photo of the drawing`]),
     ...subs.flatMap(s => [`Subunit ${s.data.letter} has no levels`, `Mark the terminal level in subunit ${s.data.letter}`])]);
-  const other = miss.filter(m => !known.has(m));   // nothing is ever hidden: anything not covered by a section is listed under "Also needed"
+  const other = miss.filter(m => !known.has(m) && closeoutSection(m)[0] === 'co-also');
+  const gaps = depthGaps(e);   // nothing is ever hidden: anything not covered by a section is listed under "Also needed"
   const bad = new Set(miss.map(m => closeoutSection(m)[0]));
   const H = (sid, n, t) => `<h3 id="${sid}" style="scroll-margin-top:70px">${n} · ${t}${bad.has(sid) ? ' <span style="color:var(--bad)">✗ needs attention</span>' : ' <span style="color:var(--ok)">✓</span>'}</h3>`;
   const leftHTML = miss.length ? `<div class="card" id="coleft" style="border:2px solid var(--bad);margin-top:8px"><b style="color:var(--bad);font-size:17px">⛔ ${esc(nm)} is NOT closed yet: ${miss.length} thing${miss.length > 1 ? 's' : ''} left</b>
@@ -2291,7 +2327,8 @@ function viewUnitCloseout(id) {
       <div class="f w3"><label for="cocrew">Excavators</label><input id="cocrew" value="${esc(e.data.crew || '')}"></div>
       <div class="f w3"><label for="cocom">Comments (optional)</label><textarea id="cocom" rows="2">${esc(e.data.comments || '')}</textarea></div>
     </div>
-    ${other.length ? `${H('co-also', 7, 'Also needed')}<div class="card"><div style="display:flex;gap:6px">${tick(false)}<div style="flex:1"><ul style="margin:0;padding-left:18px">${other.map(m => `<li>${esc(m)}</li>`).join('')}</ul><div class="btns"><a class="btn sm sec" href="#/edit/${id}">Edit unit details</a><a class="btn sm sec" href="#/rec/${id}">Unit page</a></div></div></div></div>` : ''}
+    ${gaps.length ? `${H('co-depth', 7, 'Level depths')}<div class="card"><div class="help">Each level must start where the level above it ended.</div>${gaps.map(depthGapHTML).join('')}</div>` : ''}
+    ${other.length ? `${H('co-also', gaps.length ? 8 : 7, 'Also needed')}<div class="card"><div style="display:flex;gap:6px">${tick(false)}<div style="flex:1"><ul style="margin:0;padding-left:18px">${other.map(m => `<li>${esc(m)}</li>`).join('')}</ul><div class="btns"><a class="btn sm sec" href="#/edit/${id}">Edit unit details</a><a class="btn sm sec" href="#/rec/${id}">Unit page</a></div></div></div></div>` : ''}
     <div class="card kv" style="margin-top:10px"><div><span>Final depth (deepest level)</span><br>${deepest != null ? deepest + ' cmbs' : '—'}</div><div><span>Depth to sterile</span><br>${auto.depthsterile != null ? auto.depthsterile + ' cmbs' : '—'}</div><div><span>Positive?</span><br>${auto.positive ? 'Yes (artifacts found)' : 'No'}</div></div>
     <div class="help">Final depth, depth to sterile and positive/negative are filled in for you when the unit is closed.</div>
     ${miss.length ? `<div class="check" style="border-color:var(--bad)"><b style="color:var(--bad)">Not closed yet.</b> Still needed: ${miss.map(m => esc(m)).join('; ')}.</div>` : ''}
@@ -2312,6 +2349,8 @@ function viewUnitCloseout(id) {
   $('#coaz').onchange = () => { const v = num($('#coaz').value.replace(',', '.')); if (v != null && (v < -360 || v > 360)) return toast('Enter a bearing in degrees'); saveE({ azimuth: v }); };
   $('#coaz0').onclick = () => saveE({ azimuth: 0 });
   if ($('#coazs')) $('#coazs').onclick = () => saveE({ azimuth: +$('#coazs').dataset.az });
+  bindDepthFix(() => viewUnitCloseout(id));
+  if (S._coGo) { const g = S._coGo; S._coGo = null; setTimeout(() => $(`[data-goto="${g}"]`)?.click(), 150); }
   $('#cofe').onchange = () => saveE({ feature: $('#cofe').checked ? 1 : 0 });
   $('#coda').onchange = () => saveE({ dateablematerial: $('#coda').checked ? 1 : 0 });
   $('#cocrew').onchange = () => saveE({ crew: $('#cocrew').value.trim() });
