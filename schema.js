@@ -144,6 +144,7 @@ const TABLES = {
       { k: 'feature', l: 'Feature present', t: 'bool' },
       { k: 'dateablematerial', l: 'Dateable material', t: 'bool' },
       { k: 'not_excavated_reason', l: 'Not excavated / truncated because', t: 'text', w: 2 }, // new
+      { k: 'sterile_override', l: 'Closed without a second sterile level because', t: 'ro', w: 3, show: r => isUnit(r) && !!r.sterile_override },
       { k: 'photos', l: 'Photo nos.', t: 'text' }, // new
       { k: 'plan_drawing_1', l: 'Plan drawing', t: 'text', show: r => !isUnit(r) },
       { k: 'profile_drawing_1', l: 'Profile drawing', t: 'text', show: r => !isUnit(r) },

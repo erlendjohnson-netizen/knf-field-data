@@ -1070,7 +1070,7 @@ function completeness(rec, d) {
         if (!sl.length) m.push(`Subunit ${s.data.letter} has no levels`);
         else if (!sl.some(l => l.data.terminal_level)) m.push(`Mark the terminal level in subunit ${s.data.letter}`);
       }
-      if (subs.length && !subs.some(s => trailingSterile(chainLevels(rec, s)) >= 2)) m.push(MSG_STERILE);
+      if (subs.length && !subs.some(s => trailingSterile(chainLevels(rec, s)) >= 2) && blank(d.sterile_override)) m.push(MSG_STERILE);
       if (num(d.azimuth) == null) m.push(MSG_AZ);
       // GPS corner shots are optional (useful with the RTK); a phone GPS is too rough to check a 1 m unit
       const dws = Array.isArray(d.drawings) ? d.drawings : [];
@@ -1920,7 +1920,7 @@ async function viewSettings() {
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a>${s.test_only ? '' : '<button class="btn sec" id="tmoff">Leave test mode</button>'}</div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
     <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a><a class="btn sec" href="#/offline">Offline maps (imagery)</a></div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.49 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.50 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   if ($('#s_rep')) CORE.myProfile().then(p => {
     const cb = $('#s_rep'); if (!cb || !p) return;
     cb.checked = reportsOn(p); cb.disabled = false; $('#s_rep_h').textContent = `Sent to ${p.email}.`;
@@ -2270,7 +2270,7 @@ function viewUnitCloseout(id) {
     const draft = lv.find(l => l.data._status === 'draft'), term = lv.find(l => l.data.terminal_level);
     return { s, lv, last, draft, term, closed: !!term && !draft, ster: trailingSterile(chainLevels(e, s)) };
   });
-  const sterOk = rows.some(r => r.closed && r.ster >= 2);
+  const sterOk = rows.some(r => r.closed && r.ster >= 2), sterWhy = String(e.data.sterile_override || '').trim();
   const ph = unitPhotoState(e);
   // depth to sterile: top of the two sterile levels at the bottom of the first subunit that has them
   const auto = unitAutoVals(e); // filled in at close-out
@@ -2307,10 +2307,11 @@ function viewUnitCloseout(id) {
     <div class="help">Everything below must be ✓ before the unit can be closed. Fix things straight from this page.</div>
     ${leftHTML}
     ${H('co-sub', 1, 'Subunits closed')}<div class="card">${rows.map(suRow).join('') || '<div class="empty">No subunits</div>'}</div>
-    ${H('co-ster', 2, 'Two sterile levels')}<div class="card"><div style="display:flex;gap:6px">${tick(sterOk)}<div style="flex:1">${sterOk
+    ${H('co-ster', 2, 'Two sterile levels')}<div class="card"><div style="display:flex;gap:6px">${tick(sterOk || sterWhy)}<div style="flex:1">${sterOk
       ? `Reached in ${rows.filter(r => r.closed && r.ster >= 2).map(r => esc(r.s.data.letter)).join(', ')}.`
+      : sterWhy ? `<b>Closing without a second sterile level.</b> Reason: ${esc(sterWhy)}`
       : `No closed subunit ends in two sterile levels yet. Dig deeper in one subunit, or dig a <b>¼-unit window</b> (a smaller square inside a subunit, below its floor) until two levels in a row have no artifacts.`}</div></div>
-      ${sterOk ? '' : `<div class="btns">${rows.filter(r => r.lv.length && !r.s.data.window_of).map(r => `<a class="btn sm sec" href="#/window/${id}?of=${encodeURIComponent(r.s.data.letter)}">Dig a ¼ window in ${esc(r.s.data.letter)}</a>`).join('')}</div>`}</div>
+      ${sterOk ? '' : `<div class="btns">${sterWhy ? '<button class="btn sm sec" id="sterwhy">Change the reason</button><button class="btn sm sec" id="sterclr">Remove (dig the sterile levels instead)</button>' : rows.filter(r => r.lv.length && !r.s.data.window_of).map(r => `<a class="btn sm sec" href="#/window/${id}?of=${encodeURIComponent(r.s.data.letter)}">Dig a ¼ window in ${esc(r.s.data.letter)}</a>`).join('') + '<button class="btn sm sec bad" id="sterwhy">Close without a second sterile level…</button>'}</div>`}</div>
     ${H('co-photo', 3, 'Close-out photos')}<div class="card">
       <div style="display:flex;gap:6px;align-items:center;padding:4px 0">${tick(ph.overview)}<span style="flex:1">Overview of the unit</span>${ph.overview ? '' : photoBtn('Overview', 'Overview')}</div>
       <div style="display:flex;gap:6px;align-items:center;padding:4px 0;flex-wrap:wrap">${tick(ph.walls.length >= 2)}<span style="flex:1">Two walls${ph.walls.length ? ` <span class="help">(done: ${ph.walls.map(w => esc(w.replace('Wall profile – ', ''))).join(', ')})</span>` : ''}</span>
@@ -2363,6 +2364,19 @@ function viewUnitCloseout(id) {
   $('#coaz0').onclick = () => saveE({ azimuth: 0 });
   if ($('#coazs')) $('#coazs').onclick = () => saveE({ azimuth: +$('#coazs').dataset.az });
   bindDepthFix(() => viewUnitCloseout(id));
+  $('#sterwhy') && ($('#sterwhy').onclick = () => {
+    const m = document.createElement('div'); m.className = 'modal';
+    m.innerHTML = `<div class="card"><b style="font-size:17px">Close without a second sterile level</b>
+      <div class="help" style="margin:4px 0 8px">The standard is two sterile levels in a row at the bottom of at least one subunit. Say why this unit stops short. This goes into the unit record.</div>
+      <div class="f"><label for="swq">Quick pick (optional)</label><select id="swq"><option></option><option>Water table reached</option><option>Clay / impenetrable subsoil</option><option>Bedrock or gravel reached</option><option>Wall collapse / unsafe depth</option><option>Out of time (end of field session)</option><option>Directed by PI / USFS</option></select></div>
+      <div class="f" style="margin-top:6px"><label for="swt">Reason *</label><textarea id="swt" rows="3" placeholder="e.g. Hit the water table at 85 cmbs; level 9 was sterile">${esc(sterWhy)}</textarea></div>
+      <div class="btns" style="justify-content:flex-end"><button class="btn sec" id="swx">Cancel</button><button class="btn" id="swok">Save reason</button></div></div>`;
+    document.body.append(m);
+    $('#swq', m).onchange = () => { const v = $('#swq', m).value, t = $('#swt', m); if (v && !t.value.includes(v)) t.value = v + (t.value.trim() ? '. ' + t.value.trim() : ': '); t.focus(); };
+    $('#swx', m).onclick = () => m.remove();
+    $('#swok', m).onclick = () => { const t = $('#swt', m).value.trim().replace(/:\s*$/, ''); if (t.length < 8) return toast('Write a short reason (a few words at least)'); m.remove(); saveE({ sterile_override: t }); };
+  });
+  $('#sterclr') && ($('#sterclr').onclick = async () => { if (await ask('Remove the reason? The unit will again need two sterile levels in one subunit before it can close.', 'Remove')) saveE({ sterile_override: '' }); });
   if (S._coGo) { const g = S._coGo; S._coGo = null; setTimeout(() => $(`[data-goto="${g}"]`)?.click(), 150); }
   $('#cofe').onchange = () => saveE({ feature: $('#cofe').checked ? 1 : 0 });
   $('#coda').onchange = () => saveE({ dateablematerial: $('#coda').checked ? 1 : 0 });
