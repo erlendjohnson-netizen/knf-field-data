@@ -1176,7 +1176,7 @@ function unfinishedBox(r) {
   const miss = completeness(r, r.data);
   return `<div class="unfinbox"><b class="t">⚠ UNFINISHED: NOT sent to the project</b>
     ${miss.length ? `Still missing: ${esc(miss.join('; '))}` : 'Everything is now filled in.'}
-    <div class="btns"><button class="btn" id="finnow">${miss.length ? 'Complete it now' : 'Finish now ✓'}</button></div></div>`;
+    <div class="btns"><button class="btn" id="finnow">${miss.length ? 'Complete it now' : 'Finish now ✓'}</button><button class="btn sec bad" id="deldraftx" data-id="${r.id}">🗑 Delete (start over)</button></div></div>`;
 }
 function drafts() { return [...S.recs.values()].filter(r => !r.deleted && r.data?._status === 'draft').sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)); }
 function updateDraftBar() {
@@ -1189,7 +1189,25 @@ function viewDrafts() {
   const ds = drafts();
   $('#app').innerHTML = `<h2>Unfinished records on this device</h2>
     <div class="unfinbox"><b class="t">These are NOT saved to the project</b>They exist only on this device. Finish each one before leaving the site; anything left here is lost if the device is lost, reset or its browser data is cleared.</div>
-    <div class="list">${ds.map(r => rowHTML(r, `<small>${esc(get(r.site)?.data.sitename || '')} · ${esc(TABLES[r.tbl].label)} · last edited ${esc(new Date(r.updated_at).toLocaleString())} by ${esc(r.updated_by || '?')}<br>Missing: ${esc(completeness(r, r.data).join('; ') || 'nothing: open it and press Finish')}</small>`)).join('') || '<div class="check okc">Nothing unfinished. Everything on this device is finished ✓</div>'}</div>`;
+    <div class="list">${ds.map(r => `<div>${rowHTML(r, `<small>${esc(get(r.site)?.data.sitename || '')} · ${esc(TABLES[r.tbl].label)} · last edited ${esc(new Date(r.updated_at).toLocaleString())} by ${esc(r.updated_by || '?')}<br>Missing: ${esc(completeness(r, r.data).join('; ') || 'nothing: open it and press Finish')}</small>`)}
+      <div class="btns" style="justify-content:flex-end;margin:-2px 0 8px"><a class="btn sm" href="#/edit/${r.id}">Finish it</a><button class="btn sm sec bad" data-deldraft="${r.id}">🗑 Delete (start over)</button></div></div>`).join('') || '<div class="check okc">Nothing unfinished. Everything on this device is finished ✓</div>'}</div>
+    ${ds.length > 1 ? `<div class="btns"><button class="btn sec bad" id="delalldrafts">🗑 Delete all ${ds.length} unfinished records</button></div>` : ''}`;
+  const kill = async r => { const all = subtree(r); for (const x of all) if (x.tbl === 'photos') await CORE.delBlob(x.id).catch(() => { }); return softDelete(r); };
+  const what = r => `${TABLES[r.tbl].label.toLowerCase()} “${TABLES[r.tbl].title(r.data)}”`;
+  $('#app').querySelectorAll('[data-deldraft]').forEach(b => b.onclick = async () => {
+    const r = get(b.dataset.deldraft); if (!r) return;
+    if (!canDelete(r)) return toast(noDeleteMsg);
+    const n = subtree(r).length - 1;
+    if (!(await ask(`Delete the unfinished ${what(r)}${n ? ` and the ${n} record${n > 1 ? 's' : ''}/photo${n > 1 ? 's' : ''} under it` : ''}?\n\nUse this to start over. It cannot be undone.`, 'Delete', 'Keep it'))) return;
+    await kill(r); toast('Deleted'); updateDraftBar?.(); viewDrafts();
+  });
+  $('#delalldrafts') && ($('#delalldrafts').onclick = async () => {
+    const mineOnly = ds.filter(canDelete);
+    if (!mineOnly.length) return toast(noDeleteMsg);
+    if (!(await ask(`Delete ${mineOnly.length === ds.length ? 'all ' : ''}${mineOnly.length} unfinished record${mineOnly.length > 1 ? 's' : ''} on this device${mineOnly.length < ds.length ? ` (${ds.length - mineOnly.length} made by someone else are kept)` : ''}?\n\nIt cannot be undone.`, 'Delete them', 'Cancel'))) return;
+    for (const r of mineOnly) if (get(r.id) && !get(r.id).deleted) await kill(r);
+    toast('Deleted'); updateDraftBar?.(); viewDrafts();
+  });
 }
 function statusFor(rec, d, miss) {
   if (!miss.length) return 'complete';
@@ -1765,7 +1783,16 @@ function viewExc(e) {
   }
   const nsd = $('#nsdecide'); if (nsd) nsd.onclick = async () => { const go = await newSitePrompt(e); if (go) location.hash = go; else viewExc(get(e.id)); };
 }
-function bindFinish(r) { const b = $('#finnow'); if (b) b.onclick = () => finishNow(r); }
+function bindFinish(r) {
+  const b = $('#finnow'); if (b) b.onclick = () => finishNow(r);
+  const d = $('#deldraftx'); if (d) d.onclick = async () => {
+    if (!canDelete(r)) return toast(noDeleteMsg);
+    const n = subtree(r).length - 1;
+    if (!(await ask(`Delete this unfinished ${TABLES[r.tbl].label.toLowerCase()}${n ? ` and the ${n} record${n > 1 ? 's' : ''}/photo${n > 1 ? 's' : ''} under it` : ''}?\n\nUse this to start over. It cannot be undone.`, 'Delete', 'Keep it'))) return;
+    for (const x of subtree(r)) if (x.tbl === 'photos') await CORE.delBlob(x.id).catch(() => { });
+    const back = r.parent ? hashFor(get(r.parent)) : homeFor(r.tbl); await softDelete(r); toast('Deleted'); updateDraftBar(); location.hash = back;
+  };
+}
 function checklistHTML(r) {
   const miss = completeness(r, isUnit(r.data) ? { ...r.data, ...unitAutoVals(r) } : r.data);
   if (isUnit(r.data) && r.data._status !== 'complete') return `<div id="cl">${miss.length ? `<div class="check"><b>To close out (${miss.length} left):</b> <span class="help">tap an item to fix it</span><ul style="margin:4px 0 0;padding-left:18px">${miss.map(x => `<li><a href="#/closeout/${r.id}" data-cogo="${closeoutSection(x)[0]}">${esc(x)}</a></li>`).join('')}</ul>${depthGaps(r).map(depthGapHTML).join('')}<div class="btns"><a class="btn sm" href="#/closeout/${r.id}">Open the close-out checklist</a></div></div>` : `<div class="check okc">All checks pass. Press “Close out unit…” to close it.</div>`}</div>`;
@@ -1920,7 +1947,7 @@ async function viewSettings() {
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a>${s.test_only ? '' : '<button class="btn sec" id="tmoff">Leave test mode</button>'}</div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
     <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a><a class="btn sec" href="#/offline">Offline maps (imagery)</a></div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.50 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.51 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   if ($('#s_rep')) CORE.myProfile().then(p => {
     const cb = $('#s_rep'); if (!cb || !p) return;
     cb.checked = reportsOn(p); cb.disabled = false; $('#s_rep_h').textContent = `Sent to ${p.email}.`;
