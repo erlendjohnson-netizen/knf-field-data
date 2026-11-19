@@ -485,6 +485,17 @@ TABLES.daychecks = {
     { k: 'notes', l: 'Notes', t: 'area', w: 3 },
   ],
 };
+/* Field day: opened by the lead (PI or field director) when the crew leaves the hotel, closed back at the hotel after
+   the bag check. One entry per person: start/end time and whether they drove their own vehicle (+1 h on field days).
+   Lunch (30 min) is always deducted. Feeds the UL Temporary Part-Time Time Sheet. */
+TABLES.fielddays = {
+  label: 'Field day', plural: 'Field days', parent: null, mode: 'hours', legacy: null,
+  title: r => `${r.kind === 'travel' ? 'Travel day' : 'Field day'} ${r.date || ''}${r.day_status === 'open' ? ' (open)' : ''}`,
+  fields: [
+    { k: 'date', l: 'Date', t: 'date', req: 1 }, { k: 'kind', l: 'Day type', t: 'text' }, { k: 'lead', l: 'Lead', t: 'text' },
+    { k: 'day_status', l: 'Status', t: 'text' }, { k: 'where', l: 'Where', t: 'text' }, { k: 'notes', l: 'Notes', t: 'area', w: 3 },
+  ],
+};
 LISTS.quad = ['Unknown (find later)'];
 const DISTRICT_CODE = { 'Kisatchie RD': ['KRD', 1], 'Caney RD': ['CRD', 2], 'Vernon Unit': ['VU', 3], 'Evangeline Unit': ['EVU', 4], 'Catahoula RD': ['CAT', 5], 'Winn RD': ['WRD', 6], 'Other': ['OTH', 9] };
 const PARISH = { NA: 'Natchitoches', CL: 'Claiborne', WE: 'Webster', GR: 'Grant', WN: 'Winn', RA: 'Rapides', VN: 'Vernon' };

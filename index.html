@@ -84,6 +84,15 @@ header{gap:8px}
 .tile span{display:flex;flex-direction:column;align-items:center;gap:4px}.tile svg{width:76px;height:76px}.tile small{font-size:14px;font-weight:500;opacity:.9;letter-spacing:0}
 .tile.field{background:#CE181E}.tile.lab{background:#610B0E}
 .tile.bagchk{background:#5d5555;min-height:110px;flex-direction:row;font-size:24px}.tile.bagchk svg{width:56px;height:56px}.tile.bagchk span{display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+.fdrow{display:flex;gap:10px;align-items:center;padding:6px 0;border-top:1px solid var(--line,#ddd)}.fdrow:first-child{border-top:0}
+.fdcard{border:2px solid var(--acc);margin-bottom:10px}.fdtab input[type=time]{min-width:110px}
+.tsheet{background:#fff;color:#000;max-width:8.5in;margin:10px auto;padding:.5in .6in;font-family:'Times New Roman',serif;box-shadow:0 1px 6px rgba(0,0,0,.2)}
+.tsheet h1{text-align:center;text-decoration:underline;font-size:28px;line-height:1.25;margin:0 0 30px;color:#000}
+.tsf{font-family:Arial,sans-serif;font-size:13px;margin:4px 0}.tsf span{display:inline-block;min-width:60%;border-bottom:1px solid #000;padding:0 4px}
+.ts{width:100%;border-collapse:collapse;font-family:Arial,sans-serif;font-size:13px;margin-top:14px;table-layout:fixed;color:#000}.ts td,.ts th{border:1px solid #000;padding:3px 4px;height:18px;text-align:center}
+.ts .rl{text-align:left;width:12%}.ts th{font-family:'Times New Roman',serif;font-weight:400;font-size:15px;background:#f2f2f2;color:#000}.ts.head{margin-top:40px}.ts.head td.rl{border:0}.ts .tot td{border-top:2.5px solid #000;border-bottom:2.5px solid #000}
+.tsnote{font-family:Arial,sans-serif;font-size:11px;margin-top:8px}.tssig{display:flex;gap:20px;font-family:Arial,sans-serif;font-size:13px;margin-top:30px}.tssig>div{flex:1}.tssig span{display:inline-block;width:60%;border-bottom:1px solid #000}
+@media print{.tsheet{box-shadow:none;margin:0;padding:.4in}}
 .dcstats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0}.dcstats div{background:var(--card);border-radius:10px;padding:8px;text-align:center;font-size:13px;border:1px solid var(--line,#ddd)}.dcstats b{display:block;font-size:26px}.dcstats .ok b{color:var(--ok)}.dcstats .bad{border:2px solid var(--bad)}.dcstats .bad b{color:var(--bad)}.dcstats .warn b{color:#b8860b}
 .tgt{border-collapse:collapse;margin:6px 0;font-variant-numeric:tabular-nums}.tgt td,.tgt th{padding:4px 10px;border-bottom:1px solid var(--line);text-align:left}
 .mun{display:flex;gap:6px;align-items:center;flex-wrap:nowrap}.mun select{width:auto;min-width:0;flex:1}.mun select[data-p=hue]{flex:1.4}.mun input{flex:2}.f.locked select,.f.locked input{opacity:.6}
@@ -1416,6 +1425,7 @@ function formView(rec, isNew, opts = {}) {
   $('#app').innerHTML = `${parent ? crumbs(parent) : rec.tbl === 'sites' ? '<div class="crumbs"><a href="#/sites">Sites &amp; areas</a></div>' : ''}
     <h2>${isNew ? 'New ' + esc(def.label.toLowerCase()) : esc(def.title(d))} ${statusBadge(rec)}</h2>
     <div class="help" style="margin:-4px 0 8px">${isNew ? 'Entered by' : 'Last edited by'} <b>${esc(isNew ? me() : rec.updated_by || '?')}</b>${isNew && !S.settings.name ? ' (add your name in Settings)' : ''}</div>
+    ${fieldDayNotice(rec.tbl, isNew)}
     ${rec.tbl === 'excavations' && rec.data.planned ? `<div class="check">Planned point: <b>${rec.data.target_e} E, ${rec.data.target_n} N</b>. Capture the position where you actually dig.</div>` : ''}
     <form id="frm" class="card" autocomplete="off" novalidate><div class="grid">${fields.map(f => fieldHTML(f, d[f.k], d)).join('')}</div>${lists}
     ${rec.tbl === 'sites' ? `<div id="sitemsg"></div>
@@ -1947,7 +1957,7 @@ async function viewSettings() {
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a>${s.test_only ? '' : '<button class="btn sec" id="tmoff">Leave test mode</button>'}</div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
     <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a><a class="btn sec" href="#/offline">Offline maps (imagery)</a></div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.51 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.52 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   if ($('#s_rep')) CORE.myProfile().then(p => {
     const cb = $('#s_rep'); if (!cb || !p) return;
     cb.checked = reportsOn(p); cb.disabled = false; $('#s_rep_h').textContent = `Sent to ${p.email}.`;
@@ -3176,7 +3186,10 @@ async function viewDayCheck() {
       r.data = { date: S.dc.date, checked_by: S.dc.by, started: S.dc.started, finished: now(), sites: S.dc.sites.map(id => get(id)?.data.sitename || '?').join(', '), site_ids: S.dc.sites, boxes: S.dc.boxes.join(', '),
         expected_n: s2.exp.length, scanned_n: s2.okN, missing_n: s2.missing.length, extra_n: s2.extras.length,
         expected: s2.exp, scanned: S.dc.scanned, missing: s2.missing, extras: s2.extras, notes: '', _status: 'complete', _missing: [] };
-      await save(r); S.dc = null; await saveDC(); runSync(); location.hash = '#/rec/' + r.id;
+      await save(r); S.dc = null; await saveDC(); runSync();
+      const fd = (S._closeAfterCheck && get(S._closeAfterCheck)) || todayOpenDay(); S._closeAfterCheck = null;
+      if (fd && fd.data.day_status === 'open' && canLead() && await ask('Bag check saved ✓\n\nClose today’s field day now (everyone back at the hotel)?', 'Close the day', 'Not yet')) { location.hash = '#/fieldday/' + fd.id + '?close=1'; return; }
+      location.hash = '#/rec/' + r.id;
     };
   }
   const sb = $('#dcsync'); if (sb) sb.onclick = async () => { await runSync(true); viewDayCheck(); };
@@ -3441,7 +3454,7 @@ function viewParishKey() {
 function viewHome() {
   setTitle('KNF Field Data');
   const dc = draftCount();
-  $('#app').innerHTML = `
+  $('#app').innerHTML = `${fieldDayCardHTML()}
     <div class="home">
       <a class="tile field" href="#/sites"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><span>Field<small>Sites &amp; survey areas · STPs · units · levels · bags</small></span></a>
       <a class="tile bagchk" href="#/custody"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/><path d="M15.5 16.5l1.5 1.5 3-3" stroke-width="2"/></svg><span>Artifact custody<small>Scan &amp; look up · move bags &amp; boxes · end-of-day bag check</small></span></a>
@@ -3878,12 +3891,229 @@ async function importJSON(e) {
   } catch (err) { toast('Import failed: ' + err.message); }
 }
 
+/* ================= field days, hours & UL timesheets =================
+   The lead (PI or field director) starts the day when the crew leaves the hotel and closes it back at the hotel,
+   after the bag check. Lunch is always 30 min. Anyone who drove their own vehicle gets +1 h on field days
+   (not travel days). The UL "Temporary Part-Time Time Sheet" is made from these records. */
+const LEAD_ROLES = ['PI / Co-PI', 'Field director / crew chief'];
+const canLead = () => LEAD_ROLES.includes(S.settings.role);
+const LUNCH_MIN = 30;
+const nowHM = () => { const d = new Date(); return pad(d.getHours(), 2) + ':' + pad(d.getMinutes(), 2); };
+const tmin = t => { const m = /^(\d{1,2}):(\d{2})/.exec(t || ''); return m ? +m[1] * 60 + +m[2] : null; };
+const t12 = m => { if (m == null) return ''; const h = Math.floor(m / 60) % 24, mm = m % 60; return `${h % 12 || 12}${mm ? ':' + pad(mm, 2) : ''}`; };   // like the UL sheet: 8:30, 12, 6:30
+const ampm = m => m == null ? '' : `${t12(m)} ${Math.floor(m / 60) % 24 < 12 ? 'am' : 'pm'}`;
+const hrs = v => v == null ? '' : String(+v.toFixed(2));
+function crewHours(day, c) {
+  const s = tmin(c.start), e = tmin(c.end); if (s == null || e == null || e <= s) return null;
+  const lunchAt = (s <= 11 * 60 + 30 && e >= 13 * 60) ? 12 * 60 : Math.max(s, Math.round(((s + e) / 2 - 15) / 15) * 15);
+  const worked = Math.max(0, (e - s - LUNCH_MIN) / 60), drive = c.own_vehicle && day.kind !== 'travel' ? 1 : 0;
+  return { worked, drive, total: worked + drive, in1: s, out1: lunchAt, in2: lunchAt + LUNCH_MIN, out2: e };
+}
+const openDays = () => live('fielddays').filter(r => r.data.day_status === 'open').sort((a, b) => (a.data.date < b.data.date ? 1 : -1));
+const todayOpenDay = () => openDays().find(r => r.data.date === today()) || null;
+async function peopleList() {   // everyone with a login (cached on this device for offline use) + anyone on an earlier field day
+  let cached = (await CORE.getMeta('people')) || [];
+  if (navigator.onLine) try { const p = await CORE.listProfiles(); cached = p.filter(x => !x.disabled).map(x => ({ name: (x.name || '').trim() || x.email, uid: x.id, role: x.role })); await CORE.setMeta('people', cached); } catch (e) { }
+  const names = new Map(cached.map(p => [p.name, p]));
+  live('fielddays').forEach(r => (r.data.crew || []).forEach(c => { if (c.name && !names.has(c.name)) names.set(c.name, { name: c.name, uid: c.uid || null }); }));
+  if (!names.has(me())) names.set(me(), { name: me(), uid: S.session?.uid || null });
+  return [...names.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+function dayLog(r, what) { r.data.log = [...(r.data.log || []), { t: now(), by: me(), what }]; }
+const dayEditable = r => canLead() && (r.data.day_status === 'open' || isAdmin());
+
+function fieldDayCardHTML() {
+  const d = todayOpenDay(), other = openDays().filter(x => x !== d);
+  if (canLead()) {
+    if (d) return `<div class="card fdcard"><b>🕘 ${d.data.kind === 'travel' ? 'Travel day' : 'Field day'} open</b> since ${esc(ampm(tmin(d.data.start_time)))} · lead ${esc(d.data.lead)} · ${(d.data.crew || []).length} on the crew
+      <div class="btns"><a class="btn sm" href="#/fieldday/${d.id}">Crew &amp; times</a><a class="btn sm sec" href="#/fieldday/${d.id}?close=1">Close the day…</a></div></div>`;
+    return `${other.length ? `<div class="check">⚠ ${other.length} earlier day${other.length > 1 ? 's were' : ' was'} never closed: ${other.map(x => `<a href="#/fieldday/${x.id}">${esc(x.data.date)}</a>`).join(', ')}</div>` : ''}
+      <div class="btns" style="margin:0 0 10px"><a class="btn big" href="#/fieldday/new">▶ Start the day (leaving the hotel)</a><a class="btn sec" href="#/hours">Hours &amp; timesheets</a></div>`;
+  }
+  return d ? `<div class="help" style="margin:0 0 8px">🕘 Field day open · lead ${esc(d.data.lead)} · <a href="#/fieldday/${d.id}">my hours</a></div>` : '';
+}
+// shown at the top of fieldwork forms when nobody has started the day (a reminder, not a block: phones are often offline)
+function fieldDayNotice(tbl, isNew) {
+  if (!isNew || !['sites', 'excavations', 'levels', 'mappoints', 'bags', 'features', 'samples'].includes(tbl) || todayOpenDay()) return '';
+  return `<div class="check">🕘 <b>No field day open today.</b> ${canLead() ? '<a href="#/fieldday/new">Start the day</a> so everyone’s hours are recorded.' : 'Ask Donny or Erlend to start it on their phone (if it was started, sync to see it).'}</div>`;
+}
+
+async function viewFieldDayNew() {
+  setTitle('Start the day');
+  if (!canLead()) { $('#app').innerHTML = '<div class="check">Only the PI or the field director starts the day.</div>'; return; }
+  const ex = todayOpenDay(); if (ex) { location.hash = '#/fieldday/' + ex.id; return; }
+  $('#app').innerHTML = '<h2>Start the day</h2><div class="help">Loading the crew list…</div>';
+  const ppl = await peopleList(), last = live('fielddays').sort((a, b) => (a.data.date < b.data.date ? 1 : -1))[0];
+  const was = new Map((last?.data.crew || []).map(c => [c.name, c]));
+  const row = p => `<div class="fdrow" data-n="${esc(p.name)}"><label style="flex:1;display:flex;gap:8px;align-items:center"><input type="checkbox" class="fdon" ${p.name === me() || was.has(p.name) ? 'checked' : ''} style="width:24px;height:24px;min-height:0"> <b>${esc(p.name)}</b></label>
+    <label class="help" style="display:flex;gap:6px;align-items:center;white-space:nowrap"><input type="checkbox" class="fdveh" ${was.get(p.name)?.own_vehicle ? 'checked' : ''} style="width:22px;height:22px;min-height:0"> drove own vehicle</label></div>`;
+  $('#app').innerHTML = `<h2>Start the day</h2>
+    <div class="help">Press Start when the crew leaves the hotel. Close the day when you are back, after the bag check. Lunch (30 min) is deducted automatically.</div>
+    <div class="card grid" style="margin-top:8px">
+      <div class="f"><label>Date</label><input type="date" id="fd_date" value="${today()}"></div>
+      <div class="f"><label>Leaving at</label><input type="time" id="fd_t" value="${nowHM()}"></div>
+      <div class="f"><label>Day type</label><select id="fd_kind"><option value="field">Field day</option><option value="travel">Travel day (no fieldwork)</option></select></div>
+      <div class="f w3"><label>Where</label><input id="fd_where" placeholder="e.g. Leesville → 16VN3363, or Lafayette → Natchitoches"></div>
+    </div>
+    <h3>Who is working?</h3>
+    <div class="card" id="fdcrew">${ppl.map(row).join('')}</div>
+    <div class="qrrow" style="margin-top:6px"><input id="fd_add" placeholder="Add someone without a login (name)"><button class="btn sm sec" id="fd_addb">Add</button></div>
+    <div class="help" id="fd_vehh">“Drove own vehicle” adds 1 hour to that person’s day (field days only, not travel days).</div>
+    <div class="formbar"><button class="btn big" id="fd_go">▶ Start the day</button><a class="btn sec" href="#/">Cancel</a></div>`;
+  $('#fd_addb').onclick = () => { const n = $('#fd_add').value.trim(); if (!n) return; if ([...document.querySelectorAll('.fdrow')].some(x => x.dataset.n === n)) return toast('Already on the list');
+    $('#fdcrew').insertAdjacentHTML('beforeend', row({ name: n })); $('#fdcrew .fdrow:last-child .fdon').checked = true; $('#fd_add').value = ''; };
+  $('#fd_go').onclick = async () => {
+    const t = $('#fd_t').value, date = $('#fd_date').value || today(), kind = $('#fd_kind').value;
+    const crew = [...document.querySelectorAll('.fdrow')].filter(x => $('.fdon', x).checked).map(x => ({ name: x.dataset.n, uid: ppl.find(p => p.name === x.dataset.n)?.uid || null, start: t, end: '', own_vehicle: $('.fdveh', x).checked }));
+    if (!crew.length) return toast('Tick who is working');
+    if (live('fielddays').some(r => r.data.date === date && r.data.lead === me()) && !(await ask(`You already have a day for ${date}. Start another one?`, 'Start another', 'Cancel'))) return;
+    const r = mk('fielddays', null, {});
+    r.data = { date, kind, lead: me(), lead_uid: S.session?.uid || null, day_status: 'open', started: now(), start_time: t, where: $('#fd_where').value.trim(), crew, notes: '', log: [], _status: 'complete', _missing: [] };
+    dayLog(r, `Started (${crew.length} on the crew)`); await save(r); runSync();
+    toast(`${kind === 'travel' ? 'Travel day' : 'Field day'} started ✓`); location.hash = '#/';
+  };
+}
+
+function viewFieldDay(id, qs) {
+  if (id === 'new') return viewFieldDayNew();
+  const r = get(id); if (!r || r.tbl !== 'fielddays') return notFound();
+  const d = r.data, ed = dayEditable(r), open = d.day_status === 'open';
+  setTitle(TABLES.fielddays.title(d));
+  const crew = canLead() ? (d.crew || []) : (d.crew || []).filter(c => c.name === me());
+  const tot = crew.reduce((a, c) => a + (crewHours(d, c)?.total || 0), 0);
+  $('#app').innerHTML = `<div class="crumbs"><a href="#/hours">Hours</a></div>
+    <h2>${d.kind === 'travel' ? 'Travel day' : 'Field day'} · ${esc(d.date)} <span class="badge${open ? '' : ' pos'}">${open ? 'open' : 'closed'}</span></h2>
+    <div class="help">Lead <b>${esc(d.lead)}</b>${d.where ? ' · ' + esc(d.where) : ''} · lunch 30 min deducted${d.kind === 'travel' ? ' · travel day: no own-vehicle hour' : ''}</div>
+    ${ed && open && d.lead !== me() ? `<div class="btns"><button class="btn sm sec" id="fd_lead">I’m taking over as lead</button></div>` : ''}
+    <div class="card" style="margin-top:8px;overflow-x:auto"><table class="tgt fdtab"><tr><th>Name</th><th>Start</th><th>End</th><th>Own vehicle</th><th>Hours</th>${ed ? '<th></th>' : ''}</tr>
+      ${crew.map((c, i) => { const h = crewHours(d, c), ix = (d.crew || []).indexOf(c); return `<tr data-i="${ix}"><td><b>${esc(c.name)}</b></td>
+        <td>${ed ? `<input type="time" data-k="start" value="${esc(c.start || '')}">` : esc(ampm(tmin(c.start)))}</td>
+        <td>${ed ? `<input type="time" data-k="end" value="${esc(c.end || '')}">` : esc(ampm(tmin(c.end)) || '—')}</td>
+        <td>${ed ? `<input type="checkbox" data-k="own_vehicle" ${c.own_vehicle ? 'checked' : ''} ${d.kind === 'travel' ? 'disabled' : ''} style="width:22px;height:22px;min-height:0">` : c.own_vehicle && d.kind !== 'travel' ? '✓ +1 h' : '—'}</td>
+        <td>${h ? `<b>${hrs(h.total)}</b>${h.drive ? ' <span class="help">(incl. 1 h vehicle)</span>' : ''}` : '<span class="help">—</span>'}</td>
+        ${ed ? `<td><button class="btn sm sec bad" data-rm="${ix}" title="Remove">✕</button></td>` : ''}</tr>`; }).join('') || '<tr><td colspan="6" class="help">You are not on this day’s crew.</td></tr>'}
+      ${canLead() ? `<tr><td><b>Total</b></td><td></td><td></td><td></td><td><b>${hrs(tot)}</b></td>${ed ? '<td></td>' : ''}</tr>` : ''}</table></div>
+    ${ed ? `<div class="qrrow"><input id="fd_add" placeholder="Add a person (late arrival or no login)"><button class="btn sm sec" id="fd_addb">Add</button></div>` : ''}
+    <div class="card" style="margin-top:8px"><div class="f"><label for="fd_notes">Notes</label><textarea id="fd_notes" rows="2" ${ed ? '' : 'disabled'}>${esc(d.notes || '')}</textarea></div></div>
+    <div class="formbar">${ed && open ? `<button class="btn" id="fd_close">Close the day (back at the hotel)…</button>` : ''}${!open && isAdmin() ? '<button class="btn sec" id="fd_reopen">Reopen</button>' : ''}<a class="btn sec" href="#/">Home</a></div>
+    ${!open && !isAdmin() && canLead() ? '<div class="help">Closed days can only be changed by the PI.</div>' : ''}
+    ${canLead() && (d.log || []).length ? `<details style="margin-top:8px"><summary class="help">Change log (${d.log.length})</summary><ul class="help">${d.log.map(l => `<li>${esc(new Date(l.t).toLocaleString())} · ${esc(l.by)}: ${esc(l.what)}</li>`).join('')}</ul></details>` : ''}`;
+  const commit = async (what) => { dayLog(r, what); await save(r); viewFieldDay(id); };
+  if (ed) {
+    $('#app').querySelectorAll('.fdtab [data-k]').forEach(inp => inp.onchange = () => {
+      const c = d.crew[+inp.closest('tr').dataset.i], k = inp.dataset.k, v = inp.type === 'checkbox' ? inp.checked : inp.value;
+      c[k] = v; commit(`${c.name}: ${k === 'own_vehicle' ? (v ? 'drove own vehicle' : 'did not drive own vehicle') : k + ' ' + (v || 'cleared')}`);
+    });
+    $('#app').querySelectorAll('[data-rm]').forEach(b => b.onclick = async () => { const c = d.crew[+b.dataset.rm]; if (!(await ask(`Remove ${c.name} from this day?`, 'Remove'))) return; d.crew.splice(+b.dataset.rm, 1); commit('Removed ' + c.name); });
+    $('#fd_addb').onclick = () => { const n = $('#fd_add').value.trim(); if (!n) return; if (d.crew.some(c => c.name === n)) return toast('Already on the crew'); d.crew.push({ name: n, uid: null, start: nowHM(), end: '', own_vehicle: false }); commit('Added ' + n); };
+    $('#fd_notes').onchange = () => { d.notes = $('#fd_notes').value.trim(); commit('Notes changed'); };
+  }
+  $('#fd_lead') && ($('#fd_lead').onclick = () => { const old = d.lead; d.lead = me(); d.lead_uid = S.session?.uid || null; commit(`Lead changed from ${old} to ${me()}`); });
+  $('#fd_reopen') && ($('#fd_reopen').onclick = async () => { if (!(await ask('Reopen this day so the times can be changed?', 'Reopen'))) return; d.day_status = 'open'; commit('Reopened'); });
+  const closeIt = async () => {
+    if (d.kind !== 'travel' && !live('daychecks').some(x => x.data.date === d.date)) {
+      const go = await ask('No bag check has been done today. Do the bag check first? The day closes when you finish it.', 'Do the bag check', 'Close without it');
+      if (go) { S._closeAfterCheck = r.id; location.hash = '#/daycheck'; return; }
+    }
+    const m = document.createElement('div'); m.className = 'modal';
+    const blank = d.crew.filter(c => !c.end);
+    m.innerHTML = `<div class="card"><b style="font-size:17px">Close the ${d.kind === 'travel' ? 'travel day' : 'day'}</b>
+      <div class="f" style="margin-top:8px"><label for="fdc_t">Back at the hotel at</label><input type="time" id="fdc_t" value="${nowHM()}"></div>
+      <div class="help">${blank.length ? `Sets the end time for ${blank.length === d.crew.length ? 'everyone' : blank.map(c => esc(c.name)).join(', ')}. ` : ''}Anyone who left earlier: change their end time on the list afterwards. Lunch (30 min) is deducted.</div>
+      <div class="btns" style="justify-content:flex-end"><button class="btn sec" data-v="0">Cancel</button><button class="btn" data-v="1">Close the day ✓</button></div></div>`;
+    document.body.append(m);
+    m.onclick = async ev => { const v = ev.target.dataset.v; if (v == null) return; const t = $('#fdc_t', m).value; m.remove(); if (v !== '1') return;
+      d.crew.forEach(c => { if (!c.end) c.end = t; }); d.day_status = 'closed'; d.ended = now();
+      const bad = d.crew.filter(c => !crewHours(d, c)); dayLog(r, `Closed at ${t}`); await save(r); runSync();
+      toast(bad.length ? `Closed. Check the times for ${bad.map(c => c.name).join(', ')}` : 'Day closed ✓'); viewFieldDay(id); };
+  };
+  $('#fd_close') && ($('#fd_close').onclick = closeIt);
+  if (new URLSearchParams(qs || '').get('close') && ed && open) setTimeout(closeIt, 100);
+}
+
+/* ---- pay periods: two weeks, Saturday to Friday, counted from the anchor date (UL: 12/23/2023) ---- */
+const dayMs = 864e5, ymd = t => new Date(t).toISOString().slice(0, 10), utc = s => Date.parse(s + 'T00:00:00Z');
+function payPeriod(dateStr, anchor) {
+  const a = utc(anchor || S.settings.pay_anchor || '2023-12-23'), n = Math.floor((utc(dateStr) - a) / (14 * dayMs));
+  const s = a + n * 14 * dayMs; return { start: ymd(s), end: ymd(s + 13 * dayMs), days: Array.from({ length: 14 }, (_, i) => ymd(s + i * dayMs)) };
+}
+const usd = s => { const [y, m, d] = s.split('-'); return `${+m}/${+d}/${y.slice(2)}`; };
+function personDays(name, period) {   // that person's entries in a pay period, one per calendar day (two entries on one day are combined)
+  const out = {};
+  for (const r of live('fielddays')) {
+    if (!period.days.includes(r.data.date)) continue;
+    for (const c of r.data.crew || []) if (c.name === name) { const h = crewHours(r.data, c); if (!h) continue;
+      const o = out[r.data.date]; out[r.data.date] = o ? { ...o, in1: Math.min(o.in1, h.in1), out2: Math.max(o.out2, h.out2), worked: o.worked + h.worked, drive: Math.max(o.drive, h.drive), total: o.worked + h.worked + Math.max(o.drive, h.drive), kind: o.kind, double: 1 } : { ...h, kind: r.data.kind, open: r.data.day_status === 'open' }; }
+  }
+  return out;
+}
+async function viewHours(qs) {
+  setTitle('Hours & timesheets');
+  if (!canLead()) {   // crew: just their own hours
+    const per = payPeriod(today()), mine = personDays(me(), per);
+    $('#app').innerHTML = `<h2>My hours</h2><div class="help">Pay period ${usd(per.start)} – ${usd(per.end)}. Ask the field director if something looks wrong.</div>
+      <div class="card"><table class="tgt">${per.days.filter(x => mine[x]).map(x => `<tr><td>${usd(x)}</td><td>${ampm(mine[x].in1)}–${ampm(mine[x].out2)}</td><td><b>${hrs(mine[x].total)}</b>${mine[x].drive ? ' (incl. 1 h vehicle)' : ''}</td></tr>`).join('') || '<tr><td class="help">No hours yet this period</td></tr>'}</table></div>`;
+    return;
+  }
+  const p = new URLSearchParams(qs || ''), per = payPeriod(p.get('p') || today()), prev = ymd(utc(per.start) - dayMs), next = ymd(utc(per.end) + dayMs);
+  const ulids = (await CORE.getMeta('ulids')) || {};
+  const names = [...new Set(live('fielddays').filter(r => per.days.includes(r.data.date)).flatMap(r => (r.data.crew || []).map(c => c.name)))].sort();
+  const rows = names.map(n => { const pd = personDays(n, per), v = Object.values(pd); return { n, days: v.length, worked: v.reduce((a, x) => a + x.worked, 0), drive: v.reduce((a, x) => a + x.drive, 0), total: v.reduce((a, x) => a + x.total, 0), open: v.some(x => x.open) }; });
+  const days = live('fielddays').filter(r => per.days.includes(r.data.date)).sort((a, b) => (a.data.date > b.data.date ? 1 : -1));
+  $('#app').innerHTML = `<h2>Hours &amp; timesheets</h2>
+    <div class="card" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><a class="btn sm sec" href="#/hours?p=${prev}">‹ Earlier</a><b style="flex:1;text-align:center">Pay period ${usd(per.start)} – ${usd(per.end)}</b><a class="btn sm sec" href="#/hours?p=${next}">Later ›</a></div>
+    <div class="card" style="overflow-x:auto"><table class="tgt"><tr><th>Name</th><th>Days</th><th>Worked</th><th>Own vehicle</th><th>Total</th><th></th></tr>
+      ${rows.map(x => `<tr><td><b>${esc(x.n)}</b>${x.open ? ' <span class="badge">day still open</span>' : ''}</td><td>${x.days}</td><td>${hrs(x.worked)}</td><td>${x.drive ? hrs(x.drive) + ' h' : '—'}</td><td><b>${hrs(x.total)}</b></td>
+        <td><a class="btn sm" href="#/timesheet?p=${per.start}&n=${encodeURIComponent(x.n)}">UL timesheet</a></td></tr>`).join('') || '<tr><td colspan="6" class="help">No field days in this pay period</td></tr>'}</table></div>
+    <div class="btns"><button class="btn sec" id="hr_csv">⬇ Excel / CSV of this period</button><a class="btn sec" href="#/fieldday/new">▶ Start a day</a></div>
+    <h3>Days in this period</h3><div class="list">${days.map(r => `<a class="row" href="#/fieldday/${r.id}"><div class="t"><b>${esc(TABLES.fielddays.title(r.data))}</b><small>lead ${esc(r.data.lead)} · ${(r.data.crew || []).length} people${r.data.where ? ' · ' + esc(r.data.where) : ''}</small></div><span aria-hidden="true">›</span></a>`).join('') || '<div class="empty">None</div>'}</div>
+    ${isAdmin() ? `<h3>Timesheet details (only on this device)</h3><div class="card grid">
+      <div class="f w3 help">ULIDs are kept only on this device, never uploaded. Students on a different payroll system: use the Excel/CSV export.</div>
+      ${names.map(n => `<div class="f"><label>ULID · ${esc(n)}</label><input data-ulid="${esc(n)}" value="${esc(ulids[n] || '')}" placeholder="C00…" autocomplete="off"></div>`).join('')}
+      <div class="f"><label>Pay periods start on (any period’s first Saturday)</label><input type="date" id="hr_anchor" value="${esc(S.settings.pay_anchor || '2023-12-23')}"></div></div>` : ''}`;
+  $('#app').querySelectorAll('[data-ulid]').forEach(i => i.onchange = async () => { const u = (await CORE.getMeta('ulids')) || {}; u[i.dataset.ulid] = i.value.trim(); await CORE.setMeta('ulids', u); toast('Saved on this device'); });
+  $('#hr_anchor') && ($('#hr_anchor').onchange = async () => { const v = $('#hr_anchor').value; if (new Date(v + 'T12:00').getDay() !== 6) return toast('Pick a Saturday'); S.settings.pay_anchor = v; await CORE.setMeta('settings', S.settings); viewHours(qs); });
+  $('#hr_csv').onclick = () => {
+    const L = [['Name', 'Date', 'Day type', 'In', 'Out (lunch)', 'In', 'Out', 'Worked h', 'Own vehicle h', 'Total h'].join(',')];
+    for (const x of rows) { const pd = personDays(x.n, per); for (const dt of per.days) if (pd[dt]) { const h = pd[dt]; L.push([csvCell(x.n), dt, h.kind === 'travel' ? 'Travel' : 'Field', ampm(h.in1), ampm(h.out1), ampm(h.in2), ampm(h.out2), hrs(h.worked), h.drive || '', hrs(h.total)].join(',')); } }
+    download(new Blob(['﻿' + L.join('\r\n')], { type: 'text/csv' }), `KNF_hours_${per.start}_to_${per.end}.csv`);
+  };
+}
+async function viewTimesheet(qs) {
+  setTitle('UL timesheet');
+  if (!canLead()) return viewHours();
+  const p = new URLSearchParams(qs || ''), per = payPeriod(p.get('p') || today()), name = p.get('n') || '', pd = personDays(name, per);
+  const ulid = ((await CORE.getMeta('ulids')) || {})[name] || '';
+  const total = Object.values(pd).reduce((a, x) => a + x.total, 0), veh = per.days.filter(x => pd[x]?.drive).map(usd);
+  const DAYS = ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  const week = w => { const ds = per.days.slice(w * 7, w * 7 + 7), cell = (x, f) => `<td>${pd[x] ? f(pd[x]) : ''}</td>`;
+    return `<table class="ts"><tr><td class="rl">Date:</td>${ds.map(x => `<td>${pd[x] ? usd(x) : ''}</td>`).join('')}</tr>
+      <tr><td class="rl">In</td>${ds.map(x => cell(x, h => t12(h.in1))).join('')}</tr><tr><td class="rl">Out</td>${ds.map(x => cell(x, h => t12(h.out1))).join('')}</tr>
+      <tr><td class="rl">In</td>${ds.map(x => cell(x, h => t12(h.in2))).join('')}</tr><tr><td class="rl">Out</td>${ds.map(x => cell(x, h => t12(h.out2))).join('')}</tr>
+      <tr class="tot"><td class="rl">Total:</td>${ds.map(x => cell(x, h => hrs(h.total) + (h.drive ? '*' : ''))).join('')}</tr></table>`; };
+  $('#app').innerHTML = `<div class="noprint"><div class="crumbs"><a href="#/hours?p=${per.start}">Hours</a></div>
+      <div class="btns"><button class="btn" id="ts_print">⎙ Print / save as PDF</button><a class="btn sec" href="#/hours?p=${per.start}">Back</a></div>
+      ${ulid ? '' : '<div class="check">No ULID saved for this person. Add it on the Hours page (PI only), or write it in by hand.</div>'}
+      ${Object.values(pd).some(x => x.open) ? '<div class="check">A day in this period is still open: its end time may change.</div>' : ''}
+      ${Object.values(pd).some(x => x.double) ? '<div class="check">This person is on two field days on the same date: the times were combined (first in, last out). Check them.</div>' : ''}</div>
+    <div class="tsheet">
+      <h1>Temporary Part-Time<br>Time Sheet</h1>
+      <div class="tsf">Name: <span>${esc(name)}</span></div><div class="tsf">ULID: <span>${esc(ulid)}</span></div><div class="tsf">Payroll Period: <span>${usd(per.start)} - ${usd(per.end)}</span></div>
+      <table class="ts head"><tr><td class="rl"></td>${DAYS.map(x => `<th>${x}</th>`).join('')}</tr></table>
+      ${week(0)}${week(1)}
+      ${veh.length ? `<div class="tsnote">* Total includes 1 h own-vehicle travel on ${veh.join(', ')}. Lunch: 30 min unpaid each day.</div>` : '<div class="tsnote">Lunch: 30 min unpaid each day.</div>'}
+      <div class="tssig"><div>Signature: <span></span></div><div>Total Hours For Payroll Period: <b>${hrs(total)}</b> <small>(${usd(per.start)} - ${usd(per.end)})</small></div></div>
+      <div class="tssig"><div>Supervisor’s Signature: <span></span></div></div>
+    </div>`;
+  $('#ts_print').onclick = () => window.print();
+}
+
 /* ================= router ================= */
 function render() {
   const h = location.hash || '#/';
   const [path, qs] = h.slice(1).split('?');
   const seg = path.split('/').filter(Boolean);
-  const tab = { sites: 'field', site: 'field', rec: 'field', closed: 'field', closeout: 'field', window: 'field', edit: 'field', new: 'field', lab: 'lab', catalog: 'lab', storage: 'lab', boxlabel: 'custody', c14: 'lab', scan: 'custody', boxes: 'custody', labels: 'custody', daycheck: 'custody', custody: 'custody', move: 'custody', data: 'data' }[seg[0]] || (seg.length ? '' : 'home');
+  const tab = { sites: 'field', site: 'field', rec: 'field', closed: 'field', closeout: 'field', window: 'field', edit: 'field', new: 'field', lab: 'lab', catalog: 'lab', storage: 'lab', boxlabel: 'custody', c14: 'lab', scan: 'custody', boxes: 'custody', labels: 'custody', daycheck: 'custody', custody: 'custody', fieldday: 'home', hours: 'home', timesheet: 'home', move: 'custody', data: 'data' }[seg[0]] || (seg.length ? '' : 'home');
   document.querySelectorAll('#tabs a').forEach(a => a.classList.toggle('on', a.dataset.t === tab));
   if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; document.querySelectorAll('.modal').forEach(m => m.remove()); }
   stopLiveGps(); scrollTo(0, 0);
@@ -3894,6 +4124,9 @@ function render() {
     case 'site': return viewSite(seg[1]);
     case 'rec': return viewRec(seg[1]);
     case 'closeout': return viewUnitCloseout(seg[1]);
+    case 'fieldday': return viewFieldDay(seg[1], qs);
+    case 'hours': return viewHours(qs);
+    case 'timesheet': return viewTimesheet(qs);
     case 'storage': return viewStorage();
     case 'c14': { const r = get(seg[1]); return r ? formView(r, false, { lab: true, back: r.data.level_id ? '#/rec/' + r.data.level_id : null }) : notFound(); }
     case 'boxlabel': return viewBoxLabel(decodeURIComponent(seg[1] || ''));
