@@ -301,7 +301,7 @@ const now = () => new Date().toISOString();
 const today = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
 const pad = (n, w) => String(n ?? '').padStart(w, '0');
 const me = () => S.settings.name || S.session?.email || 'unknown';
-const DEF = { name: '', role: '', level_cm: 10, gps_secs: 10, gps_max_acc: 2, gps_source: 'Phone/tablet built-in GPS', datum: 'WGS84 / ITRF (device)', theme: 'auto', scan_sound: 'on', scan_input: 'auto', sb_url: 'https://xmvzhxlqagstuvqvcyhc.supabase.co', sb_key: 'sb_publishable_SUcJNMK83_q6eTAVWLr-Rw_cVItt_6b' };
+const DEF = { name: '', role: '', level_cm: 10, gps_secs: 10, gps_max_acc: 2, gps_source: 'Phone/tablet built-in GPS', datum: 'WGS84 / ITRF (device)', theme: 'auto', scan_sound: 'on', sb_url: 'https://xmvzhxlqagstuvqvcyhc.supabase.co', sb_key: 'sb_publishable_SUcJNMK83_q6eTAVWLr-Rw_cVItt_6b' };
 
 function live(tbl) { return [...S.recs.values()].filter(r => r.tbl === tbl && !r.deleted); }
 function kids(parent, tbl) { return live(tbl).filter(r => r.parent === parent); }
@@ -1937,7 +1937,6 @@ async function viewSettings() {
       <div class="f"><label>GPS averaging (seconds)</label><input id="s_gps_secs" inputmode="numeric" value="${esc(s.gps_secs)}"></div>
       <div class="f w2"><label>Usual GPS source on this device</label><select id="s_gps_source">${GPS_SOURCES.map(g => `<option ${g.k === srcInfo(s.gps_source).k ? 'selected' : ''}>${esc(g.k)}</option>`).join('')}</select><div class="help">Can be changed for each capture. Accuracy warnings follow the source.</div></div>
       <div class="f w2"><label>Datum / reference frame label</label><input id="s_datum" value="${esc(s.datum)}"><div class="help">Phone/browser coordinates are WGS84. With Emlid RTK, use the frame of your correction source.</div></div>
-      <div class="f"><label>Label scanning on this device</label><select id="s_scan_input">${[['auto', 'Auto (USB scanner on computers, camera on phones)'], ['usb', 'USB QR scanner'], ['camera', 'Camera']].map(([v, t]) => `<option value="${v}" ${(s.scan_input || 'auto') === v ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
       <div class="f"><label>Scan sounds</label><select id="s_scan_sound">${['on', 'off'].map(t => `<option ${(s.scan_sound || 'on') === t ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
       <div class="f"><label>Theme</label><select id="s_theme">${['auto', 'light', 'dark'].map(t => `<option ${s.theme === t ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
       <div class="grp">Server (Supabase)</div>
@@ -1958,7 +1957,7 @@ async function viewSettings() {
       <div class="btns"><button class="btn" id="demo">Load practice data</button><a class="btn sec" href="#/testplan">Test checklist</a>${s.test_only ? '' : '<button class="btn sec" id="tmoff">Leave test mode</button>'}</div>`
       : `<p class="help">Practise or test the app without touching project data. Test mode has its own storage on this device and its own table on the server.</p><div class="btns"><button class="btn sec" id="tmon">Switch to test mode</button></div>`}</div>
     <h3>Reference</h3><div class="btns"><a class="btn sec" href="#/parishes">Parish numbers (ID code key)</a><a class="btn sec" href="#/offline">Offline maps (imagery)</a></div>
-    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.53 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
+    <h3>About</h3><div class="card help">© ${new Date().getFullYear()} Erlend Johnson. All rights reserved.<br>KNF Field &amp; Lab Data v1.52 · data stored on this device${navigator.storage?.persist ? ' (persistent storage ' + (S.persisted ? 'granted' : 'not granted') + ')' : ''}.</div>`;
   if ($('#s_rep')) CORE.myProfile().then(p => {
     const cb = $('#s_rep'); if (!cb || !p) return;
     cb.checked = reportsOn(p); cb.disabled = false; $('#s_rep_h').textContent = `Sent to ${p.email}.`;
@@ -2840,34 +2839,22 @@ function diagBagPrompt(level, cats) {
 }
 
 let scanStream = null;
-// label scanning: camera (phones) or a USB QR scanner, which types the code and presses Enter (computers).
-// "auto" = USB scanner on computers without a touch screen, camera on phones and tablets; switch in the scan window or Settings.
-const scanMode = () => { const v = S.settings.scan_input || 'auto'; return v === 'auto' ? ('ontouchstart' in window || navigator.maxTouchPoints > 0 ? 'camera' : 'usb') : v; };
-function openScanner(title = 'Scan label', mode) {
-  mode = mode || scanMode();
+function openScanner(title = 'Scan label') {
   return new Promise(resolve => {
-    const usb = mode === 'usb';
     const m = document.createElement('div'); m.className = 'modal';
     m.innerHTML = `<div class="card" style="max-width:520px"><b>${esc(title)}</b>
-      ${usb ? `<div class="usbready" style="margin:10px 0;padding:22px 14px;border:3px dashed var(--acc);border-radius:14px;text-align:center"><div style="font-size:40px;line-height:1">▣</div><b style="font-size:19px">Ready: scan the label with the USB scanner</b><div class="help">Point the scanner at the QR code and pull the trigger.</div></div>`
-        : `<div class="scanbox" style="margin:10px 0"><video playsinline muted></video><div class="aim"></div></div>`}
-      <div class="help sm" id="smsg">${usb ? '' : 'Point the camera at the QR code.'}</div>
-      <div class="qrrow" style="margin-top:8px"><input id="sman" placeholder="${usb ? 'Scanned code appears here (or type it)' : '…or type / use a USB scanner'}" autocapitalize="characters" autocomplete="off"><button class="btn sm" id="sok">OK</button></div>
-      <div class="btns" style="justify-content:space-between"><button class="btn sm sec" id="sswap">${usb ? '📷 Use the camera instead' : '▣ Use a USB scanner instead'}</button><button class="btn sec" id="sx">Cancel</button></div></div>`;
+      <div class="scanbox" style="margin:10px 0"><video playsinline muted></video><div class="aim"></div></div>
+      <div class="help sm" id="smsg">Point the camera at the QR code.</div>
+      <div class="qrrow" style="margin-top:8px"><input id="sman" placeholder="…or type / use a USB scanner" autocapitalize="characters" autocomplete="off"><button class="btn sm" id="sok">OK</button></div>
+      <div class="btns" style="justify-content:flex-end"><button class="btn sec" id="sx">Cancel</button></div></div>`;
     document.body.append(m);
     const video = $('video', m), msg = $('#smsg', m), man = $('#sman', m);
     let stop = false; const cv = document.createElement('canvas'), cx = cv.getContext('2d', { willReadFrequently: true });
-    const close = () => { if (stop) return false; stop = true; scanStream?.getTracks().forEach(t => t.stop()); scanStream = null; m.remove(); document.removeEventListener('keydown', grab, true); return true; };
-    const done = v => { if (close()) resolve(v); };
+    const done = v => { if (stop) return; stop = true; scanStream?.getTracks().forEach(t => t.stop()); scanStream = null; m.remove(); resolve(v); };
     $('#sx', m).onclick = () => done(null);
-    $('#sswap', m).onclick = async () => { const nm = usb ? 'camera' : 'usb'; S.settings.scan_input = nm; await CORE.setMeta('settings', S.settings); if (close()) openScanner(title, nm).then(resolve); };
-    const manual = () => { const v = man.value.trim(); if (!v) return; const c = parseCode(v); if (!c) { msg.textContent = `“${v}” is not a KNF label code (B-XXXXXX or X-XXXXXX).`; man.value = ''; man.focus(); return; } done(c); };
+    const manual = () => { const v = man.value.trim(); if (!v) return; const c = parseCode(v); if (!c) { msg.textContent = `“${v}” is not a KNF label code (B-XXXXXX or X-XXXXXX).`; return; } done(c); };
     $('#sok', m).onclick = manual; man.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); manual(); } };
-    // a USB scanner "types" into whatever has focus: catch it even if the box lost focus
-    const grab = e => { if (stop || e.target === man || e.ctrlKey || e.altKey || e.metaKey) return; if (e.key === 'Enter' && man.value) { e.preventDefault(); manual(); } else if (e.key.length === 1) { e.preventDefault(); man.value += e.key; man.focus(); } };
-    document.addEventListener('keydown', grab, true);
-    if (usb || !('ontouchstart' in window)) setTimeout(() => man.focus(), 30);
-    if (usb) return;
+    if (!('ontouchstart' in window)) man.focus();
     let det = null;
     (async () => {
       try { if ('BarcodeDetector' in window && (await BarcodeDetector.getSupportedFormats()).includes('qr_code')) det = new BarcodeDetector({ formats: ['qr_code'] }); } catch (e) { }
@@ -3491,7 +3478,7 @@ async function viewScan(code) {
   setTitle('Scan');
   if (!code) {
     $('#app').innerHTML = `<h2>Scan a label</h2>
-      <button class="btn bigscan" id="go">▣ Scan a label</button>
+      <button class="btn bigscan" id="go">▣ Open camera</button>
       <div class="card" style="margin-top:12px"><div class="f"><label for="typed">Or type the code / use a USB scanner</label><div class="qrrow"><input id="typed" placeholder="B-XXXXXX or X-XXXXXX" autocapitalize="characters" autocomplete="off"><button class="btn sm" id="tok">Go</button></div></div></div>
       <div class="btns"><a class="btn sec" href="#/labels">Print labels</a><a class="btn sec" href="#/boxes">All boxes</a></div>
       <div class="help">Bag labels start with B-, box labels with X-. Phones can also scan with their own camera app: the label opens this page.</div>`;
